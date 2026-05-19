@@ -1,0 +1,886 @@
+<!DOCTYPE html>
+<html lang="es" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>S9.1 auto</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  min-height: 100vh; padding: 20px; color: #333;
+}
+.container { max-width: 700px; margin: 0 auto; }
+.header { text-align: center; color: #fff; padding: 30px 20px; }
+.header h1 { font-size: 28px; font-weight: 700; margin-bottom: 8px; text-shadow: 0 2px 10px rgba(0,0,0,0.2); }
+.header .meta { font-size: 14px; opacity: 0.9; }
+.progress-bar { background: rgba(255,255,255,0.3); border-radius: 10px; height: 8px; margin: 20px 0; overflow: hidden; }
+.progress-fill { background: #fff; height: 100%; width: 0%; transition: width 0.4s ease; border-radius: 10px; }
+.question { background: #fff; border-radius: 16px; padding: 30px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); display: none; }
+.question.active { display: block; }
+.q-header { display: flex; justify-content: space-between; margin-bottom: 20px; font-size: 13px; color: #888; }
+.q-number { font-weight: 600; color: #667eea; }
+.q-text { font-size: 18px; font-weight: 600; line-height: 1.5; margin-bottom: 25px; color: #222; }
+.options { display: flex; flex-direction: column; gap: 12px; }
+.option-wrapper { display: flex; flex-direction: column; }
+.option {
+  display: flex; align-items: flex-start; gap: 14px; padding: 16px 18px;
+  border: 2px solid #e8e8e8; border-radius: 12px; background: #fafafa;
+  cursor: pointer; transition: all 0.2s; text-align: left; font-size: 15px; width: 100%;
+}
+[dir="rtl"] .option { text-align: right; flex-direction: row-reverse; }
+.option:hover:not(.disabled) { border-color: #667eea; background: #f5f3ff; }
+.option.selected { border-color: #667eea; background: #ede9fe; }
+.option.correct { border-color: #22c55e; background: #dcfce7; }
+.option.incorrect { border-color: #ef4444; background: #fee2e2; }
+.option.disabled { cursor: default; }
+.option.show-correct { border-color: #22c55e; background: #dcfce7; }
+.opt-label {
+  display: flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; border-radius: 50%; background: #e8e8e8;
+  font-weight: 700; font-size: 14px; flex-shrink: 0;
+}
+.option.selected .opt-label { background: #667eea; color: #fff; }
+.option.correct .opt-label { background: #22c55e; color: #fff; }
+.option.incorrect .opt-label { background: #ef4444; color: #fff; }
+.option.show-correct .opt-label { background: #22c55e; color: #fff; }
+.opt-text { padding-top: 5px; line-height: 1.5; }
+
+/* Individual option feedback */
+.option-feedback {
+  margin: 8px 0 4px 46px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+[dir="rtl"] .option-feedback { margin-left: 0; margin-right: 46px; }
+.option-feedback.correct-feedback {
+  background: #dcfce7;
+  border-left: 3px solid #22c55e;
+}
+.option-feedback.incorrect-feedback {
+  background: #fef3f2;
+  border-left: 3px solid #fca5a5;
+}
+[dir="rtl"] .option-feedback.correct-feedback,
+[dir="rtl"] .option-feedback.incorrect-feedback {
+  border-left: none;
+  border-right: 3px solid;
+}
+[dir="rtl"] .option-feedback.correct-feedback { border-right-color: #22c55e; }
+[dir="rtl"] .option-feedback.incorrect-feedback { border-right-color: #fca5a5; }
+.feedback-status {
+  font-weight: 600;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.feedback-status.correct { color: #166534; }
+.feedback-status.incorrect { color: #991b1b; }
+.feedback-rationale { color: #444; }
+
+/* Hint box */
+.hint-box {
+  margin: 12px 0;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+}
+.hint-toggle {
+  width: 100%;
+  padding: 10px 16px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  color: #92400e;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.hint-toggle:hover { background: #fef3c7; }
+.hint-content {
+  padding: 0 16px;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s, padding 0.3s;
+  font-size: 14px;
+  color: #78350f;
+  line-height: 1.5;
+}
+.hint-box.show .hint-content {
+  padding: 0 16px 12px;
+  max-height: 200px;
+}
+
+.next-btn {
+  margin-top: 20px; width: 100%; padding: 14px;
+  background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; border: none;
+  border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.next-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(102,126,234,0.4); }
+.hidden { display: none !important; }
+.results { background: #fff; border-radius: 16px; padding: 40px; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.15); display: none; }
+.results.active { display: block; }
+.results h2 { font-size: 28px; margin-bottom: 10px; color: #333; }
+.results .score { font-size: 64px; font-weight: 700; color: #667eea; margin: 20px 0; }
+.results .score-text { font-size: 18px; color: #666; margin-bottom: 30px; }
+.restart-btn {
+  padding: 14px 40px; background: linear-gradient(135deg, #667eea, #764ba2);
+  color: #fff; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer;
+}
+
+/* Math CSS */
+.math, .math-block { font-family: "Cambria Math", "Times New Roman", Times, serif; font-style: italic; }
+.math-block { display: block; text-align: center; margin: 10px 0; font-size: 110%; }
+.frac { display: inline-flex; flex-direction: column; align-items: center; vertical-align: middle; margin: 0 3px; font-size: 0.9em; }
+.frac-num { border-bottom: 1px solid currentColor; padding: 0 4px 2px; line-height: 1.2; }
+.frac-den { padding: 2px 4px 0; line-height: 1.2; }
+.sqrt { white-space: nowrap; }
+.sqrt-content { border-top: 1px solid currentColor; padding: 0 3px; margin-left: 2px; }
+sup, sub { font-size: 0.75em; }
+sup { vertical-align: super; }
+sub { vertical-align: sub; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>S9.1 auto</h1>
+    <div class="meta">10 preguntas</div>
+    <div class="progress-bar"><div class="progress-fill"></div></div>
+  </div>
+  <div id="quiz-container">
+        <div class="question" data-index="0">
+          <div class="q-header">
+            <span class="q-number">Pregunta 1</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿Qué siglas representan al dispositivo de control descrito como el 'cerebro' que procesa entradas para activar salidas en un sistema automatizado?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Se trata de un acrónimo que incluye las palabras 'Lógico' y 'Programable'.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="La Interfaz Hombre-Máquina es el panel de visualización, no el dispositivo que procesa la lógica del programa.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">HMI</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La Interfaz Hombre-Máquina es el panel de visualización, no el dispositivo que procesa la lógica del programa.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Aunque es un controlador, el Control Numérico Computarizado se enfoca específicamente en el movimiento de máquinas-herramienta, no en lógica general de procesos.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">CNC</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aunque es un controlador, el Control Numérico Computarizado se enfoca específicamente en el movimiento de máquinas-herramienta, no en lógica general de procesos.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Este término se refiere a sistemas de supervisión y adquisición de datos a gran escala, no al controlador individual.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">SCADA</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Este término se refiere a sistemas de supervisión y adquisición de datos a gran escala, no al controlador individual.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="true" data-rationale="El Controlador Lógico Programable es el núcleo del sistema que recibe señales de entrada y ejecuta la lógica para controlar los actuadores.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">PLC</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El Controlador Lógico Programable es el núcleo del sistema que recibe señales de entrada y ejecuta la lógica para controlar los actuadores.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="1">
+          <div class="q-header">
+            <span class="q-number">Pregunta 2</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">En la nomenclatura estándar de PLC utilizada en el material, ¿con qué letra se identifican las entradas físicas como sensores o pulsadores?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piense en el término en inglés para 'entrada'.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="La letra 'I' proviene del término en inglés 'Input', que identifica las señales que entran al controlador.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">I</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La letra 'I' proviene del término en inglés 'Input', que identifica las señales que entran al controlador.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Las memorias internas suelen usar esta letra, pero no representan dispositivos de entrada física externos.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">M</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Las memorias internas suelen usar esta letra, pero no representan dispositivos de entrada física externos.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Esta letra se utiliza específicamente para identificar las salidas (Outputs) o actuadores del sistema.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Q</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esta letra se utiliza específicamente para identificar las salidas (Outputs) o actuadores del sistema.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Aunque algunos fabricantes usan la 'E' de 'Entrada', el material de Siemens y Schneider presentado utiliza la letra 'I'.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">E</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aunque algunos fabricantes usan la 'E' de 'Entrada', el material de Siemens y Schneider presentado utiliza la letra 'I'.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="2">
+          <div class="q-header">
+            <span class="q-number">Pregunta 3</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">De acuerdo con el flujo de trabajo presentado, ¿qué software se asocia específicamente con la marca Schneider?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">El nombre combina una palabra en inglés para 'así' o 'tan' con el término 'máquina'.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Este es el software principal para los controladores de la marca Siemens, no de Schneider.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">TIA Portal</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Este es el software principal para los controladores de la marca Siemens, no de Schneider.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Este entorno pertenece a la marca Rockwell Automation (Allen-Bradley).">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Studio 5000</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Este entorno pertenece a la marca Rockwell Automation (Allen-Bradley).</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="true" data-rationale="Es el entorno de desarrollo mencionado en la sesión para la programación de controladores de esta marca específica.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">So Machine</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Es el entorno de desarrollo mencionado en la sesión para la programación de controladores de esta marca específica.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Es una herramienta dedicada a los micro-PLC de Siemens.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Logo!Soft Comfort</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Es una herramienta dedicada a los micro-PLC de Siemens.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="3">
+          <div class="q-header">
+            <span class="q-number">Pregunta 4</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">En el proceso de transporte de la pieza, ¿cuál es la condición necesaria para que la ventosa electrónica se active?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considere la interacción física necesaria entre el actuador vertical y la pieza antes de la sujeción.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="La secuencia establece que la ventosa solo se activa una vez que el pistón está en su posición inferior para sujetar la pieza.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Que el primer pistón neumático haya bajado mecánicamente</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La secuencia establece que la ventosa solo se activa una vez que el pistón está en su posición inferior para sujetar la pieza.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El giro del brazo ocurre después de que la ventosa ya ha sujetado la pieza y el pistón ha subido.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Que el brazo metálico haya girado <span class="math">180<sup>°</sup></span></span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El giro del brazo ocurre después de que la ventosa ya ha sujetado la pieza y el pistón ha subido.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="La faja se activa mucho después, una vez que la pieza ya ha sido trasladada por el brazo metálico.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Que el motor de la faja transportadora esté encendido</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La faja se activa mucho después, una vez que la pieza ya ha sido trasladada por el brazo metálico.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="La ventosa actúa al inicio del proceso para recoger la pieza, no al final.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Que se detecte la pieza al final de la faja</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La ventosa actúa al inicio del proceso para recoger la pieza, no al final.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="4">
+          <div class="q-header">
+            <span class="q-number">Pregunta 5</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">Para lograr que el sistema sea más ordenado y elevar el nivel de programación, el material recomienda el uso de:</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Se trata de elementos virtuales internos del PLC que ayudan a guardar estados lógicos.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="El uso de memorias permite estructurar la lógica por etapas, facilitando el control de secuencias complejas.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Memorias</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El uso de memorias permite estructurar la lógica por etapas, facilitando el control de secuencias complejas.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El objetivo de un PLC es reducir el cableado físico mediante lógica de software.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Más cableado físico</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El objetivo de un PLC es reducir el cableado físico mediante lógica de software.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Reducir sensores limitaría el control del sistema, en lugar de elevar el nivel de la programación.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Menos sensores de posición</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Reducir sensores limitaría el control del sistema, en lugar de elevar el nivel de la programación.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Los pulsadores son necesarios, pero no definen el nivel de complejidad o el orden de la programación lógica.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Solo pulsadores de emergencia</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Los pulsadores son necesarios, pero no definen el nivel de complejidad o el orden de la programación lógica.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="5">
+          <div class="q-header">
+            <span class="q-number">Pregunta 6</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿Qué función cumple un 'final de carrera' en el contexto de los pistones neumáticos mencionados?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piense en la necesidad del PLC de recibir retroalimentación sobre la posición física de los actuadores.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Estos son dispositivos de detección eléctrica, no componentes de potencia neumática.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Aumentar la presión del aire en el sistema</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Estos son dispositivos de detección eléctrica, no componentes de potencia neumática.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="La velocidad se controla mediante otros métodos; el final de carrera solo indica posición.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Regular la velocidad de giro del brazo metálico</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La velocidad se controla mediante otros métodos; el final de carrera solo indica posición.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="true" data-rationale="Son sensores cruciales para que el PLC sepa que una acción mecánica se completó y puede pasar al siguiente paso.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Confirmar que el movimiento del pistón ha llegado a su límite</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Son sensores cruciales para que el PLC sepa que una acción mecánica se completó y puede pasar al siguiente paso.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Aunque detienen una secuencia, su función es de control operativo, no de seguridad humana crítica como la emergencia.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Funcionar como el pulsador de parada de emergencia</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aunque detienen una secuencia, su función es de control operativo, no de seguridad humana crítica como la emergencia.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="6">
+          <div class="q-header">
+            <span class="q-number">Pregunta 7</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">En el ejercicio planteado, ¿qué sucede inmediatamente después de que el sensor detecta que el brazo metálico ha girado <span class="math">180<sup>°</sup></span>?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piense en la acción lógica necesaria para que la pieza baje y toque la faja transportadora.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Una vez en posición de descarga, la ventosa debe soltar la pieza para que el proceso continúe en la faja.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Se desactiva la ventosa electrónica para liberar la pieza</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Una vez en posición de descarga, la ventosa debe soltar la pieza para que el proceso continúe en la faja.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El pulsador de marcha es una entrada manual de operador, no una salida automática del sistema.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Se activa el pulsador de marcha automáticamente</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El pulsador de marcha es una entrada manual de operador, no una salida automática del sistema.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="El empuje final ocurre después de que la pieza avanza por la faja transportadora.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Se activa el segundo pistón de empuje</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El empuje final ocurre después de que la pieza avanza por la faja transportadora.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="El primer pistón permanece en su posición hasta que el sistema se reinicia o se requiere una nueva pieza.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Vuelve a bajar el primer pistón neumático</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El primer pistón permanece en su posición hasta que el sistema se reinicia o se requiere una nueva pieza.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="7">
+          <div class="q-header">
+            <span class="q-number">Pregunta 8</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">En la lógica Ladder, ¿qué permite el 'enclavamiento' aplicado a las memorias?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Relacione esto con lo que sucede cuando sueltas un pulsador pero la máquina sigue funcionando.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Esto permite que, tras un pulso momentáneo del botón de marcha, el sistema siga operando por sí mismo.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Mantener activada la instrucción aunque desaparezca la señal inicial</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esto permite que, tras un pulso momentáneo del botón de marcha, el sistema siga operando por sí mismo.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El conteo es una función de los bloques de 'contador', no del enclavamiento básico.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Contar cuántas piezas han pasado por la faja</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El conteo es una función de los bloques de 'contador', no del enclavamiento básico.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="La inversión de giro requiere una lógica específica de protección, no solo un enclavamiento simple.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Invertir el giro del motor de forma inmediata</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La inversión de giro requiere una lógica específica de protección, no solo un enclavamiento simple.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="El bloqueo de seguridad es función del pulsador de emergencia, no del enclavamiento de operación.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Bloquear permanentemente el PLC por seguridad</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El bloqueo de seguridad es función del pulsador de emergencia, no del enclavamiento de operación.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="8">
+          <div class="q-header">
+            <span class="q-number">Pregunta 9</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿Cuál es la dirección de salida (<span class="math">Q</span>) asignada al motor de la faja transportadora en el esquema de la sesión?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Revise el orden secuencial de los actuadores en la lista de salidas proporcionada.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Q0.0 está asignada al primer pistón neumático que baja a recoger la pieza.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Q0.0</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Q0.0 está asignada al primer pistón neumático que baja a recoger la pieza.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Esta salida controla la ventosa electrónica neumática.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Q0.1</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esta salida controla la ventosa electrónica neumática.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="true" data-rationale="Según el listado de salidas, Q0.3 corresponde específicamente al motor que mueve la faja.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Q0.3</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Según el listado de salidas, Q0.3 corresponde específicamente al motor que mueve la faja.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Q0.4 se utiliza para el segundo pistón neumático que empuja la pieza al final.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Q0.4</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Q0.4 se utiliza para el segundo pistón neumático que empuja la pieza al final.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="9">
+          <div class="q-header">
+            <span class="q-number">Pregunta 10</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿Qué elemento de entrada se utiliza para detectar que la pieza ha avanzado una 'distancia prudente' en la faja?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Busque la entrada que se activa antes de que el último pistón entre en funcionamiento.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="El pulsador es una acción manual inicial, no un sistema de detección de posición automática.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Pulsador de marcha (I0.0)</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El pulsador es una acción manual inicial, no un sistema de detección de posición automática.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Este sensor detecta la presencia de la pieza en el punto exacto donde debe activarse el pistón de empuje.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Sensor de faja (I0.3)</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Este sensor detecta la presencia de la pieza en el punto exacto donde debe activarse el pistón de empuje.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Este sensor detecta la posición del brazo mecánico, no la posición de la pieza sobre la faja.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Sensor de giro (I0.2)</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Este sensor detecta la posición del brazo mecánico, no la posición de la pieza sobre la faja.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="El pistón es un actuador (salida), no un elemento de entrada que detecte distancias.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Pistón neumático 2 (Q0.4)</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El pistón es un actuador (salida), no un elemento de entrada que detecte distancias.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      </div>
+  <div class="results" id="results">
+    <h2>¡Cuestionario completado!</h2>
+    <div class="score" id="score">0%</div>
+    <div class="score-text" id="score-text"></div>
+    <button class="restart-btn" onclick="restart()">Intentar de nuevo</button>
+  </div>
+</div>
+<script>
+const quizData = [{"question":"¿Qué siglas representan al dispositivo de control descrito como el 'cerebro' que procesa entradas para activar salidas en un sistema automatizado?","hint":"Se trata de un acrónimo que incluye las palabras 'Lógico' y 'Programable'.","options":[{"label":"A","text":"HMI","isCorrect":false,"rationale":"La Interfaz Hombre-Máquina es el panel de visualización, no el dispositivo que procesa la lógica del programa."},{"label":"B","text":"CNC","isCorrect":false,"rationale":"Aunque es un controlador, el Control Numérico Computarizado se enfoca específicamente en el movimiento de máquinas-herramienta, no en lógica general de procesos."},{"label":"C","text":"SCADA","isCorrect":false,"rationale":"Este término se refiere a sistemas de supervisión y adquisición de datos a gran escala, no al controlador individual."},{"label":"D","text":"PLC","isCorrect":true,"rationale":"El Controlador Lógico Programable es el núcleo del sistema que recibe señales de entrada y ejecuta la lógica para controlar los actuadores."}]},{"question":"En la nomenclatura estándar de PLC utilizada en el material, ¿con qué letra se identifican las entradas físicas como sensores o pulsadores?","hint":"Piense en el término en inglés para 'entrada'.","options":[{"label":"A","text":"I","isCorrect":true,"rationale":"La letra 'I' proviene del término en inglés 'Input', que identifica las señales que entran al controlador."},{"label":"B","text":"M","isCorrect":false,"rationale":"Las memorias internas suelen usar esta letra, pero no representan dispositivos de entrada física externos."},{"label":"C","text":"Q","isCorrect":false,"rationale":"Esta letra se utiliza específicamente para identificar las salidas (Outputs) o actuadores del sistema."},{"label":"D","text":"E","isCorrect":false,"rationale":"Aunque algunos fabricantes usan la 'E' de 'Entrada', el material de Siemens y Schneider presentado utiliza la letra 'I'."}]},{"question":"De acuerdo con el flujo de trabajo presentado, ¿qué software se asocia específicamente con la marca Schneider?","hint":"El nombre combina una palabra en inglés para 'así' o 'tan' con el término 'máquina'.","options":[{"label":"A","text":"TIA Portal","isCorrect":false,"rationale":"Este es el software principal para los controladores de la marca Siemens, no de Schneider."},{"label":"B","text":"Studio 5000","isCorrect":false,"rationale":"Este entorno pertenece a la marca Rockwell Automation (Allen-Bradley)."},{"label":"C","text":"So Machine","isCorrect":true,"rationale":"Es el entorno de desarrollo mencionado en la sesión para la programación de controladores de esta marca específica."},{"label":"D","text":"Logo!Soft Comfort","isCorrect":false,"rationale":"Es una herramienta dedicada a los micro-PLC de Siemens."}]},{"question":"En el proceso de transporte de la pieza, ¿cuál es la condición necesaria para que la ventosa electrónica se active?","hint":"Considere la interacción física necesaria entre el actuador vertical y la pieza antes de la sujeción.","options":[{"label":"A","text":"Que el primer pistón neumático haya bajado mecánicamente","isCorrect":true,"rationale":"La secuencia establece que la ventosa solo se activa una vez que el pistón está en su posición inferior para sujetar la pieza."},{"label":"B","text":"Que el brazo metálico haya girado $180^{\\circ}$","isCorrect":false,"rationale":"El giro del brazo ocurre después de que la ventosa ya ha sujetado la pieza y el pistón ha subido."},{"label":"C","text":"Que el motor de la faja transportadora esté encendido","isCorrect":false,"rationale":"La faja se activa mucho después, una vez que la pieza ya ha sido trasladada por el brazo metálico."},{"label":"D","text":"Que se detecte la pieza al final de la faja","isCorrect":false,"rationale":"La ventosa actúa al inicio del proceso para recoger la pieza, no al final."}]},{"question":"Para lograr que el sistema sea más ordenado y elevar el nivel de programación, el material recomienda el uso de:","hint":"Se trata de elementos virtuales internos del PLC que ayudan a guardar estados lógicos.","options":[{"label":"A","text":"Memorias","isCorrect":true,"rationale":"El uso de memorias permite estructurar la lógica por etapas, facilitando el control de secuencias complejas."},{"label":"B","text":"Más cableado físico","isCorrect":false,"rationale":"El objetivo de un PLC es reducir el cableado físico mediante lógica de software."},{"label":"C","text":"Menos sensores de posición","isCorrect":false,"rationale":"Reducir sensores limitaría el control del sistema, en lugar de elevar el nivel de la programación."},{"label":"D","text":"Solo pulsadores de emergencia","isCorrect":false,"rationale":"Los pulsadores son necesarios, pero no definen el nivel de complejidad o el orden de la programación lógica."}]},{"question":"¿Qué función cumple un 'final de carrera' en el contexto de los pistones neumáticos mencionados?","hint":"Piense en la necesidad del PLC de recibir retroalimentación sobre la posición física de los actuadores.","options":[{"label":"A","text":"Aumentar la presión del aire en el sistema","isCorrect":false,"rationale":"Estos son dispositivos de detección eléctrica, no componentes de potencia neumática."},{"label":"B","text":"Regular la velocidad de giro del brazo metálico","isCorrect":false,"rationale":"La velocidad se controla mediante otros métodos; el final de carrera solo indica posición."},{"label":"C","text":"Confirmar que el movimiento del pistón ha llegado a su límite","isCorrect":true,"rationale":"Son sensores cruciales para que el PLC sepa que una acción mecánica se completó y puede pasar al siguiente paso."},{"label":"D","text":"Funcionar como el pulsador de parada de emergencia","isCorrect":false,"rationale":"Aunque detienen una secuencia, su función es de control operativo, no de seguridad humana crítica como la emergencia."}]},{"question":"En el ejercicio planteado, ¿qué sucede inmediatamente después de que el sensor detecta que el brazo metálico ha girado $180^{\\circ}$?","hint":"Piense en la acción lógica necesaria para que la pieza baje y toque la faja transportadora.","options":[{"label":"A","text":"Se desactiva la ventosa electrónica para liberar la pieza","isCorrect":true,"rationale":"Una vez en posición de descarga, la ventosa debe soltar la pieza para que el proceso continúe en la faja."},{"label":"B","text":"Se activa el pulsador de marcha automáticamente","isCorrect":false,"rationale":"El pulsador de marcha es una entrada manual de operador, no una salida automática del sistema."},{"label":"C","text":"Se activa el segundo pistón de empuje","isCorrect":false,"rationale":"El empuje final ocurre después de que la pieza avanza por la faja transportadora."},{"label":"D","text":"Vuelve a bajar el primer pistón neumático","isCorrect":false,"rationale":"El primer pistón permanece en su posición hasta que el sistema se reinicia o se requiere una nueva pieza."}]},{"question":"En la lógica Ladder, ¿qué permite el 'enclavamiento' aplicado a las memorias?","hint":"Relacione esto con lo que sucede cuando sueltas un pulsador pero la máquina sigue funcionando.","options":[{"label":"A","text":"Mantener activada la instrucción aunque desaparezca la señal inicial","isCorrect":true,"rationale":"Esto permite que, tras un pulso momentáneo del botón de marcha, el sistema siga operando por sí mismo."},{"label":"B","text":"Contar cuántas piezas han pasado por la faja","isCorrect":false,"rationale":"El conteo es una función de los bloques de 'contador', no del enclavamiento básico."},{"label":"C","text":"Invertir el giro del motor de forma inmediata","isCorrect":false,"rationale":"La inversión de giro requiere una lógica específica de protección, no solo un enclavamiento simple."},{"label":"D","text":"Bloquear permanentemente el PLC por seguridad","isCorrect":false,"rationale":"El bloqueo de seguridad es función del pulsador de emergencia, no del enclavamiento de operación."}]},{"question":"¿Cuál es la dirección de salida ($Q$) asignada al motor de la faja transportadora en el esquema de la sesión?","hint":"Revise el orden secuencial de los actuadores en la lista de salidas proporcionada.","options":[{"label":"A","text":"Q0.0","isCorrect":false,"rationale":"Q0.0 está asignada al primer pistón neumático que baja a recoger la pieza."},{"label":"B","text":"Q0.1","isCorrect":false,"rationale":"Esta salida controla la ventosa electrónica neumática."},{"label":"C","text":"Q0.3","isCorrect":true,"rationale":"Según el listado de salidas, Q0.3 corresponde específicamente al motor que mueve la faja."},{"label":"D","text":"Q0.4","isCorrect":false,"rationale":"Q0.4 se utiliza para el segundo pistón neumático que empuja la pieza al final."}]},{"question":"¿Qué elemento de entrada se utiliza para detectar que la pieza ha avanzado una 'distancia prudente' en la faja?","hint":"Busque la entrada que se activa antes de que el último pistón entre en funcionamiento.","options":[{"label":"A","text":"Pulsador de marcha (I0.0)","isCorrect":false,"rationale":"El pulsador es una acción manual inicial, no un sistema de detección de posición automática."},{"label":"B","text":"Sensor de faja (I0.3)","isCorrect":true,"rationale":"Este sensor detecta la presencia de la pieza en el punto exacto donde debe activarse el pistón de empuje."},{"label":"C","text":"Sensor de giro (I0.2)","isCorrect":false,"rationale":"Este sensor detecta la posición del brazo mecánico, no la posición de la pieza sobre la faja."},{"label":"D","text":"Pistón neumático 2 (Q0.4)","isCorrect":false,"rationale":"El pistón es un actuador (salida), no un elemento de entrada que detecte distancias."}]}];
+const tr = {"correct":"¡Correcto!","incorrect":"Incorrecto","next":"Siguiente pregunta →","seeResults":"Ver resultados","complete":"¡Cuestionario completado!","scoreText":"Obtuviste {correct} de {total} correctas","tryAgain":"Intentar de nuevo","rightAnswer":"Respuesta correcta","notQuite":"No del todo"};
+let currentQ = 0, correctCount = 0, answered = false;
+
+function init() {
+  document.querySelectorAll('.question').forEach((q, i) => q.classList.toggle('active', i === 0));
+  updateProgress();
+  document.querySelectorAll('.option').forEach(opt => opt.addEventListener('click', () => selectOption(opt)));
+  document.querySelectorAll('.next-btn').forEach(btn => btn.addEventListener('click', nextQuestion));
+}
+
+function selectOption(opt) {
+  if (answered) return;
+  answered = true;
+  const q = opt.closest('.question');
+  const options = q.querySelectorAll('.option');
+  const nextBtn = q.querySelector('.next-btn');
+  const isCorrect = opt.dataset.correct === 'true';
+  
+  // Mark all options as disabled
+  options.forEach(o => o.classList.add('disabled'));
+  
+  // Style selected option
+  opt.classList.add('selected', isCorrect ? 'correct' : 'incorrect');
+  
+  // Show correct answer if wrong
+  if (!isCorrect) {
+    const correctOpt = [...options].find(o => o.dataset.correct === 'true');
+    if (correctOpt) correctOpt.classList.add('show-correct');
+  }
+  
+  if (isCorrect) correctCount++;
+  
+  // Show feedback for ALL options that have rationale
+  options.forEach(o => {
+    const wrapper = o.closest('.option-wrapper');
+    const feedback = wrapper.querySelector('.option-feedback');
+    const rationale = o.dataset.rationale;
+    const isThisCorrect = o.dataset.correct === 'true';
+    
+    if (rationale && rationale.trim()) {
+      feedback.classList.remove('hidden');
+      feedback.classList.add(isThisCorrect ? 'correct-feedback' : 'incorrect-feedback');
+      
+      const statusEl = feedback.querySelector('.feedback-status');
+      statusEl.className = 'feedback-status ' + (isThisCorrect ? 'correct' : 'incorrect');
+      statusEl.innerHTML = isThisCorrect 
+        ? '✓ ' + tr.rightAnswer
+        : '✗ ' + tr.notQuite;
+    }
+  });
+  
+  nextBtn.classList.remove('hidden');
+  if (currentQ === quizData.length - 1) nextBtn.textContent = tr.seeResults;
+}
+
+function nextQuestion() {
+  answered = false;
+  currentQ++;
+  if (currentQ >= quizData.length) { showResults(); return; }
+  document.querySelectorAll('.question').forEach((q, i) => q.classList.toggle('active', i === currentQ));
+  updateProgress();
+}
+
+function updateProgress() {
+  document.querySelector('.progress-fill').style.width = (currentQ / quizData.length * 100) + '%';
+}
+
+function showResults() {
+  document.querySelectorAll('.question').forEach(q => q.classList.remove('active'));
+  document.getElementById('results').classList.add('active');
+  const pct = Math.round((correctCount / quizData.length) * 100);
+  document.getElementById('score').textContent = pct + '%';
+  document.getElementById('score-text').textContent = tr.scoreText.replace('{correct}', correctCount).replace('{total}', quizData.length);
+  document.querySelector('.progress-fill').style.width = '100%';
+}
+
+function restart() {
+  currentQ = 0; correctCount = 0; answered = false;
+  document.getElementById('results').classList.remove('active');
+  document.querySelectorAll('.question').forEach((q, i) => {
+    q.classList.toggle('active', i === 0);
+    q.querySelectorAll('.option').forEach(o => o.classList.remove('selected', 'correct', 'incorrect', 'disabled', 'show-correct'));
+    q.querySelectorAll('.option-feedback').forEach(f => {
+      f.classList.add('hidden');
+      f.classList.remove('correct-feedback', 'incorrect-feedback');
+    });
+    const btn = q.querySelector('.next-btn');
+    btn.classList.add('hidden');
+    btn.textContent = tr.next;
+  });
+  updateProgress();
+}
+
+init();
+</script>
+</body>
+</html>
