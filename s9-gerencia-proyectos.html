@@ -1,0 +1,820 @@
+<!DOCTYPE html>
+<html lang="es" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cuestionario Comunicaciones</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  min-height: 100vh; padding: 20px; color: #333;
+}
+.container { max-width: 700px; margin: 0 auto; }
+.header { text-align: center; color: #fff; padding: 30px 20px; }
+.header h1 { font-size: 28px; font-weight: 700; margin-bottom: 8px; text-shadow: 0 2px 10px rgba(0,0,0,0.2); }
+.header .meta { font-size: 14px; opacity: 0.9; }
+.progress-bar { background: rgba(255,255,255,0.3); border-radius: 10px; height: 8px; margin: 20px 0; overflow: hidden; }
+.progress-fill { background: #fff; height: 100%; width: 0%; transition: width 0.4s ease; border-radius: 10px; }
+.question { background: #fff; border-radius: 16px; padding: 30px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); display: none; }
+.question.active { display: block; }
+.q-header { display: flex; justify-content: space-between; margin-bottom: 20px; font-size: 13px; color: #888; }
+.q-number { font-weight: 600; color: #667eea; }
+.q-text { font-size: 18px; font-weight: 600; line-height: 1.5; margin-bottom: 25px; color: #222; }
+.options { display: flex; flex-direction: column; gap: 12px; }
+.option-wrapper { display: flex; flex-direction: column; }
+.option {
+  display: flex; align-items: flex-start; gap: 14px; padding: 16px 18px;
+  border: 2px solid #e8e8e8; border-radius: 12px; background: #fafafa;
+  cursor: pointer; transition: all 0.2s; text-align: left; font-size: 15px; width: 100%;
+}
+[dir="rtl"] .option { text-align: right; flex-direction: row-reverse; }
+.option:hover:not(.disabled) { border-color: #667eea; background: #f5f3ff; }
+.option.selected { border-color: #667eea; background: #ede9fe; }
+.option.correct { border-color: #22c55e; background: #dcfce7; }
+.option.incorrect { border-color: #ef4444; background: #fee2e2; }
+.option.disabled { cursor: default; }
+.option.show-correct { border-color: #22c55e; background: #dcfce7; }
+.opt-label {
+  display: flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; border-radius: 50%; background: #e8e8e8;
+  font-weight: 700; font-size: 14px; flex-shrink: 0;
+}
+.option.selected .opt-label { background: #667eea; color: #fff; }
+.option.correct .opt-label { background: #22c55e; color: #fff; }
+.option.incorrect .opt-label { background: #ef4444; color: #fff; }
+.option.show-correct .opt-label { background: #22c55e; color: #fff; }
+.opt-text { padding-top: 5px; line-height: 1.5; }
+
+/* Individual option feedback */
+.option-feedback {
+  margin: 8px 0 4px 46px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+[dir="rtl"] .option-feedback { margin-left: 0; margin-right: 46px; }
+.option-feedback.correct-feedback {
+  background: #dcfce7;
+  border-left: 3px solid #22c55e;
+}
+.option-feedback.incorrect-feedback {
+  background: #fef3f2;
+  border-left: 3px solid #fca5a5;
+}
+[dir="rtl"] .option-feedback.correct-feedback,
+[dir="rtl"] .option-feedback.incorrect-feedback {
+  border-left: none;
+  border-right: 3px solid;
+}
+[dir="rtl"] .option-feedback.correct-feedback { border-right-color: #22c55e; }
+[dir="rtl"] .option-feedback.incorrect-feedback { border-right-color: #fca5a5; }
+.feedback-status {
+  font-weight: 600;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.feedback-status.correct { color: #166534; }
+.feedback-status.incorrect { color: #991b1b; }
+.feedback-rationale { color: #444; }
+
+/* Hint box */
+.hint-box {
+  margin: 12px 0;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+}
+.hint-toggle {
+  width: 100%;
+  padding: 10px 16px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  color: #92400e;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.hint-toggle:hover { background: #fef3c7; }
+.hint-content {
+  padding: 0 16px;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s, padding 0.3s;
+  font-size: 14px;
+  color: #78350f;
+  line-height: 1.5;
+}
+.hint-box.show .hint-content {
+  padding: 0 16px 12px;
+  max-height: 200px;
+}
+
+.next-btn {
+  margin-top: 20px; width: 100%; padding: 14px;
+  background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; border: none;
+  border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.next-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(102,126,234,0.4); }
+.hidden { display: none !important; }
+.results { background: #fff; border-radius: 16px; padding: 40px; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.15); display: none; }
+.results.active { display: block; }
+.results h2 { font-size: 28px; margin-bottom: 10px; color: #333; }
+.results .score { font-size: 64px; font-weight: 700; color: #667eea; margin: 20px 0; }
+.results .score-text { font-size: 18px; color: #666; margin-bottom: 30px; }
+.restart-btn {
+  padding: 14px 40px; background: linear-gradient(135deg, #667eea, #764ba2);
+  color: #fff; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer;
+}
+
+/* Math CSS */
+.math, .math-block { font-family: "Cambria Math", "Times New Roman", Times, serif; font-style: italic; }
+.math-block { display: block; text-align: center; margin: 10px 0; font-size: 110%; }
+.frac { display: inline-flex; flex-direction: column; align-items: center; vertical-align: middle; margin: 0 3px; font-size: 0.9em; }
+.frac-num { border-bottom: 1px solid currentColor; padding: 0 4px 2px; line-height: 1.2; }
+.frac-den { padding: 2px 4px 0; line-height: 1.2; }
+.sqrt { white-space: nowrap; }
+.sqrt-content { border-top: 1px solid currentColor; padding: 0 3px; margin-left: 2px; }
+sup, sub { font-size: 0.75em; }
+sup { vertical-align: super; }
+sub { vertical-align: sub; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>Cuestionario Comunicaciones</h1>
+    <div class="meta">10 preguntas</div>
+    <div class="progress-bar"><div class="progress-fill"></div></div>
+  </div>
+  <div id="quiz-container">
+        <div class="question" data-index="0">
+          <div class="q-header">
+            <span class="q-number">Pregunta 1</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿Cuál es el componente fundamental del modelo de comunicación que asegura que el mensaje decodificado por el receptor coincida con la intención del emisor?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considere el paso que cierra el ciclo de comunicación para validar el entendimiento mutuo.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Es la traducción del mensaje por parte del receptor, pero sin una validación posterior, el emisor no sabrá si fue correcta.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Decodificación</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Es la traducción del mensaje por parte del receptor, pero sin una validación posterior, el emisor no sabrá si fue correcta.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El canal es el medio físico o digital por donde viaja la información, pero no garantiza el entendimiento del mensaje.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Canal de comunicación</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El canal es el medio físico o digital por donde viaja la información, pero no garantiza el entendimiento del mensaje.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="true" data-rationale="Es el paso crítico que permite confirmar que el mensaje fue comprendido correctamente, evitando la simple transmisión de datos.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Feedback (Retroalimentación)</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Es el paso crítico que permite confirmar que el mensaje fue comprendido correctamente, evitando la simple transmisión de datos.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Este proceso se refiere únicamente a cómo el emisor transforma su idea en un mensaje, no a la validación de su recepción.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Codificación</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Este proceso se refiere únicamente a cómo el emisor transforma su idea en un mensaje, no a la validación de su recepción.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="1">
+          <div class="q-header">
+            <span class="q-number">Pregunta 2</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">Verdadero o Falso: Según la teoría de gestión de proyectos, la mala comunicación es la causa principal de conflictos, retrasos y fracasos en los proyectos.</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piense en el impacto que tiene la falta de claridad en las expectativas del cliente y el equipo.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Se estima que los Gerentes de Proyecto invierten la mayor parte de su tiempo comunicando, y las fallas en este proceso impactan directamente en el éxito.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Se estima que los Gerentes de Proyecto invierten la mayor parte de su tiempo comunicando, y las fallas en este proceso impactan directamente en el éxito.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="La comunicación ineficaz se identifica sistemáticamente como el factor número uno que compromete los objetivos del proyecto.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La comunicación ineficaz se identifica sistemáticamente como el factor número uno que compromete los objetivos del proyecto.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="2">
+          <div class="q-header">
+            <span class="q-number">Pregunta 3</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">Si un Gerente de Proyecto decide utilizar un repositorio en la nube para que los interesados accedan a informes de avance cuando lo necesiten, ¿qué método de comunicación está aplicando?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Identifique el enfoque donde el receptor es quien toma la iniciativa de buscar la información almacenada.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Se emplea para grandes volúmenes de información donde los interesados acceden al contenido según su propia necesidad.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Método Pull (Tirar)</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Se emplea para grandes volúmenes de información donde los interesados acceden al contenido según su propia necesidad.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Este término se refiere a la preparación del mensaje, no a la estrategia de distribución de la información.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Codificación Directa</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Este término se refiere a la preparación del mensaje, no a la estrategia de distribución de la información.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Aunque es un tipo de comunicación, el acceso a repositorios es una forma pasiva de obtención de datos característica de otro método.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Comunicación Interactiva</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aunque es un tipo de comunicación, el acceso a repositorios es una forma pasiva de obtención de datos característica de otro método.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Este método se usa para enviar información a receptores específicos de forma directa, no para que ellos la busquen.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Método Push (Empujar)</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Este método se usa para enviar información a receptores específicos de forma directa, no para que ellos la busquen.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="3">
+          <div class="q-header">
+            <span class="q-number">Pregunta 4</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿Qué columna de la Matriz de Comunicaciones se encarga de definir si la información será presentada como un resumen gerencial o con detalles técnicos profundos?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Esta variable ajusta la complejidad de la información según el perfil del interesado.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Explica el para qué de la comunicación, como una aprobación o auditoría, mas no la extensión de la información.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Motivo</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Explica el para qué de la comunicación, como una aprobación o auditoría, mas no la extensión de la información.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Se enfoca en la información exacta que se va a transmitir, pero no necesariamente en la profundidad de la misma.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Contenido</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Se enfoca en la información exacta que se va a transmitir, pero no necesariamente en la profundidad de la misma.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Esta columna se refiere al tipo de archivo o medio de presentación, como un PDF o una presentación PPT.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Formato</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esta columna se refiere al tipo de archivo o medio de presentación, como un PDF o una presentación PPT.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="true" data-rationale="Define la especificidad de la información basándose en las necesidades del receptor, ya sea para toma de decisiones de alto nivel o ejecución técnica.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Nivel de detalle</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Define la especificidad de la información basándose en las necesidades del receptor, ya sea para toma de decisiones de alto nivel o ejecución técnica.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="4">
+          <div class="q-header">
+            <span class="q-number">Pregunta 5</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">En el contexto de la Matriz de Comunicaciones aplicada a la EDT, ¿qué representa la columna 'Tecnología'?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piense en las herramientas digitales que facilitan el flujo de datos entre los miembros del equipo.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Se refiere a la herramienta tecnológica que servirá de soporte para el envío o almacenamiento de la comunicación.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">El software específico o canal usado (ej. Jira, MS Teams, ERP)</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Se refiere a la herramienta tecnológica que servirá de soporte para el envío o almacenamiento de la comunicación.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="La frecuencia es una columna independiente que mide la periodicidad de la comunicación, no el mantenimiento técnico.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">La frecuencia con la que se actualiza el software</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La frecuencia es una columna independiente que mide la periodicidad de la comunicación, no el mantenimiento técnico.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="La complejidad técnica suele estar amarrada al paquete de trabajo de la EDT, no al medio de comunicación.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">El grado de complejidad técnica del entregable</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La complejidad técnica suele estar amarrada al paquete de trabajo de la EDT, no al medio de comunicación.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="La persona encargada de emitir el mensaje se define en la columna de 'Responsable de comunicar'.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">El rol de la persona que enviará el mensaje</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La persona encargada de emitir el mensaje se define en la columna de 'Responsable de comunicar'.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="5">
+          <div class="q-header">
+            <span class="q-number">Pregunta 6</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">Verdadero o Falso: La Gestión de las Comunicaciones y el Involucramiento de los Interesados son procesos independientes que no requieren actualización mutua.</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Recuerde la metáfora de los 'dos hermanos inseparables' mencionada en la teoría.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="En la gestión moderna, si el plan de involucramiento de un interesado cambia, el plan de comunicaciones debe actualizarse obligatoriamente para mantener la alineación.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">En la gestión moderna, si el plan de involucramiento de un interesado cambia, el plan de comunicaciones debe actualizarse obligatoriamente para mantener la alineación.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Ambos planes están íntimamente ligados; un cambio en cómo se involucra a un interesado impacta directamente en cómo debemos comunicarnos con él.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Ambos planes están íntimamente ligados; un cambio en cómo se involucra a un interesado impacta directamente en cómo debemos comunicarnos con él.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="6">
+          <div class="q-header">
+            <span class="q-number">Pregunta 7</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">Cuando se utiliza el Método Push enviando un correo electrónico con un informe, ¿qué riesgo principal se corre según la teoría?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piense en la diferencia entre 'transmitir datos' y 'comunicar ideas' eficazmente.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="El envío asegura que la información salió del emisor, pero no confirma que el receptor la haya procesado o entendido.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Que el mensaje se envíe pero no se garantice su lectura o comprensión</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El envío asegura que la información salió del emisor, pero no confirma que el receptor la haya procesado o entendido.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El método Push, como el correo electrónico, suele ser de bajo costo; el riesgo real es la falta de efectividad en la comunicación.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Que el costo del envío sea demasiado elevado</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El método Push, como el correo electrónico, suele ser de bajo costo; el riesgo real es la falta de efectividad en la comunicación.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Este es un problema más común en el método Pull, donde el usuario debe buscar la información en un repositorio.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Que el interesado no pueda acceder a la información por falta de permisos</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Este es un problema más común en el método Pull, donde el usuario debe buscar la información en un repositorio.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Aunque es un riesgo técnico, la teoría se enfoca en el proceso humano de comprensión y recepción.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Que la información no llegue al servidor de destino</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aunque es un riesgo técnico, la teoría se enfoca en el proceso humano de comprensión y recepción.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="7">
+          <div class="q-header">
+            <span class="q-number">Pregunta 8</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿Cuál es la función principal de enlazar la Matriz de Comunicaciones con la Estructura de Desglose del Trabajo (EDT)?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Busque la relación entre la organización del trabajo y la transparencia informativa hacia los clientes y patrocinadores.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="La matriz no cambia el alcance del proyecto, sino que define cómo se informará sobre el avance de los entregables existentes.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Reducir la cantidad de entregables del proyecto</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La matriz no cambia el alcance del proyecto, sino que define cómo se informará sobre el avance de los entregables existentes.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Vincular la matriz a la EDT asegura que los hitos críticos y entregables clave tengan un plan estructurado de información para los interesados.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Garantizar que cada paquete de trabajo o fase tenga una estrategia de comunicación definida</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Vincular la matriz a la EDT asegura que los hitos críticos y entregables clave tengan un plan estructurado de información para los interesados.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="La identificación de interesados es un paso previo necesario; la matriz simplemente organiza la interacción con ellos basándose en la EDT.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Eliminar la necesidad de identificar interesados</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La identificación de interesados es un paso previo necesario; la matriz simplemente organiza la interacción con ellos basándose en la EDT.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="La matriz de comunicaciones es una herramienta de gestión de información, no una herramienta de control presupuestario.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Sustituir el presupuesto del proyecto por un plan visual</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La matriz de comunicaciones es una herramienta de gestión de información, no una herramienta de control presupuestario.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="8">
+          <div class="q-header">
+            <span class="q-number">Pregunta 9</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">En el ejemplo de la planta agroindustrial, ¿cuál fue el error conceptual que llevó a reducir el grosor del plástico en lugar de cambiar las dimensiones de la caja?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Analice qué proceso falló cuando el receptor tradujo el mensaje de manera diferente a la intención original.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="El ejemplo describe una instrucción directa, no un sistema donde el equipo buscara información por su cuenta.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">El uso innecesario del método Pull</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El ejemplo describe una instrucción directa, no un sistema donde el equipo buscara información por su cuenta.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El problema no fue el medio usado, sino la falta de verificación de lo que se entendió.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Una mala selección de la tecnología de comunicación</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El problema no fue el medio usado, sino la falta de verificación de lo que se entendió.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="El problema fue la calidad y validación del mensaje único, no la cantidad de veces que se envió.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Una frecuencia de comunicación demasiado alta</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El problema fue la calidad y validación del mensaje único, no la cantidad de veces que se envió.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="true" data-rationale="El equipo tradujo el mensaje de 'reducir costos' de forma distinta a la intención del gerente al no existir una confirmación de la idea.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Un error en la decodificación por falta de feedback</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El equipo tradujo el mensaje de 'reducir costos' de forma distinta a la intención del gerente al no existir una confirmación de la idea.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="9">
+          <div class="q-header">
+            <span class="q-number">Pregunta 10</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">Verdadero o Falso: El 'Responsable de comunicar' en la matriz debe ser siempre el Gerente del Proyecto para asegurar que la información sea oficial.</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considere si en proyectos grandes una sola persona podría manejar todas las comunicaciones técnicas y operativas.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="La matriz permite asignar a diferentes miembros del equipo la obligación de emitir mensajes específicos según su rol en la EDT.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La matriz permite asignar a diferentes miembros del equipo la obligación de emitir mensajes específicos según su rol en la EDT.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Aunque el PM supervisa, la responsabilidad de comunicar puede delegarse en miembros del equipo técnico según el paquete de trabajo.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aunque el PM supervisa, la responsabilidad de comunicar puede delegarse en miembros del equipo técnico según el paquete de trabajo.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      </div>
+  <div class="results" id="results">
+    <h2>¡Cuestionario completado!</h2>
+    <div class="score" id="score">0%</div>
+    <div class="score-text" id="score-text"></div>
+    <button class="restart-btn" onclick="restart()">Intentar de nuevo</button>
+  </div>
+</div>
+<script>
+const quizData = [{"question":"¿Cuál es el componente fundamental del modelo de comunicación que asegura que el mensaje decodificado por el receptor coincida con la intención del emisor?","hint":"Considere el paso que cierra el ciclo de comunicación para validar el entendimiento mutuo.","options":[{"label":"A","text":"Decodificación","isCorrect":false,"rationale":"Es la traducción del mensaje por parte del receptor, pero sin una validación posterior, el emisor no sabrá si fue correcta."},{"label":"B","text":"Canal de comunicación","isCorrect":false,"rationale":"El canal es el medio físico o digital por donde viaja la información, pero no garantiza el entendimiento del mensaje."},{"label":"C","text":"Feedback (Retroalimentación)","isCorrect":true,"rationale":"Es el paso crítico que permite confirmar que el mensaje fue comprendido correctamente, evitando la simple transmisión de datos."},{"label":"D","text":"Codificación","isCorrect":false,"rationale":"Este proceso se refiere únicamente a cómo el emisor transforma su idea en un mensaje, no a la validación de su recepción."}]},{"question":"Verdadero o Falso: Según la teoría de gestión de proyectos, la mala comunicación es la causa principal de conflictos, retrasos y fracasos en los proyectos.","hint":"Piense en el impacto que tiene la falta de claridad en las expectativas del cliente y el equipo.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"Se estima que los Gerentes de Proyecto invierten la mayor parte de su tiempo comunicando, y las fallas en este proceso impactan directamente en el éxito."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"La comunicación ineficaz se identifica sistemáticamente como el factor número uno que compromete los objetivos del proyecto."}]},{"question":"Si un Gerente de Proyecto decide utilizar un repositorio en la nube para que los interesados accedan a informes de avance cuando lo necesiten, ¿qué método de comunicación está aplicando?","hint":"Identifique el enfoque donde el receptor es quien toma la iniciativa de buscar la información almacenada.","options":[{"label":"A","text":"Método Pull (Tirar)","isCorrect":true,"rationale":"Se emplea para grandes volúmenes de información donde los interesados acceden al contenido según su propia necesidad."},{"label":"B","text":"Codificación Directa","isCorrect":false,"rationale":"Este término se refiere a la preparación del mensaje, no a la estrategia de distribución de la información."},{"label":"C","text":"Comunicación Interactiva","isCorrect":false,"rationale":"Aunque es un tipo de comunicación, el acceso a repositorios es una forma pasiva de obtención de datos característica de otro método."},{"label":"D","text":"Método Push (Empujar)","isCorrect":false,"rationale":"Este método se usa para enviar información a receptores específicos de forma directa, no para que ellos la busquen."}]},{"question":"¿Qué columna de la Matriz de Comunicaciones se encarga de definir si la información será presentada como un resumen gerencial o con detalles técnicos profundos?","hint":"Esta variable ajusta la complejidad de la información según el perfil del interesado.","options":[{"label":"A","text":"Motivo","isCorrect":false,"rationale":"Explica el para qué de la comunicación, como una aprobación o auditoría, mas no la extensión de la información."},{"label":"B","text":"Contenido","isCorrect":false,"rationale":"Se enfoca en la información exacta que se va a transmitir, pero no necesariamente en la profundidad de la misma."},{"label":"C","text":"Formato","isCorrect":false,"rationale":"Esta columna se refiere al tipo de archivo o medio de presentación, como un PDF o una presentación PPT."},{"label":"D","text":"Nivel de detalle","isCorrect":true,"rationale":"Define la especificidad de la información basándose en las necesidades del receptor, ya sea para toma de decisiones de alto nivel o ejecución técnica."}]},{"question":"En el contexto de la Matriz de Comunicaciones aplicada a la EDT, ¿qué representa la columna 'Tecnología'?","hint":"Piense en las herramientas digitales que facilitan el flujo de datos entre los miembros del equipo.","options":[{"label":"A","text":"El software específico o canal usado (ej. Jira, MS Teams, ERP)","isCorrect":true,"rationale":"Se refiere a la herramienta tecnológica que servirá de soporte para el envío o almacenamiento de la comunicación."},{"label":"B","text":"La frecuencia con la que se actualiza el software","isCorrect":false,"rationale":"La frecuencia es una columna independiente que mide la periodicidad de la comunicación, no el mantenimiento técnico."},{"label":"C","text":"El grado de complejidad técnica del entregable","isCorrect":false,"rationale":"La complejidad técnica suele estar amarrada al paquete de trabajo de la EDT, no al medio de comunicación."},{"label":"D","text":"El rol de la persona que enviará el mensaje","isCorrect":false,"rationale":"La persona encargada de emitir el mensaje se define en la columna de 'Responsable de comunicar'."}]},{"question":"Verdadero o Falso: La Gestión de las Comunicaciones y el Involucramiento de los Interesados son procesos independientes que no requieren actualización mutua.","hint":"Recuerde la metáfora de los 'dos hermanos inseparables' mencionada en la teoría.","options":[{"label":"A","text":"Falso","isCorrect":true,"rationale":"En la gestión moderna, si el plan de involucramiento de un interesado cambia, el plan de comunicaciones debe actualizarse obligatoriamente para mantener la alineación."},{"label":"B","text":"Verdadero","isCorrect":false,"rationale":"Ambos planes están íntimamente ligados; un cambio en cómo se involucra a un interesado impacta directamente en cómo debemos comunicarnos con él."}]},{"question":"Cuando se utiliza el Método Push enviando un correo electrónico con un informe, ¿qué riesgo principal se corre según la teoría?","hint":"Piense en la diferencia entre 'transmitir datos' y 'comunicar ideas' eficazmente.","options":[{"label":"A","text":"Que el mensaje se envíe pero no se garantice su lectura o comprensión","isCorrect":true,"rationale":"El envío asegura que la información salió del emisor, pero no confirma que el receptor la haya procesado o entendido."},{"label":"B","text":"Que el costo del envío sea demasiado elevado","isCorrect":false,"rationale":"El método Push, como el correo electrónico, suele ser de bajo costo; el riesgo real es la falta de efectividad en la comunicación."},{"label":"C","text":"Que el interesado no pueda acceder a la información por falta de permisos","isCorrect":false,"rationale":"Este es un problema más común en el método Pull, donde el usuario debe buscar la información en un repositorio."},{"label":"D","text":"Que la información no llegue al servidor de destino","isCorrect":false,"rationale":"Aunque es un riesgo técnico, la teoría se enfoca en el proceso humano de comprensión y recepción."}]},{"question":"¿Cuál es la función principal de enlazar la Matriz de Comunicaciones con la Estructura de Desglose del Trabajo (EDT)?","hint":"Busque la relación entre la organización del trabajo y la transparencia informativa hacia los clientes y patrocinadores.","options":[{"label":"A","text":"Reducir la cantidad de entregables del proyecto","isCorrect":false,"rationale":"La matriz no cambia el alcance del proyecto, sino que define cómo se informará sobre el avance de los entregables existentes."},{"label":"B","text":"Garantizar que cada paquete de trabajo o fase tenga una estrategia de comunicación definida","isCorrect":true,"rationale":"Vincular la matriz a la EDT asegura que los hitos críticos y entregables clave tengan un plan estructurado de información para los interesados."},{"label":"C","text":"Eliminar la necesidad de identificar interesados","isCorrect":false,"rationale":"La identificación de interesados es un paso previo necesario; la matriz simplemente organiza la interacción con ellos basándose en la EDT."},{"label":"D","text":"Sustituir el presupuesto del proyecto por un plan visual","isCorrect":false,"rationale":"La matriz de comunicaciones es una herramienta de gestión de información, no una herramienta de control presupuestario."}]},{"question":"En el ejemplo de la planta agroindustrial, ¿cuál fue el error conceptual que llevó a reducir el grosor del plástico en lugar de cambiar las dimensiones de la caja?","hint":"Analice qué proceso falló cuando el receptor tradujo el mensaje de manera diferente a la intención original.","options":[{"label":"A","text":"El uso innecesario del método Pull","isCorrect":false,"rationale":"El ejemplo describe una instrucción directa, no un sistema donde el equipo buscara información por su cuenta."},{"label":"B","text":"Una mala selección de la tecnología de comunicación","isCorrect":false,"rationale":"El problema no fue el medio usado, sino la falta de verificación de lo que se entendió."},{"label":"C","text":"Una frecuencia de comunicación demasiado alta","isCorrect":false,"rationale":"El problema fue la calidad y validación del mensaje único, no la cantidad de veces que se envió."},{"label":"D","text":"Un error en la decodificación por falta de feedback","isCorrect":true,"rationale":"El equipo tradujo el mensaje de 'reducir costos' de forma distinta a la intención del gerente al no existir una confirmación de la idea."}]},{"question":"Verdadero o Falso: El 'Responsable de comunicar' en la matriz debe ser siempre el Gerente del Proyecto para asegurar que la información sea oficial.","hint":"Considere si en proyectos grandes una sola persona podría manejar todas las comunicaciones técnicas y operativas.","options":[{"label":"A","text":"Falso","isCorrect":true,"rationale":"La matriz permite asignar a diferentes miembros del equipo la obligación de emitir mensajes específicos según su rol en la EDT."},{"label":"B","text":"Verdadero","isCorrect":false,"rationale":"Aunque el PM supervisa, la responsabilidad de comunicar puede delegarse en miembros del equipo técnico según el paquete de trabajo."}]}];
+const tr = {"correct":"¡Correcto!","incorrect":"Incorrecto","next":"Siguiente pregunta →","seeResults":"Ver resultados","complete":"¡Cuestionario completado!","scoreText":"Obtuviste {correct} de {total} correctas","tryAgain":"Intentar de nuevo","rightAnswer":"Respuesta correcta","notQuite":"No del todo"};
+let currentQ = 0, correctCount = 0, answered = false;
+
+function init() {
+  document.querySelectorAll('.question').forEach((q, i) => q.classList.toggle('active', i === 0));
+  updateProgress();
+  document.querySelectorAll('.option').forEach(opt => opt.addEventListener('click', () => selectOption(opt)));
+  document.querySelectorAll('.next-btn').forEach(btn => btn.addEventListener('click', nextQuestion));
+}
+
+function selectOption(opt) {
+  if (answered) return;
+  answered = true;
+  const q = opt.closest('.question');
+  const options = q.querySelectorAll('.option');
+  const nextBtn = q.querySelector('.next-btn');
+  const isCorrect = opt.dataset.correct === 'true';
+  
+  // Mark all options as disabled
+  options.forEach(o => o.classList.add('disabled'));
+  
+  // Style selected option
+  opt.classList.add('selected', isCorrect ? 'correct' : 'incorrect');
+  
+  // Show correct answer if wrong
+  if (!isCorrect) {
+    const correctOpt = [...options].find(o => o.dataset.correct === 'true');
+    if (correctOpt) correctOpt.classList.add('show-correct');
+  }
+  
+  if (isCorrect) correctCount++;
+  
+  // Show feedback for ALL options that have rationale
+  options.forEach(o => {
+    const wrapper = o.closest('.option-wrapper');
+    const feedback = wrapper.querySelector('.option-feedback');
+    const rationale = o.dataset.rationale;
+    const isThisCorrect = o.dataset.correct === 'true';
+    
+    if (rationale && rationale.trim()) {
+      feedback.classList.remove('hidden');
+      feedback.classList.add(isThisCorrect ? 'correct-feedback' : 'incorrect-feedback');
+      
+      const statusEl = feedback.querySelector('.feedback-status');
+      statusEl.className = 'feedback-status ' + (isThisCorrect ? 'correct' : 'incorrect');
+      statusEl.innerHTML = isThisCorrect 
+        ? '✓ ' + tr.rightAnswer
+        : '✗ ' + tr.notQuite;
+    }
+  });
+  
+  nextBtn.classList.remove('hidden');
+  if (currentQ === quizData.length - 1) nextBtn.textContent = tr.seeResults;
+}
+
+function nextQuestion() {
+  answered = false;
+  currentQ++;
+  if (currentQ >= quizData.length) { showResults(); return; }
+  document.querySelectorAll('.question').forEach((q, i) => q.classList.toggle('active', i === currentQ));
+  updateProgress();
+}
+
+function updateProgress() {
+  document.querySelector('.progress-fill').style.width = (currentQ / quizData.length * 100) + '%';
+}
+
+function showResults() {
+  document.querySelectorAll('.question').forEach(q => q.classList.remove('active'));
+  document.getElementById('results').classList.add('active');
+  const pct = Math.round((correctCount / quizData.length) * 100);
+  document.getElementById('score').textContent = pct + '%';
+  document.getElementById('score-text').textContent = tr.scoreText.replace('{correct}', correctCount).replace('{total}', quizData.length);
+  document.querySelector('.progress-fill').style.width = '100%';
+}
+
+function restart() {
+  currentQ = 0; correctCount = 0; answered = false;
+  document.getElementById('results').classList.remove('active');
+  document.querySelectorAll('.question').forEach((q, i) => {
+    q.classList.toggle('active', i === 0);
+    q.querySelectorAll('.option').forEach(o => o.classList.remove('selected', 'correct', 'incorrect', 'disabled', 'show-correct'));
+    q.querySelectorAll('.option-feedback').forEach(f => {
+      f.classList.add('hidden');
+      f.classList.remove('correct-feedback', 'incorrect-feedback');
+    });
+    const btn = q.querySelector('.next-btn');
+    btn.classList.add('hidden');
+    btn.textContent = tr.next;
+  });
+  updateProgress();
+}
+
+init();
+</script>
+</body>
+</html>
