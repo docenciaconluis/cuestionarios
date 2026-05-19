@@ -1,0 +1,886 @@
+<!DOCTYPE html>
+<html lang="es" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>S9.1 IOP Cuestionario</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  min-height: 100vh; padding: 20px; color: #333;
+}
+.container { max-width: 700px; margin: 0 auto; }
+.header { text-align: center; color: #fff; padding: 30px 20px; }
+.header h1 { font-size: 28px; font-weight: 700; margin-bottom: 8px; text-shadow: 0 2px 10px rgba(0,0,0,0.2); }
+.header .meta { font-size: 14px; opacity: 0.9; }
+.progress-bar { background: rgba(255,255,255,0.3); border-radius: 10px; height: 8px; margin: 20px 0; overflow: hidden; }
+.progress-fill { background: #fff; height: 100%; width: 0%; transition: width 0.4s ease; border-radius: 10px; }
+.question { background: #fff; border-radius: 16px; padding: 30px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); display: none; }
+.question.active { display: block; }
+.q-header { display: flex; justify-content: space-between; margin-bottom: 20px; font-size: 13px; color: #888; }
+.q-number { font-weight: 600; color: #667eea; }
+.q-text { font-size: 18px; font-weight: 600; line-height: 1.5; margin-bottom: 25px; color: #222; }
+.options { display: flex; flex-direction: column; gap: 12px; }
+.option-wrapper { display: flex; flex-direction: column; }
+.option {
+  display: flex; align-items: flex-start; gap: 14px; padding: 16px 18px;
+  border: 2px solid #e8e8e8; border-radius: 12px; background: #fafafa;
+  cursor: pointer; transition: all 0.2s; text-align: left; font-size: 15px; width: 100%;
+}
+[dir="rtl"] .option { text-align: right; flex-direction: row-reverse; }
+.option:hover:not(.disabled) { border-color: #667eea; background: #f5f3ff; }
+.option.selected { border-color: #667eea; background: #ede9fe; }
+.option.correct { border-color: #22c55e; background: #dcfce7; }
+.option.incorrect { border-color: #ef4444; background: #fee2e2; }
+.option.disabled { cursor: default; }
+.option.show-correct { border-color: #22c55e; background: #dcfce7; }
+.opt-label {
+  display: flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; border-radius: 50%; background: #e8e8e8;
+  font-weight: 700; font-size: 14px; flex-shrink: 0;
+}
+.option.selected .opt-label { background: #667eea; color: #fff; }
+.option.correct .opt-label { background: #22c55e; color: #fff; }
+.option.incorrect .opt-label { background: #ef4444; color: #fff; }
+.option.show-correct .opt-label { background: #22c55e; color: #fff; }
+.opt-text { padding-top: 5px; line-height: 1.5; }
+
+/* Individual option feedback */
+.option-feedback {
+  margin: 8px 0 4px 46px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+[dir="rtl"] .option-feedback { margin-left: 0; margin-right: 46px; }
+.option-feedback.correct-feedback {
+  background: #dcfce7;
+  border-left: 3px solid #22c55e;
+}
+.option-feedback.incorrect-feedback {
+  background: #fef3f2;
+  border-left: 3px solid #fca5a5;
+}
+[dir="rtl"] .option-feedback.correct-feedback,
+[dir="rtl"] .option-feedback.incorrect-feedback {
+  border-left: none;
+  border-right: 3px solid;
+}
+[dir="rtl"] .option-feedback.correct-feedback { border-right-color: #22c55e; }
+[dir="rtl"] .option-feedback.incorrect-feedback { border-right-color: #fca5a5; }
+.feedback-status {
+  font-weight: 600;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.feedback-status.correct { color: #166534; }
+.feedback-status.incorrect { color: #991b1b; }
+.feedback-rationale { color: #444; }
+
+/* Hint box */
+.hint-box {
+  margin: 12px 0;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+}
+.hint-toggle {
+  width: 100%;
+  padding: 10px 16px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  color: #92400e;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.hint-toggle:hover { background: #fef3c7; }
+.hint-content {
+  padding: 0 16px;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s, padding 0.3s;
+  font-size: 14px;
+  color: #78350f;
+  line-height: 1.5;
+}
+.hint-box.show .hint-content {
+  padding: 0 16px 12px;
+  max-height: 200px;
+}
+
+.next-btn {
+  margin-top: 20px; width: 100%; padding: 14px;
+  background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; border: none;
+  border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.next-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(102,126,234,0.4); }
+.hidden { display: none !important; }
+.results { background: #fff; border-radius: 16px; padding: 40px; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.15); display: none; }
+.results.active { display: block; }
+.results h2 { font-size: 28px; margin-bottom: 10px; color: #333; }
+.results .score { font-size: 64px; font-weight: 700; color: #667eea; margin: 20px 0; }
+.results .score-text { font-size: 18px; color: #666; margin-bottom: 30px; }
+.restart-btn {
+  padding: 14px 40px; background: linear-gradient(135deg, #667eea, #764ba2);
+  color: #fff; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer;
+}
+
+/* Math CSS */
+.math, .math-block { font-family: "Cambria Math", "Times New Roman", Times, serif; font-style: italic; }
+.math-block { display: block; text-align: center; margin: 10px 0; font-size: 110%; }
+.frac { display: inline-flex; flex-direction: column; align-items: center; vertical-align: middle; margin: 0 3px; font-size: 0.9em; }
+.frac-num { border-bottom: 1px solid currentColor; padding: 0 4px 2px; line-height: 1.2; }
+.frac-den { padding: 2px 4px 0; line-height: 1.2; }
+.sqrt { white-space: nowrap; }
+.sqrt-content { border-top: 1px solid currentColor; padding: 0 3px; margin-left: 2px; }
+sup, sub { font-size: 0.75em; }
+sup { vertical-align: super; }
+sub { vertical-align: sub; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>S9.1 IOP Cuestionario</h1>
+    <div class="meta">10 preguntas</div>
+    <div class="progress-bar"><div class="progress-fill"></div></div>
+  </div>
+  <div id="quiz-container">
+        <div class="question" data-index="0">
+          <div class="q-header">
+            <span class="q-number">Pregunta 1</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿Cuál es la función principal de un distribuidor o centro de acopio en un modelo de transbordo?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piense en el papel de un intermediario logístico que no transforma el producto físicamente.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="La fabricación es la función principal de las plantas de producción, no de los distribuidores.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Fabricar el producto desde cero utilizando materias primas.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La fabricación es la función principal de las plantas de producción, no de los distribuidores.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Un distribuidor actúa como un punto intermedio que recibe suministros y los redistribuye según la demanda.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Recibir productos de las plantas y coordinar su envío a las tiendas finales.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Un distribuidor actúa como un punto intermedio que recibe suministros y los redistribuye según la demanda.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="El distribuidor es un nodo adicional que requiere transporte tanto de entrada como de salida.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Eliminar la necesidad de transporte entre la planta y la tienda.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El distribuidor es un nodo adicional que requiere transporte tanto de entrada como de salida.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="La venta al consumidor final ocurre en las tiendas, el distribuidor maneja logística mayorista.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Vender el producto directamente al consumidor final en el mostrador.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La venta al consumidor final ocurre en las tiendas, el distribuidor maneja logística mayorista.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="1">
+          <div class="q-header">
+            <span class="q-number">Pregunta 2</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">En un modelo donde se busca maximizar la utilidad, ¿qué elementos componen generalmente los ingresos?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considere qué acción específica genera la entrada de dinero en una cadena de suministro.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="El ahorro reduce costos, pero el ingreso proviene estrictamente de las transacciones de venta.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">El ahorro obtenido al usar el transporte más económico.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El ahorro reduce costos, pero el ingreso proviene estrictamente de las transacciones de venta.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="La capacidad es un límite físico, no garantiza ventas ni genera ingresos por sí sola.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">La capacidad máxima de producción de todas las plantas.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La capacidad es un límite físico, no garantiza ventas ni genera ingresos por sí sola.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Estos elementos representan egresos o salidas de dinero, no ingresos por ventas.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">La suma de los costos de producción y transporte.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Estos elementos representan egresos o salidas de dinero, no ingresos por ventas.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="true" data-rationale="El ingreso total se deriva del volumen de productos que efectivamente llegan y se venden en los puntos finales.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">La multiplicación de la cantidad enviada a tiendas por su precio de venta.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El ingreso total se deriva del volumen de productos que efectivamente llegan y se venden en los puntos finales.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="2">
+          <div class="q-header">
+            <span class="q-number">Pregunta 3</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">Si una planta tiene una capacidad de producción de <span class="math">2000</span> unidades, ¿cómo se representa matemáticamente esta restricción para los envíos?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piense en el símbolo matemático que indica un límite máximo permitido.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="No es obligatorio producir el máximo; la capacidad representa un límite superior que no debe excederse.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">El total enviado desde la planta debe ser igual a <span class="math">2000</span>.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">No es obligatorio producir el máximo; la capacidad representa un límite superior que no debe excederse.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Las restricciones de capacidad indican que la producción puede ser cualquier valor desde cero hasta el límite permitido.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">El total enviado desde la planta debe ser menor o igual a <span class="math">2000</span>.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Las restricciones de capacidad indican que la producción puede ser cualquier valor desde cero hasta el límite permitido.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Esto violaría la limitación física de la planta proveedora.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">El total recibido por los distribuidores debe ser mayor a <span class="math">2000</span>.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esto violaría la limitación física de la planta proveedora.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="La demanda de la tienda es independiente de la capacidad de una sola planta específica.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">La demanda de las tiendas debe ser exactamente de <span class="math">2000</span>.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La demanda de la tienda es independiente de la capacidad de una sola planta específica.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="3">
+          <div class="q-header">
+            <span class="q-number">Pregunta 4</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿Qué sucede con el costo de transporte por unidad cuando se traslada una mayor cantidad de producto según el material?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Recuerde el concepto de eficiencia logística relacionado con el volumen de carga.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Aunque en modelos simples se asume linealidad, en la realidad el volumen afecta la eficiencia del transporte.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">El costo por producto se mantiene estrictamente constante.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aunque en modelos simples se asume linealidad, en la realidad el volumen afecta la eficiencia del transporte.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Un aumento exponencial haría que el transporte masivo fuera inviable económicamente.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">El costo por producto aumenta exponencialmente.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Un aumento exponencial haría que el transporte masivo fuera inviable económicamente.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Siempre existe un costo operativo, independientemente de la eficiencia de carga.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">El costo de transporte desaparece si se llenan los camiones.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Siempre existe un costo operativo, independientemente de la eficiencia de carga.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="true" data-rationale="Generalmente, las economías de escala y el uso eficiente de vehículos reducen el costo unitario a mayor volumen.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">El costo por producto transportado tiende a bajar.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Generalmente, las economías de escala y el uso eficiente de vehículos reducen el costo unitario a mayor volumen.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="4">
+          <div class="q-header">
+            <span class="q-number">Pregunta 5</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">En un nodo de transbordo (como un almacén), ¿cuál es la regla fundamental de balance si no hay inventario inicial ni final?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considere el principio de conservación aplicado al movimiento de mercancías en un punto intermedio.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Físicamente es imposible enviar más unidades de las que se han recibido o producido.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Lo que sale debe ser el doble de lo que entra.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Físicamente es imposible enviar más unidades de las que se han recibido o producido.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="En modelos de optimización, la continuidad del flujo es esencial para conectar la oferta con la demanda.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">No existe relación entre las entradas y las salidas.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">En modelos de optimización, la continuidad del flujo es esencial para conectar la oferta con la demanda.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Esto implicaría una acumulación indefinida de producto que no coincide con un balance de flujo.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Lo que entra debe ser mayor a lo que sale.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esto implicaría una acumulación indefinida de producto que no coincide con un balance de flujo.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="true" data-rationale="Para que el sistema sea estable y no se pierda mercadería, todo lo recibido debe ser distribuido hacia el siguiente nivel.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Lo que entra debe ser igual a lo que sale.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Para que el sistema sea estable y no se pierda mercadería, todo lo recibido debe ser distribuido hacia el siguiente nivel.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="5">
+          <div class="q-header">
+            <span class="q-number">Pregunta 6</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿Qué variables se suelen definir en un modelo de transporte para representar la cantidad enviada de un punto <span class="math">i</span> a un punto <span class="math">j</span>?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piense en qué tipo de valor representa una 'cantidad de producto' en una ecuación.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Aunque el tiempo es importante, el objetivo principal del transporte es determinar 'cuánto' enviar.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Variables de tiempo de entrega únicamente.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aunque el tiempo es importante, el objetivo principal del transporte es determinar 'cuánto' enviar.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Las variables binarias se usan para decisiones de 'sí/no', no para representar cantidades continuas de producto.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Variables de decisión binarias (<span class="math">0</span> o <span class="math">1</span>).</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Las variables binarias se usan para decisiones de 'sí/no', no para representar cantidades continuas de producto.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="true" data-rationale="Se requieren variables que cuantifiquen el flujo de unidades entre los diferentes nodos del modelo.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Variables de decisión continuas o enteras (<span class="math">X<sub>ij</sub></span>).</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Se requieren variables que cuantifiquen el flujo de unidades entre los diferentes nodos del modelo.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Los costos son parámetros conocidos, no variables que el modelo deba determinar.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Variables constantes de costo fijo.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Los costos son parámetros conocidos, no variables que el modelo deba determinar.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="6">
+          <div class="q-header">
+            <span class="q-number">Pregunta 7</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">Si una tienda tiene una demanda específica en el Mes 1, ¿cómo debe actuar el modelo respecto a esa cantidad?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Relacione el cumplimiento del pedido con la optimización de recursos.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Enviar el máximo sin considerar la demanda generaría sobrecostos y exceso de inventario innecesario.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Debe enviar siempre el máximo de la capacidad de la planta.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Enviar el máximo sin considerar la demanda generaría sobrecostos y exceso de inventario innecesario.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Si no se satisface la demanda, no hay ventas y, por lo tanto, no hay ingresos para maximizar la utilidad.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Debe ignorar la demanda si los costos de transporte son altos.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Si no se satisface la demanda, no hay ventas y, por lo tanto, no hay ingresos para maximizar la utilidad.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Duplicar la demanda arbitrariamente distorsiona los costos y la realidad operativa del modelo.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Debe duplicar la demanda para asegurar que no falte producto.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Duplicar la demanda arbitrariamente distorsiona los costos y la realidad operativa del modelo.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="true" data-rationale="El objetivo es cumplir con los requisitos del cliente (demanda) de manera eficiente.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Debe satisfacer la demanda sin exceder lo que la tienda puede vender.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El objetivo es cumplir con los requisitos del cliente (demanda) de manera eficiente.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="7">
+          <div class="q-header">
+            <span class="q-number">Pregunta 8</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿Cuál es la ventaja de integrar LINGO con Excel mediante la función @OLE?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piense en la comodidad de manejar datos en tablas versus código de programación.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="La lógica matemática (función objetivo y restricciones) siempre debe programarse en el software de optimización.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Elimina la necesidad de escribir la función objetivo en LINGO.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La lógica matemática (función objetivo y restricciones) siempre debe programarse en el software de optimización.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="La conexión @OLE es local entre archivos y no afecta ni depende de la velocidad de red.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Aumenta la velocidad de internet durante la resolución del problema.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La conexión @OLE es local entre archivos y no afecta ni depende de la velocidad de red.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="true" data-rationale="Excel funciona como una base de datos amigable, permitiendo gestionar parámetros y ver resultados sin editar el código directamente.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Facilita la lectura de grandes volúmenes de datos y la exportación de resultados.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Excel funciona como una base de datos amigable, permitiendo gestionar parámetros y ver resultados sin editar el código directamente.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="LINGO se enfoca en el procesamiento matemático, no en la generación de gráficos ilustrativos.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Permite que LINGO dibuje los gráficos de las plantas automáticamente.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">LINGO se enfoca en el procesamiento matemático, no en la generación de gráficos ilustrativos.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="8">
+          <div class="q-header">
+            <span class="q-number">Pregunta 9</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">En la función objetivo de maximización proporcionada en el material, ¿qué se le resta al precio de venta?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considere todos los gastos en los que incurre la empresa desde que crea el producto hasta que llega al cliente.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Se deben considerar todos los costos en la cadena, no solo el primer tramo.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Únicamente el costo de transporte de la planta al almacén.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Se deben considerar todos los costos en la cadena, no solo el primer tramo.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="La demanda es una cantidad de unidades, no un valor monetario que se reste directamente del precio.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">La demanda total de las tiendas.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La demanda es una cantidad de unidades, no un valor monetario que se reste directamente del precio.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="La capacidad es un límite físico y no representa un costo variable directo en la resta de utilidad por unidad.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">La capacidad de almacenamiento de los distribuidores.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La capacidad es un límite físico y no representa un costo variable directo en la resta de utilidad por unidad.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="true" data-rationale="La utilidad neta se obtiene restando todos los gastos operativos (producir y mover) de los ingresos por ventas.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Los costos de transporte y los costos de producción por unidad.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La utilidad neta se obtiene restando todos los gastos operativos (producir y mover) de los ingresos por ventas.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="9">
+          <div class="q-header">
+            <span class="q-number">Pregunta 10</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿Por qué es importante considerar múltiples meses en un modelo de transporte y transbordo?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piense en cómo cambia el comportamiento de los consumidores en diferentes periodos del año.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Las condiciones del mercado no son estáticas; el modelo debe adaptarse a las fluctuaciones mensuales para ser realista.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Porque la demanda y la capacidad pueden variar a lo largo del tiempo.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Las condiciones del mercado no son estáticas; el modelo debe adaptarse a las fluctuaciones mensuales para ser realista.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Al contrario, añadir la dimensión del tiempo (meses) aumenta la cantidad de variables de decisión necesarias.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Porque así se evita tener que usar variables de decisión.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Al contrario, añadir la dimensión del tiempo (meses) aumenta la cantidad de variables de decisión necesarias.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="El software puede resolver problemas de cualquier horizonte temporal, incluso de un solo día.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Porque LINGO no puede resolver problemas que duren menos de un mes.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El software puede resolver problemas de cualquier horizonte temporal, incluso de un solo día.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Los costos no tienen una regla de duplicación fija; dependen de contratos y factores externos.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Porque el costo de transporte siempre se duplica cada mes.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Los costos no tienen una regla de duplicación fija; dependen de contratos y factores externos.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      </div>
+  <div class="results" id="results">
+    <h2>¡Cuestionario completado!</h2>
+    <div class="score" id="score">0%</div>
+    <div class="score-text" id="score-text"></div>
+    <button class="restart-btn" onclick="restart()">Intentar de nuevo</button>
+  </div>
+</div>
+<script>
+const quizData = [{"question":"¿Cuál es la función principal de un distribuidor o centro de acopio en un modelo de transbordo?","hint":"Piense en el papel de un intermediario logístico que no transforma el producto físicamente.","options":[{"label":"A","text":"Fabricar el producto desde cero utilizando materias primas.","isCorrect":false,"rationale":"La fabricación es la función principal de las plantas de producción, no de los distribuidores."},{"label":"B","text":"Recibir productos de las plantas y coordinar su envío a las tiendas finales.","isCorrect":true,"rationale":"Un distribuidor actúa como un punto intermedio que recibe suministros y los redistribuye según la demanda."},{"label":"C","text":"Eliminar la necesidad de transporte entre la planta y la tienda.","isCorrect":false,"rationale":"El distribuidor es un nodo adicional que requiere transporte tanto de entrada como de salida."},{"label":"D","text":"Vender el producto directamente al consumidor final en el mostrador.","isCorrect":false,"rationale":"La venta al consumidor final ocurre en las tiendas, el distribuidor maneja logística mayorista."}]},{"question":"En un modelo donde se busca maximizar la utilidad, ¿qué elementos componen generalmente los ingresos?","hint":"Considere qué acción específica genera la entrada de dinero en una cadena de suministro.","options":[{"label":"A","text":"El ahorro obtenido al usar el transporte más económico.","isCorrect":false,"rationale":"El ahorro reduce costos, pero el ingreso proviene estrictamente de las transacciones de venta."},{"label":"B","text":"La capacidad máxima de producción de todas las plantas.","isCorrect":false,"rationale":"La capacidad es un límite físico, no garantiza ventas ni genera ingresos por sí sola."},{"label":"C","text":"La suma de los costos de producción y transporte.","isCorrect":false,"rationale":"Estos elementos representan egresos o salidas de dinero, no ingresos por ventas."},{"label":"D","text":"La multiplicación de la cantidad enviada a tiendas por su precio de venta.","isCorrect":true,"rationale":"El ingreso total se deriva del volumen de productos que efectivamente llegan y se venden en los puntos finales."}]},{"question":"Si una planta tiene una capacidad de producción de $2000$ unidades, ¿cómo se representa matemáticamente esta restricción para los envíos?","hint":"Piense en el símbolo matemático que indica un límite máximo permitido.","options":[{"label":"A","text":"El total enviado desde la planta debe ser igual a $2000$.","isCorrect":false,"rationale":"No es obligatorio producir el máximo; la capacidad representa un límite superior que no debe excederse."},{"label":"B","text":"El total enviado desde la planta debe ser menor o igual a $2000$.","isCorrect":true,"rationale":"Las restricciones de capacidad indican que la producción puede ser cualquier valor desde cero hasta el límite permitido."},{"label":"C","text":"El total recibido por los distribuidores debe ser mayor a $2000$.","isCorrect":false,"rationale":"Esto violaría la limitación física de la planta proveedora."},{"label":"D","text":"La demanda de las tiendas debe ser exactamente de $2000$.","isCorrect":false,"rationale":"La demanda de la tienda es independiente de la capacidad de una sola planta específica."}]},{"question":"¿Qué sucede con el costo de transporte por unidad cuando se traslada una mayor cantidad de producto según el material?","hint":"Recuerde el concepto de eficiencia logística relacionado con el volumen de carga.","options":[{"label":"A","text":"El costo por producto se mantiene estrictamente constante.","isCorrect":false,"rationale":"Aunque en modelos simples se asume linealidad, en la realidad el volumen afecta la eficiencia del transporte."},{"label":"B","text":"El costo por producto aumenta exponencialmente.","isCorrect":false,"rationale":"Un aumento exponencial haría que el transporte masivo fuera inviable económicamente."},{"label":"C","text":"El costo de transporte desaparece si se llenan los camiones.","isCorrect":false,"rationale":"Siempre existe un costo operativo, independientemente de la eficiencia de carga."},{"label":"D","text":"El costo por producto transportado tiende a bajar.","isCorrect":true,"rationale":"Generalmente, las economías de escala y el uso eficiente de vehículos reducen el costo unitario a mayor volumen."}]},{"question":"En un nodo de transbordo (como un almacén), ¿cuál es la regla fundamental de balance si no hay inventario inicial ni final?","hint":"Considere el principio de conservación aplicado al movimiento de mercancías en un punto intermedio.","options":[{"label":"A","text":"Lo que sale debe ser el doble de lo que entra.","isCorrect":false,"rationale":"Físicamente es imposible enviar más unidades de las que se han recibido o producido."},{"label":"B","text":"No existe relación entre las entradas y las salidas.","isCorrect":false,"rationale":"En modelos de optimización, la continuidad del flujo es esencial para conectar la oferta con la demanda."},{"label":"C","text":"Lo que entra debe ser mayor a lo que sale.","isCorrect":false,"rationale":"Esto implicaría una acumulación indefinida de producto que no coincide con un balance de flujo."},{"label":"D","text":"Lo que entra debe ser igual a lo que sale.","isCorrect":true,"rationale":"Para que el sistema sea estable y no se pierda mercadería, todo lo recibido debe ser distribuido hacia el siguiente nivel."}]},{"question":"¿Qué variables se suelen definir en un modelo de transporte para representar la cantidad enviada de un punto $i$ a un punto $j$?","hint":"Piense en qué tipo de valor representa una 'cantidad de producto' en una ecuación.","options":[{"label":"A","text":"Variables de tiempo de entrega únicamente.","isCorrect":false,"rationale":"Aunque el tiempo es importante, el objetivo principal del transporte es determinar 'cuánto' enviar."},{"label":"B","text":"Variables de decisión binarias ($0$ o $1$).","isCorrect":false,"rationale":"Las variables binarias se usan para decisiones de 'sí/no', no para representar cantidades continuas de producto."},{"label":"C","text":"Variables de decisión continuas o enteras ($X_{ij}$).","isCorrect":true,"rationale":"Se requieren variables que cuantifiquen el flujo de unidades entre los diferentes nodos del modelo."},{"label":"D","text":"Variables constantes de costo fijo.","isCorrect":false,"rationale":"Los costos son parámetros conocidos, no variables que el modelo deba determinar."}]},{"question":"Si una tienda tiene una demanda específica en el Mes 1, ¿cómo debe actuar el modelo respecto a esa cantidad?","hint":"Relacione el cumplimiento del pedido con la optimización de recursos.","options":[{"label":"A","text":"Debe enviar siempre el máximo de la capacidad de la planta.","isCorrect":false,"rationale":"Enviar el máximo sin considerar la demanda generaría sobrecostos y exceso de inventario innecesario."},{"label":"B","text":"Debe ignorar la demanda si los costos de transporte son altos.","isCorrect":false,"rationale":"Si no se satisface la demanda, no hay ventas y, por lo tanto, no hay ingresos para maximizar la utilidad."},{"label":"C","text":"Debe duplicar la demanda para asegurar que no falte producto.","isCorrect":false,"rationale":"Duplicar la demanda arbitrariamente distorsiona los costos y la realidad operativa del modelo."},{"label":"D","text":"Debe satisfacer la demanda sin exceder lo que la tienda puede vender.","isCorrect":true,"rationale":"El objetivo es cumplir con los requisitos del cliente (demanda) de manera eficiente."}]},{"question":"¿Cuál es la ventaja de integrar LINGO con Excel mediante la función @OLE?","hint":"Piense en la comodidad de manejar datos en tablas versus código de programación.","options":[{"label":"A","text":"Elimina la necesidad de escribir la función objetivo en LINGO.","isCorrect":false,"rationale":"La lógica matemática (función objetivo y restricciones) siempre debe programarse en el software de optimización."},{"label":"B","text":"Aumenta la velocidad de internet durante la resolución del problema.","isCorrect":false,"rationale":"La conexión @OLE es local entre archivos y no afecta ni depende de la velocidad de red."},{"label":"C","text":"Facilita la lectura de grandes volúmenes de datos y la exportación de resultados.","isCorrect":true,"rationale":"Excel funciona como una base de datos amigable, permitiendo gestionar parámetros y ver resultados sin editar el código directamente."},{"label":"D","text":"Permite que LINGO dibuje los gráficos de las plantas automáticamente.","isCorrect":false,"rationale":"LINGO se enfoca en el procesamiento matemático, no en la generación de gráficos ilustrativos."}]},{"question":"En la función objetivo de maximización proporcionada en el material, ¿qué se le resta al precio de venta?","hint":"Considere todos los gastos en los que incurre la empresa desde que crea el producto hasta que llega al cliente.","options":[{"label":"A","text":"Únicamente el costo de transporte de la planta al almacén.","isCorrect":false,"rationale":"Se deben considerar todos los costos en la cadena, no solo el primer tramo."},{"label":"B","text":"La demanda total de las tiendas.","isCorrect":false,"rationale":"La demanda es una cantidad de unidades, no un valor monetario que se reste directamente del precio."},{"label":"C","text":"La capacidad de almacenamiento de los distribuidores.","isCorrect":false,"rationale":"La capacidad es un límite físico y no representa un costo variable directo en la resta de utilidad por unidad."},{"label":"D","text":"Los costos de transporte y los costos de producción por unidad.","isCorrect":true,"rationale":"La utilidad neta se obtiene restando todos los gastos operativos (producir y mover) de los ingresos por ventas."}]},{"question":"¿Por qué es importante considerar múltiples meses en un modelo de transporte y transbordo?","hint":"Piense en cómo cambia el comportamiento de los consumidores en diferentes periodos del año.","options":[{"label":"A","text":"Porque la demanda y la capacidad pueden variar a lo largo del tiempo.","isCorrect":true,"rationale":"Las condiciones del mercado no son estáticas; el modelo debe adaptarse a las fluctuaciones mensuales para ser realista."},{"label":"B","text":"Porque así se evita tener que usar variables de decisión.","isCorrect":false,"rationale":"Al contrario, añadir la dimensión del tiempo (meses) aumenta la cantidad de variables de decisión necesarias."},{"label":"C","text":"Porque LINGO no puede resolver problemas que duren menos de un mes.","isCorrect":false,"rationale":"El software puede resolver problemas de cualquier horizonte temporal, incluso de un solo día."},{"label":"D","text":"Porque el costo de transporte siempre se duplica cada mes.","isCorrect":false,"rationale":"Los costos no tienen una regla de duplicación fija; dependen de contratos y factores externos."}]}];
+const tr = {"correct":"¡Correcto!","incorrect":"Incorrecto","next":"Siguiente pregunta →","seeResults":"Ver resultados","complete":"¡Cuestionario completado!","scoreText":"Obtuviste {correct} de {total} correctas","tryAgain":"Intentar de nuevo","rightAnswer":"Respuesta correcta","notQuite":"No del todo"};
+let currentQ = 0, correctCount = 0, answered = false;
+
+function init() {
+  document.querySelectorAll('.question').forEach((q, i) => q.classList.toggle('active', i === 0));
+  updateProgress();
+  document.querySelectorAll('.option').forEach(opt => opt.addEventListener('click', () => selectOption(opt)));
+  document.querySelectorAll('.next-btn').forEach(btn => btn.addEventListener('click', nextQuestion));
+}
+
+function selectOption(opt) {
+  if (answered) return;
+  answered = true;
+  const q = opt.closest('.question');
+  const options = q.querySelectorAll('.option');
+  const nextBtn = q.querySelector('.next-btn');
+  const isCorrect = opt.dataset.correct === 'true';
+  
+  // Mark all options as disabled
+  options.forEach(o => o.classList.add('disabled'));
+  
+  // Style selected option
+  opt.classList.add('selected', isCorrect ? 'correct' : 'incorrect');
+  
+  // Show correct answer if wrong
+  if (!isCorrect) {
+    const correctOpt = [...options].find(o => o.dataset.correct === 'true');
+    if (correctOpt) correctOpt.classList.add('show-correct');
+  }
+  
+  if (isCorrect) correctCount++;
+  
+  // Show feedback for ALL options that have rationale
+  options.forEach(o => {
+    const wrapper = o.closest('.option-wrapper');
+    const feedback = wrapper.querySelector('.option-feedback');
+    const rationale = o.dataset.rationale;
+    const isThisCorrect = o.dataset.correct === 'true';
+    
+    if (rationale && rationale.trim()) {
+      feedback.classList.remove('hidden');
+      feedback.classList.add(isThisCorrect ? 'correct-feedback' : 'incorrect-feedback');
+      
+      const statusEl = feedback.querySelector('.feedback-status');
+      statusEl.className = 'feedback-status ' + (isThisCorrect ? 'correct' : 'incorrect');
+      statusEl.innerHTML = isThisCorrect 
+        ? '✓ ' + tr.rightAnswer
+        : '✗ ' + tr.notQuite;
+    }
+  });
+  
+  nextBtn.classList.remove('hidden');
+  if (currentQ === quizData.length - 1) nextBtn.textContent = tr.seeResults;
+}
+
+function nextQuestion() {
+  answered = false;
+  currentQ++;
+  if (currentQ >= quizData.length) { showResults(); return; }
+  document.querySelectorAll('.question').forEach((q, i) => q.classList.toggle('active', i === currentQ));
+  updateProgress();
+}
+
+function updateProgress() {
+  document.querySelector('.progress-fill').style.width = (currentQ / quizData.length * 100) + '%';
+}
+
+function showResults() {
+  document.querySelectorAll('.question').forEach(q => q.classList.remove('active'));
+  document.getElementById('results').classList.add('active');
+  const pct = Math.round((correctCount / quizData.length) * 100);
+  document.getElementById('score').textContent = pct + '%';
+  document.getElementById('score-text').textContent = tr.scoreText.replace('{correct}', correctCount).replace('{total}', quizData.length);
+  document.querySelector('.progress-fill').style.width = '100%';
+}
+
+function restart() {
+  currentQ = 0; correctCount = 0; answered = false;
+  document.getElementById('results').classList.remove('active');
+  document.querySelectorAll('.question').forEach((q, i) => {
+    q.classList.toggle('active', i === 0);
+    q.querySelectorAll('.option').forEach(o => o.classList.remove('selected', 'correct', 'incorrect', 'disabled', 'show-correct'));
+    q.querySelectorAll('.option-feedback').forEach(f => {
+      f.classList.add('hidden');
+      f.classList.remove('correct-feedback', 'incorrect-feedback');
+    });
+    const btn = q.querySelector('.next-btn');
+    btn.classList.add('hidden');
+    btn.textContent = tr.next;
+  });
+  updateProgress();
+}
+
+init();
+</script>
+</body>
+</html>
