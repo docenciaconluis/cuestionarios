@@ -1,0 +1,1878 @@
+<!DOCTYPE html>
+<html lang="es" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>S9 LCS Cuestionario</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  min-height: 100vh; padding: 20px; color: #333;
+}
+.container { max-width: 700px; margin: 0 auto; }
+.header { text-align: center; color: #fff; padding: 30px 20px; }
+.header h1 { font-size: 28px; font-weight: 700; margin-bottom: 8px; text-shadow: 0 2px 10px rgba(0,0,0,0.2); }
+.header .meta { font-size: 14px; opacity: 0.9; }
+.progress-bar { background: rgba(255,255,255,0.3); border-radius: 10px; height: 8px; margin: 20px 0; overflow: hidden; }
+.progress-fill { background: #fff; height: 100%; width: 0%; transition: width 0.4s ease; border-radius: 10px; }
+.question { background: #fff; border-radius: 16px; padding: 30px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); display: none; }
+.question.active { display: block; }
+.q-header { display: flex; justify-content: space-between; margin-bottom: 20px; font-size: 13px; color: #888; }
+.q-number { font-weight: 600; color: #667eea; }
+.q-text { font-size: 18px; font-weight: 600; line-height: 1.5; margin-bottom: 25px; color: #222; }
+.options { display: flex; flex-direction: column; gap: 12px; }
+.option-wrapper { display: flex; flex-direction: column; }
+.option {
+  display: flex; align-items: flex-start; gap: 14px; padding: 16px 18px;
+  border: 2px solid #e8e8e8; border-radius: 12px; background: #fafafa;
+  cursor: pointer; transition: all 0.2s; text-align: left; font-size: 15px; width: 100%;
+}
+[dir="rtl"] .option { text-align: right; flex-direction: row-reverse; }
+.option:hover:not(.disabled) { border-color: #667eea; background: #f5f3ff; }
+.option.selected { border-color: #667eea; background: #ede9fe; }
+.option.correct { border-color: #22c55e; background: #dcfce7; }
+.option.incorrect { border-color: #ef4444; background: #fee2e2; }
+.option.disabled { cursor: default; }
+.option.show-correct { border-color: #22c55e; background: #dcfce7; }
+.opt-label {
+  display: flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; border-radius: 50%; background: #e8e8e8;
+  font-weight: 700; font-size: 14px; flex-shrink: 0;
+}
+.option.selected .opt-label { background: #667eea; color: #fff; }
+.option.correct .opt-label { background: #22c55e; color: #fff; }
+.option.incorrect .opt-label { background: #ef4444; color: #fff; }
+.option.show-correct .opt-label { background: #22c55e; color: #fff; }
+.opt-text { padding-top: 5px; line-height: 1.5; }
+
+/* Individual option feedback */
+.option-feedback {
+  margin: 8px 0 4px 46px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+[dir="rtl"] .option-feedback { margin-left: 0; margin-right: 46px; }
+.option-feedback.correct-feedback {
+  background: #dcfce7;
+  border-left: 3px solid #22c55e;
+}
+.option-feedback.incorrect-feedback {
+  background: #fef3f2;
+  border-left: 3px solid #fca5a5;
+}
+[dir="rtl"] .option-feedback.correct-feedback,
+[dir="rtl"] .option-feedback.incorrect-feedback {
+  border-left: none;
+  border-right: 3px solid;
+}
+[dir="rtl"] .option-feedback.correct-feedback { border-right-color: #22c55e; }
+[dir="rtl"] .option-feedback.incorrect-feedback { border-right-color: #fca5a5; }
+.feedback-status {
+  font-weight: 600;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.feedback-status.correct { color: #166534; }
+.feedback-status.incorrect { color: #991b1b; }
+.feedback-rationale { color: #444; }
+
+/* Hint box */
+.hint-box {
+  margin: 12px 0;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+}
+.hint-toggle {
+  width: 100%;
+  padding: 10px 16px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  color: #92400e;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.hint-toggle:hover { background: #fef3c7; }
+.hint-content {
+  padding: 0 16px;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s, padding 0.3s;
+  font-size: 14px;
+  color: #78350f;
+  line-height: 1.5;
+}
+.hint-box.show .hint-content {
+  padding: 0 16px 12px;
+  max-height: 200px;
+}
+
+.next-btn {
+  margin-top: 20px; width: 100%; padding: 14px;
+  background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; border: none;
+  border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.next-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(102,126,234,0.4); }
+.hidden { display: none !important; }
+.results { background: #fff; border-radius: 16px; padding: 40px; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.15); display: none; }
+.results.active { display: block; }
+.results h2 { font-size: 28px; margin-bottom: 10px; color: #333; }
+.results .score { font-size: 64px; font-weight: 700; color: #667eea; margin: 20px 0; }
+.results .score-text { font-size: 18px; color: #666; margin-bottom: 30px; }
+.restart-btn {
+  padding: 14px 40px; background: linear-gradient(135deg, #667eea, #764ba2);
+  color: #fff; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer;
+}
+
+/* Math CSS */
+.math, .math-block { font-family: "Cambria Math", "Times New Roman", Times, serif; font-style: italic; }
+.math-block { display: block; text-align: center; margin: 10px 0; font-size: 110%; }
+.frac { display: inline-flex; flex-direction: column; align-items: center; vertical-align: middle; margin: 0 3px; font-size: 0.9em; }
+.frac-num { border-bottom: 1px solid currentColor; padding: 0 4px 2px; line-height: 1.2; }
+.frac-den { padding: 2px 4px 0; line-height: 1.2; }
+.sqrt { white-space: nowrap; }
+.sqrt-content { border-top: 1px solid currentColor; padding: 0 3px; margin-left: 2px; }
+sup, sub { font-size: 0.75em; }
+sup { vertical-align: super; }
+sub { vertical-align: sub; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>S9 LCS Cuestionario</h1>
+    <div class="meta">26 preguntas</div>
+    <div class="progress-bar"><div class="progress-fill"></div></div>
+  </div>
+  <div id="quiz-container">
+        <div class="question" data-index="0">
+          <div class="q-header">
+            <span class="q-number">Pregunta 1</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">En el contexto del diseño de redes logísticas, ¿cuál es el objetivo primordial al equilibrar los costos de producción, inventario y transporte?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considere la relación entre la eficiencia operativa y la satisfacción del usuario final.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Aumentar el almacenamiento indiscriminadamente elevaría los costos de inventario, contradiciendo el principio de balance de costos.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Maximizar la capacidad de almacenamiento en todos los puntos de la red.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aumentar el almacenamiento indiscriminadamente elevaría los costos de inventario, contradiciendo el principio de balance de costos.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Enfocarse solo en un eslabón ignora el impacto sistémico en los costos de producción y almacenamiento.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Reducir exclusivamente los costos de transporte de última milla.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Enfocarse solo en un eslabón ignora el impacto sistémico en los costos de producción y almacenamiento.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="La eliminación de intermediarios es una decisión de canal, no el objetivo de balancear los costos operativos de la red.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Eliminar la necesidad de intermediarios en los canales de distribución.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La eliminación de intermediarios es una decisión de canal, no el objetivo de balancear los costos operativos de la red.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="true" data-rationale="El diseño busca una estructura óptima que cumpla con las promesas al cliente sin comprometer la rentabilidad de la empresa.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Garantizar el nivel de servicio al cliente de manera rentable.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El diseño busca una estructura óptima que cumpla con las promesas al cliente sin comprometer la rentabilidad de la empresa.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="1">
+          <div class="q-header">
+            <span class="q-number">Pregunta 2</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿Por qué se considera que el diseño de una red de distribución es la 'estructura ósea' de una empresa?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piense en el rol que cumplen las plantas, almacenes y puertos en el sostenimiento del negocio.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="La red logística se ocupa del flujo físico y estratégico, no de los aspectos estéticos o de promoción de la marca.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Porque determina la identidad visual y el marketing de los productos.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La red logística se ocupa del flujo físico y estratégico, no de los aspectos estéticos o de promoción de la marca.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Aunque es una decisión a largo plazo, la red debe ser adaptable a los cambios del mercado, no totalmente rígida.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Porque es la parte más rígida de la empresa y no puede modificarse en el tiempo.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aunque es una decisión a largo plazo, la red debe ser adaptable a los cambios del mercado, no totalmente rígida.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="La protección física es una función del empaque o el almacenamiento, no de la configuración estratégica de la red.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Porque se encarga únicamente de la protección física de las mercancías.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La protección física es una función del empaque o el almacenamiento, no de la configuración estratégica de la red.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="true" data-rationale="Al igual que un esqueleto, la red sostiene y da forma a toda la operación logística, permitiendo que el flujo de productos sea coherente.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Porque define la ubicación estratégica de instalaciones para gestionar el flujo hasta el cliente.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Al igual que un esqueleto, la red sostiene y da forma a toda la operación logística, permitiendo que el flujo de productos sea coherente.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="2">
+          <div class="q-header">
+            <span class="q-number">Pregunta 3</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">Al aplicar el Método del Centro de Gravedad para la localización de una instalación, ¿qué variables son fundamentales para el cálculo?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Recuerde que este método utiliza coordenadas cartesianas para hallar una ubicación óptima.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="La velocidad es una variable operativa del transporte, no un insumo directo para calcular el punto de equilibrio geográfico.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">La velocidad máxima permitida en las rutas de transporte terrestre.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La velocidad es una variable operativa del transporte, no un insumo directo para calcular el punto de equilibrio geográfico.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Este modelo matemático busca minimizar distancias y costos basándose en la ubicación y el peso o volumen movido hacia cada punto.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Las coordenadas geográficas de los puntos de destino y los volúmenes de carga.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Este modelo matemático busca minimizar distancias y costos basándose en la ubicación y el peso o volumen movido hacia cada punto.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Aunque son criterios de localización, el Método del Centro de Gravedad se enfoca en la eficiencia geométrica del transporte.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Los impuestos estatales y el costo de los terrenos en cada zona.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aunque son criterios de localización, el Método del Centro de Gravedad se enfoca en la eficiencia geométrica del transporte.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Estos son factores cualitativos o económicos, pero no son las variables matemáticas centrales de este método específico.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">La disponibilidad de mano de obra y el clima de la región.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Estos son factores cualitativos o económicos, pero no son las variables matemáticas centrales de este método específico.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="3">
+          <div class="q-header">
+            <span class="q-number">Pregunta 4</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿Cuál es la principal ventaja competitiva de un modelo de distribución centralizado?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considere los beneficios de tener toda la mercancía bajo una misma administración y supervisión.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Agrupar la operación en un gran almacén principal permite economías de escala y una visibilidad total del stock.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">La optimización de tránsitos, un mejor control de inventarios y mejora de tiempos globales.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Agrupar la operación en un gran almacén principal permite economías de escala y una visibilidad total del stock.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="La personalización local es más sencilla en modelos descentralizados que están físicamente en la zona de demanda.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">La capacidad de personalizar productos en cada zona geográfica local.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La personalización local es más sencilla en modelos descentralizados que están físicamente en la zona de demanda.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Ningún modelo de distribución elimina los fletes; de hecho, la centralización puede incrementarlos en el tramo de salida.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">La eliminación total de los costos de fletes internacionales.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Ningún modelo de distribución elimina los fletes; de hecho, la centralización puede incrementarlos en el tramo de salida.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="La centralización suele aumentar los tiempos de entrega finales comparada con tener almacenes cerca del cliente.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">La reducción drástica de los tiempos de entrega al cliente final.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La centralización suele aumentar los tiempos de entrega finales comparada con tener almacenes cerca del cliente.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="4">
+          <div class="q-header">
+            <span class="q-number">Pregunta 5</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">En una estrategia de Cross Docking, ¿cuál es la característica operativa que la distingue del almacenamiento tradicional?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Enfoque su respuesta en la velocidad del flujo de mercancías a través del nodo.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="El Cross Docking es una estrategia de flujo que puede aplicarse a diversos modos de transporte, no es exclusivo de uno.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">El uso exclusivo de transporte ferroviario para mover la carga.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El Cross Docking es una estrategia de flujo que puede aplicarse a diversos modos de transporte, no es exclusivo de uno.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="El objetivo es que la mercancía pase el menor tiempo posible en la instalación para reducir costos de manejo y espacio.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">La recepción, clasificación y despacho inmediato sin inmovilización a largo plazo.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El objetivo es que la mercancía pase el menor tiempo posible en la instalación para reducir costos de manejo y espacio.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="El Cross Docking se basa en la rapidez; mantener productos por meses es lo opuesto a su naturaleza ágil.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">El almacenamiento de productos por periodos superiores a seis meses.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El Cross Docking se basa en la rapidez; mantener productos por meses es lo opuesto a su naturaleza ágil.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Esta estrategia se enfoca en la distribución de productos ya terminados, no en su proceso de manufactura.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">La fabricación de los productos dentro de la misma planta de distribución.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esta estrategia se enfoca en la distribución de productos ya terminados, no en su proceso de manufactura.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="5">
+          <div class="q-header">
+            <span class="q-number">Pregunta 6</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">Desde la perspectiva del cubicaje, ¿por qué transportar cajas de pelotas infladas puede ser proporcionalmente más costoso que transportar lingotes de acero?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piense en qué sucede cuando el espacio del contenedor se llena pero aún queda mucha capacidad de peso disponible.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Ambos productos pueden usar diversos medios; el factor clave es la relación peso-volumen, no solo el medio.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Porque el acero se transporta siempre en barcos y las pelotas en aviones.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Ambos productos pueden usar diversos medios; el factor clave es la relación peso-volumen, no solo el medio.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Toda carga internacional o crítica paga seguros; la resistencia del material no elimina el costo logístico.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Porque el acero es un material más resistente y no paga seguros de carga.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Toda carga internacional o crítica paga seguros; la resistencia del material no elimina el costo logístico.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="A menos que se especifique, las pelotas no suelen requerir cadena de frío; el costo elevado se debe a la densidad.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Porque las pelotas requieren condiciones de temperatura controlada.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">A menos que se especifique, las pelotas no suelen requerir cadena de frío; el costo elevado se debe a la densidad.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="true" data-rationale="Los productos de baja densidad llenan el espacio del vehículo rápidamente, obligando a pagar por el 'aire' transportado.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Porque las pelotas ocupan mucho volumen (cubo) antes de alcanzar el peso máximo permitido.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Los productos de baja densidad llenan el espacio del vehículo rápidamente, obligando a pagar por el 'aire' transportado.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="6">
+          <div class="q-header">
+            <span class="q-number">Pregunta 7</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿Qué impacto estratégico tiene la automatización del 100% en el Megapuerto de Chancay para la red logística regional?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considere el rol del puerto como un punto de conexión masiva entre continentes.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Al contrario, estos puertos están diseñados para recibir los buques más grandes del mundo gracias a su infraestructura avanzada.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Limitar el ingreso de barcos de gran calado para proteger los sistemas de IA.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Al contrario, estos puertos están diseñados para recibir los buques más grandes del mundo gracias a su infraestructura avanzada.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="La automatización reduce la dependencia de tareas manuales, enfocándose en sistemas inteligentes y personal especializado.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Incrementar la necesidad de mano de obra no calificada para mover carga manual.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La automatización reduce la dependencia de tareas manuales, enfocándose en sistemas inteligentes y personal especializado.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Los TEUs siguen siendo la unidad estándar mundial; la automatización optimiza su manejo, no los elimina.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Eliminar por completo el uso de contenedores estandarizados (TEUs).</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Los TEUs siguen siendo la unidad estándar mundial; la automatización optimiza su manejo, no los elimina.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="true" data-rationale="La tecnología de punta y su ubicación estratégica permiten procesar grandes volúmenes con una eficiencia que acorta las rutas globales.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Convertirse en un hub que conecta Sudamérica con Asia reduciendo tiempos y costos de tránsito.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La tecnología de punta y su ubicación estratégica permiten procesar grandes volúmenes con una eficiencia que acorta las rutas globales.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="7">
+          <div class="q-header">
+            <span class="q-number">Pregunta 8</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿Cómo utiliza IKEA el concepto de volumetría para optimizar sus costos logísticos?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Analice la relación entre el empaque del producto y el aprovechamiento del espacio en un camión.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="El peso elevado generalmente aumenta los costos; la estrategia de IKEA no se basa en el peso del material sino en su forma.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Vendiendo muebles de madera sólida que son muy pesados.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El peso elevado generalmente aumenta los costos; la estrategia de IKEA no se basa en el peso del material sino en su forma.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Aunque reduce el peso, el volumen seguiría siendo un problema si no se desinflan; la estrategia real es el empaque plano.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Fabricando muebles inflables para reducir el peso al mínimo.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aunque reduce el peso, el volumen seguiría siendo un problema si no se desinflan; la estrategia real es el empaque plano.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="En logística, prácticamente todos los transportistas consideran el volumen para calcular el flete (peso volumétrico).">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Subcontratando el transporte a empresas que no cobran por volumen.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">En logística, prácticamente todos los transportistas consideran el volumen para calcular el flete (peso volumétrico).</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="true" data-rationale="Al reducir el volumen vacío dentro del empaque, logran transportar muchas más unidades en un solo contenedor.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Mediante el diseño de muebles desmontados en cajas planas para maximizar el cubicaje.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Al reducir el volumen vacío dentro del empaque, logran transportar muchas más unidades en un solo contenedor.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="8">
+          <div class="q-header">
+            <span class="q-number">Pregunta 9</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿Por qué el diseño de rutas en la logística internacional es considerado más 'restringido' que en la logística local?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piense en los controles legales y los puntos físicos de entrada que debe cruzar una mercancía del extranjero.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="No existe tal restricción estética; las limitaciones son de carácter aduanero, geográfico y de infraestructura.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Debido a que todos los productos internacionales deben ser de color estandarizado.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">No existe tal restricción estética; las limitaciones son de carácter aduanero, geográfico y de infraestructura.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El GPS es fundamental y permitido en casi toda la logística global para el rastreo de mercancías.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Porque no se permite el uso de tecnología GPS en el cruce de fronteras.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El GPS es fundamental y permitido en casi toda la logística global para el rastreo de mercancías.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="true" data-rationale="A diferencia del transporte terrestre local, el comercio exterior depende de nodos legales y físicos específicos para el ingreso al país.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Por la obligatoriedad de pasar por puntos aduanales y un número limitado de puertos habilitados.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">A diferencia del transporte terrestre local, el comercio exterior depende de nodos legales y físicos específicos para el ingreso al país.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="La velocidad del vehículo no es la restricción principal, sino la infraestructura y las normativas.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Debido a que los camiones internacionales son más lentos que los locales.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La velocidad del vehículo no es la restricción principal, sino la infraestructura y las normativas.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="9">
+          <div class="q-header">
+            <span class="q-number">Pregunta 10</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">En la localización de infraestructura, ¿qué factor se refiere a la cercanía con los puntos de demanda para reducir el 'lead time'?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Identifique el elemento que impacta directamente en la distancia recorrida hacia el comprador.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Este factor asegura la operatividad de la planta, pero no garantiza la rapidez en la entrega al mercado.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Disponibilidad de mano de obra.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Este factor asegura la operatividad de la planta, pero no garantiza la rapidez en la entrega al mercado.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Estar cerca de la demanda permite responder más rápido y reducir los tiempos de transporte final.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Proximidad al cliente.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Estar cerca de la demanda permite responder más rápido y reducir los tiempos de transporte final.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Las leyes influyen en la rentabilidad fiscal, pero son independientes de la distancia física al consumidor.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Leyes estatales y tributación.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Las leyes influyen en la rentabilidad fiscal, pero son independientes de la distancia física al consumidor.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="El costo del terreno afecta la inversión inicial, pero no define directamente el tiempo de entrega al cliente.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Costo de terrenos.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El costo del terreno afecta la inversión inicial, pero no define directamente el tiempo de entrega al cliente.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="10">
+          <div class="q-header">
+            <span class="q-number">Pregunta 11</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">Si una empresa decide implementar una red de distribución descentralizada utilizando Zonas A, B y C, ¿qué está priorizando?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piense en el beneficio de tener inventario distribuido geográficamente.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="La consolidación es propia del modelo centralizado; la descentralización divide el stock.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">La consolidación de todo el stock en un único punto de seguridad.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La consolidación es propia del modelo centralizado; la descentralización divide el stock.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Al dispersar las delegaciones, la empresa busca estar físicamente presente donde ocurre la demanda.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">La cercanía al cliente final para mejorar la respuesta local.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Al dispersar las delegaciones, la empresa busca estar físicamente presente donde ocurre la demanda.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Auditar múltiples ubicaciones es más complejo que auditar un solo almacén central.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">La simplicidad de los procesos de auditoría de inventario.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Auditar múltiples ubicaciones es más complejo que auditar un solo almacén central.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="La descentralización suele aumentar los costos administrativos al tener múltiples sitios que gestionar.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">La reducción masiva de los costos de gestión administrativa.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La descentralización suele aumentar los costos administrativos al tener múltiples sitios que gestionar.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="11">
+          <div class="q-header">
+            <span class="q-number">Pregunta 12</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">En logística, ¿qué representa la unidad de medida conocida como TEU?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Busque la definición técnica relacionada con las dimensiones de los contenedores marítimos.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Es la medida estándar internacional (Twenty-foot Equivalent Unit) para cuantificar el flujo de contenedores en puertos.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">La capacidad equivalente a un contenedor de 20 pies.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Es la medida estándar internacional (Twenty-foot Equivalent Unit) para cuantificar el flujo de contenedores en puertos.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="TEU es una medida de capacidad y volumen físico, no una medida de tiempo operativo.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">El tiempo estándar de entrega en una red descentralizada.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">TEU es una medida de capacidad y volumen físico, no una medida de tiempo operativo.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="TEU se refiere al volumen de un contenedor estándar, no a una tonelada de peso ni a carga líquida específicamente.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Una tonelada de equipo universal para carga líquida.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">TEU se refiere al volumen de un contenedor estándar, no a una tonelada de peso ni a carga líquida específicamente.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Aunque se manejan TEUs con grúas, el término TEU define la unidad de carga, no la maquinaria.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Un tipo de grúa automatizada utilizada en el Puerto de Chancay.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aunque se manejan TEUs con grúas, el término TEU define la unidad de carga, no la maquinaria.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="12">
+          <div class="q-header">
+            <span class="q-number">Pregunta 13</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿Cuál es la relación directa entre la densidad de un producto y el costo del flete?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piense en cómo los transportistas penalizan el uso excesivo de espacio.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Tanto en aire, tierra como mar, la relación peso-volumen es crítica para determinar la tarifa.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">La densidad no afecta el costo del flete en el transporte marítimo.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Tanto en aire, tierra como mar, la relación peso-volumen es crítica para determinar la tarifa.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="La densidad alta satura el peso rápidamente; el costo depende de si se cobra por peso o volumen.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">A mayor densidad, siempre se paga menos flete sin importar el peso total.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La densidad alta satura el peso rápidamente; el costo depende de si se cobra por peso o volumen.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Es al revés: los productos muy densos (como el acero) alcanzan el límite de peso dejando mucho volumen libre.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Los productos muy densos siempre llenan el volumen del contenedor antes de alcanzar el peso máximo.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Es al revés: los productos muy densos (como el acero) alcanzan el límite de peso dejando mucho volumen libre.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="true" data-rationale="Debido a que ocupan mucho espacio por poco peso, el transportista cobra por el volumen desplazado, encareciendo el producto.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Los productos de baja densidad suelen generar fletes más altos en proporción a su valor comercial.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Debido a que ocupan mucho espacio por poco peso, el transportista cobra por el volumen desplazado, encareciendo el producto.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="13">
+          <div class="q-header">
+            <span class="q-number">Pregunta 14</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">Un 'Terminal Portuario Multipropósito', como el de Chancay, se caracteriza por:</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Observe el término 'multipropósito' y lo que implica para la variedad de mercancías.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Su escala es internacional y abarca mucho más que solo el sector agrícola local.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Estar diseñado solo para el almacenamiento de productos agrícolas locales.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Su escala es internacional y abarca mucho más que solo el sector agrícola local.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Al contrario, el puerto de Chancay destaca por estar guiado por sistemas de inteligencia artificial.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Prohibir el uso de inteligencia artificial en sus procesos de despacho.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Al contrario, el puerto de Chancay destaca por estar guiado por sistemas de inteligencia artificial.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="true" data-rationale="La denominación 'multipropósito' indica la versatilidad de la infraestructura para procesar distintas naturalezas de carga.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Manejar diferentes tipos de carga como granel, líquidos y contenedores.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La denominación 'multipropósito' indica la versatilidad de la infraestructura para procesar distintas naturalezas de carga.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Su enfoque es logístico y comercial, manejando diversos tipos de mercancías, no solo pasajeros.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Operar exclusivamente con carga de pasajeros y turismo.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Su enfoque es logístico y comercial, manejando diversos tipos de mercancías, no solo pasajeros.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="14">
+          <div class="q-header">
+            <span class="q-number">Pregunta 15</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿Qué factor de localización es determinante cuando una empresa busca minimizar el riesgo de huelgas o falta de personal calificado?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piense en el recurso humano necesario para que la infraestructura funcione.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Las leyes regulan el marco general, pero la disponibilidad efectiva de trabajadores es un factor demográfico y social específico.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Leyes estatales.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Las leyes regulan el marco general, pero la disponibilidad efectiva de trabajadores es un factor demográfico y social específico.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Analizar el mercado laboral local es vital para asegurar que la instalación tenga personal competente y un entorno estable.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Disponibilidad de mano de obra.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Analizar el mercado laboral local es vital para asegurar que la instalación tenga personal competente y un entorno estable.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Esto facilita el movimiento de carga, pero no garantiza la estabilidad del equipo humano de la planta.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Proximidad a rutas de transporte.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esto facilita el movimiento de carga, pero no garantiza la estabilidad del equipo humano de la planta.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="El costo del terreno es financiero, pero no resuelve problemas de gestión humana o clima laboral.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Costos de terrenos.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El costo del terreno es financiero, pero no resuelve problemas de gestión humana o clima laboral.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="15">
+          <div class="q-header">
+            <span class="q-number">Pregunta 16</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">La elección del canal de distribución es una decisión estratégica de alto impacto porque:</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considere la durabilidad y las consecuencias financieras de esta decisión estructural.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Determina cómo fluirá el producto y qué tan rentable será la llegada al cliente durante años.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Define la estructura de costos y el acceso real del producto al mercado a largo plazo.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Determina cómo fluirá el producto y qué tan rentable será la llegada al cliente durante años.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Cambiar un canal implica reestructurar contratos y logística física, por lo que no es una decisión a corto plazo.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Se puede cambiar semanalmente según las ofertas del mercado.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Cambiar un canal implica reestructurar contratos y logística física, por lo que no es una decisión a corto plazo.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Afecta profundamente a las finanzas debido a los costos de transporte, inventario y márgenes de intermediarios.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Solo afecta al departamento de marketing y no al de finanzas.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Afecta profundamente a las finanzas debido a los costos de transporte, inventario y márgenes de intermediarios.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="El canal y la infraestructura están íntimamente ligados; el diseño de la red apoya la ejecución del canal.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Es independiente de la ubicación de los almacenes y plantas.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El canal y la infraestructura están íntimamente ligados; el diseño de la red apoya la ejecución del canal.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="16">
+          <div class="q-header">
+            <span class="q-number">Pregunta 17</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">Si una carga satura la capacidad de peso de un camión pero solo ocupa el 20% de su volumen, se dice que es una carga:</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piense en la relación masa/volumen de materiales como el acero o los líquidos.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Los productos como el acero tienen mucha masa en poco volumen, saturando el peso rápidamente.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Densa.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Los productos como el acero tienen mucha masa en poco volumen, saturando el peso rápidamente.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Toda carga es objeto de cubicaje; simplemente este tipo de carga aprovecha mal el espacio cúbico.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Incompatible con el cubicaje.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Toda carga es objeto de cubicaje; simplemente este tipo de carga aprovecha mal el espacio cúbico.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Una carga volumétrica es la que llena el espacio antes que el peso; este caso es el opuesto.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Volumétrica.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Una carga volumétrica es la que llena el espacio antes que el peso; este caso es el opuesto.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="La baja densidad implica mucho volumen y poco peso, como el algodón o los chips.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">De baja densidad.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La baja densidad implica mucho volumen y poco peso, como el algodón o los chips.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="17">
+          <div class="q-header">
+            <span class="q-number">Pregunta 18</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿Cuál es la función de los vehículos guiados por sistemas de IA en puertos como el de Chancay?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Enfoque su respuesta en la eficiencia operativa interna de la terminal.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="El propósito es la eficiencia del flujo de mercancía, no la vigilancia laboral punitiva.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Vigilar que los empleados no tomen descansos excesivos.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El propósito es la eficiencia del flujo de mercancía, no la vigilancia laboral punitiva.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Su función es estrictamente operativa y logística para el movimiento de carga.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Transportar turistas por las instalaciones del puerto.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Su función es estrictamente operativa y logística para el movimiento de carga.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="true" data-rationale="La IA permite coordinar rutas internas sin conductores humanos, aumentando la precisión y eficiencia 24/7.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Optimizar el movimiento de contenedores de forma autónoma y segura.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La IA permite coordinar rutas internas sin conductores humanos, aumentando la precisión y eficiencia 24/7.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Estos vehículos operan solo dentro de la terminal terrestre; los barcos siguen siendo el medio de transporte marítimo.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Sustituir la necesidad de barcos cargueros en el mar.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Estos vehículos operan solo dentro de la terminal terrestre; los barcos siguen siendo el medio de transporte marítimo.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="18">
+          <div class="q-header">
+            <span class="q-number">Pregunta 19</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">Dentro de la teoría de redes, ¿cuál es el riesgo principal de un modelo excesivamente descentralizado?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considere lo que sucede con los costos cuando se multiplican los puntos de almacenamiento.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="La descentralización logística suele ir acompañada de una delegación de decisiones operativas.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">La centralización del poder de decisión en una sola oficina.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La descentralización logística suele ir acompañada de una delegación de decisiones operativas.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Tener muchas delegaciones implica más alquileres, más personal y stock duplicado en varios puntos.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">La fragmentación del inventario y el aumento de costos fijos operativos.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Tener muchas delegaciones implica más alquileres, más personal y stock duplicado en varios puntos.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Al contrario, la descentralización mejora el contacto local al estar más cerca.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">La pérdida de contacto con el cliente local.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Al contrario, la descentralización mejora el contacto local al estar más cerca.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="La rapidez es una ventaja, no un riesgo del modelo descentralizado.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">La excesiva rapidez en los tiempos globales de respuesta.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La rapidez es una ventaja, no un riesgo del modelo descentralizado.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="19">
+          <div class="q-header">
+            <span class="q-number">Pregunta 20</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿Por qué es vital optimizar los empaques (packaging) desde una visión logística?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piense en cómo el diseño del paquete afecta la cantidad de unidades en un camión.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="El empaque debe cumplir con las normas aduaneras para ser inspeccionado legalmente, no para ocultarse.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Para evitar que los productos sean detectados por las aduanas.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El empaque debe cumplir con las normas aduaneras para ser inspeccionado legalmente, no para ocultarse.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Eso es marketing; la logística se enfoca en la eficiencia del transporte y almacenamiento.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Para que el producto se vea más atractivo en las redes sociales.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Eso es marketing; la logística se enfoca en la eficiencia del transporte y almacenamiento.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="true" data-rationale="Un empaque eficiente elimina el 'aire' y permite que quepan más productos en un mismo contenedor.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Para maximizar la densidad de carga y reducir los costos de transporte por unidad.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Un empaque eficiente elimina el 'aire' y permite que quepan más productos en un mismo contenedor.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="La empresa busca pagar menos flete, no más; aumentar el peso innecesariamente sería ineficiente.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Para aumentar el peso total de la carga y cobrar más flete.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La empresa busca pagar menos flete, no más; aumentar el peso innecesariamente sería ineficiente.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="20">
+          <div class="q-header">
+            <span class="q-number">Pregunta 21</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">En el diseño de redes, ¿qué significa que la infraestructura sea 'la columna vertebral' de la gestión rentable?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Relacione la infraestructura con la viabilidad de todas las demás operaciones logísticas.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="La infraestructura dicta los límites de capacidad y los costos operativos base de toda la red logísitca.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Que sin una ubicación y tamaño correctos de las instalaciones, no se puede gestionar el flujo de forma eficiente.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La infraestructura dicta los límites de capacidad y los costos operativos base de toda la red logísitca.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Es una decisión estratégica que debe planificarse cuidadosamente desde el inicio y mantenerse.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Que la empresa solo debe preocuparse por la infraestructura en tiempos de crisis.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Es una decisión estratégica que debe planificarse cuidadosamente desde el inicio y mantenerse.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="La infraestructura suele ser una de las inversiones más costosas y significativas de la empresa.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Que es el componente más barato de toda la cadena de suministro.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La infraestructura suele ser una de las inversiones más costosas y significativas de la empresa.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Es una metáfora estructural de la organización, no se refiere a la ergonomía del personal.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Que los empleados deben tener una excelente postura física al trabajar en los almacenes.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Es una metáfora estructural de la organización, no se refiere a la ergonomía del personal.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="21">
+          <div class="q-header">
+            <span class="q-number">Pregunta 22</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿Cuál es un factor crítico de localización que involucra la normativa legal de una región específica?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considere las reglas que impone el gobierno sobre el territorio.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Los incentivos fiscales, leyes laborales y zonificación son restricciones legales que determinan dónde se puede construir.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Leyes estatales y regulaciones locales.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Los incentivos fiscales, leyes laborales y zonificación son restricciones legales que determinan dónde se puede construir.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="La densidad es una característica física del producto, no una normativa legal regional.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Densidad del producto.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La densidad es una característica física del producto, no una normativa legal regional.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Es una herramienta matemática para decidir la ubicación, no una ley estatal en sí misma.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">El método del centro de gravedad.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Es una herramienta matemática para decidir la ubicación, no una ley estatal en sí misma.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Es una métrica operativa de flujo de mercancía, no un factor legal del sitio.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">La velocidad del Cross Docking.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Es una métrica operativa de flujo de mercancía, no un factor legal del sitio.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="22">
+          <div class="q-header">
+            <span class="q-number">Pregunta 23</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">En el análisis de un puerto global como Singapur o Róterdam, ¿qué indicador se usa habitualmente para medir su importancia estratégica?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piense en datos cuantificables de flujo de mercancías y redes de transporte.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="La importancia real reside en la capacidad operativa y de infraestructura física, no solo en la promoción.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">La cantidad de oficinas de marketing que tiene el puerto en el extranjero.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La importancia real reside en la capacidad operativa y de infraestructura física, no solo en la promoción.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="La relevancia de un puerto se mide por cuánta mercancía procesa y a cuántos destinos globales puede enviarla.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">El volumen de carga movilizada y la conectividad con rutas internacionales.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La relevancia de un puerto se mide por cuánta mercancía procesa y a cuántos destinos globales puede enviarla.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="La estética de la maquinaria no tiene impacto en la eficiencia o importancia estratégica del nodo.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">El color de las grúas pórtico instaladas en el muelle.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La estética de la maquinaria no tiene impacto en la eficiencia o importancia estratégica del nodo.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Aunque es útil, no es un indicador técnico del volumen o capacidad logística del puerto.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">El número de idiomas que hablan los operarios.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aunque es útil, no es un indicador técnico del volumen o capacidad logística del puerto.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="23">
+          <div class="q-header">
+            <span class="q-number">Pregunta 24</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">Al hablar de 'Volumetría', ¿qué estamos analizando específicamente?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Relacione el término con el espacio físico ocupado dentro de un transporte.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Es el estudio de cómo el tamaño de los bultos afecta el llenado de los vehículos y los costos asociados.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Las dimensiones físicas y el espacio que ocupa la mercancía en relación a su peso.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Es el estudio de cómo el tamaño de los bultos afecta el llenado de los vehículos y los costos asociados.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Eso es desplazamiento de calado, un concepto náutico diferente al cubicaje logístico de carga.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">La cantidad de agua que puede desplazar un barco en el puerto.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Eso es desplazamiento de calado, un concepto náutico diferente al cubicaje logístico de carga.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="El ruido es un factor de seguridad ambiental, no es el concepto de volumetría en logística.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">El volumen de ruido que generan los camiones en el almacén.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El ruido es un factor de seguridad ambiental, no es el concepto de volumetría en logística.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="La volumetría logística se refiere a dimensiones físicas, no a volúmenes de transacciones financieras.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">El volumen de ventas mensuales de la empresa.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La volumetría logística se refiere a dimensiones físicas, no a volúmenes de transacciones financieras.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="24">
+          <div class="q-header">
+            <span class="q-number">Pregunta 25</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿Qué diferencia fundamental existe entre un puerto tradicional y un hub automatizado como Chancay respecto al factor tiempo?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Enfoque su respuesta en cómo la tecnología afecta la velocidad de los procesos.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Los sistemas inteligentes eliminan cuellos de botella humanos y optimizan cada segundo de la operación portuaria.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">La automatización reduce los tiempos de espera y carga/descarga mediante una coordinación precisa por IA.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Los sistemas inteligentes eliminan cuellos de botella humanos y optimizan cada segundo de la operación portuaria.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="La intuición humana es propensa a errores y fatiga, lo que suele hacer que los procesos manuales sean más lentos.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Los puertos tradicionales son siempre más rápidos porque dependen de la intuición humana.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La intuición humana es propensa a errores y fatiga, lo que suele hacer que los procesos manuales sean más lentos.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="El tiempo nunca se detiene; la eficiencia busca precisamente aprovecharlo al máximo.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">En el hub automatizado el tiempo se detiene para evitar errores.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El tiempo nunca se detiene; la eficiencia busca precisamente aprovecharlo al máximo.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="La reducción de tiempos de navegación y tránsito es uno de los beneficios principales de la tecnología en Chancay.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">No existe diferencia en tiempo, solo en el costo de la energía eléctrica.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La reducción de tiempos de navegación y tránsito es uno de los beneficios principales de la tecnología en Chancay.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="25">
+          <div class="q-header">
+            <span class="q-number">Pregunta 26</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">Cuando una empresa optimiza el cubicaje de sus envíos, el principal beneficio financiero es:</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considere cómo se distribuye el costo total del transporte entre los productos llevados.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Aunque puede ocurrir, el beneficio principal es para la rentabilidad de la operación corporativa, no es un incentivo de nómina.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">El pago de bonos extra a los conductores por llevar más carga.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aunque puede ocurrir, el beneficio principal es para la rentabilidad de la operación corporativa, no es un incentivo de nómina.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Al aprovechar mejor el espacio, el costo del flete se divide entre una mayor cantidad de unidades, mejorando el margen.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">La reducción del costo logístico unitario al transportar más productos en el mismo viaje.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Al aprovechar mejor el espacio, el costo del flete se divide entre una mayor cantidad de unidades, mejorando el margen.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="El precio de venta lo determina el mercado; el cubicaje optimiza los costos internos de la empresa.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">El aumento del precio de venta del producto.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El precio de venta lo determina el mercado; el cubicaje optimiza los costos internos de la empresa.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Los impuestos se basan en el valor o naturaleza de la carga, no en cuán bien esté acomodada en el camión.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">La eliminación de los impuestos de importación.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Los impuestos se basan en el valor o naturaleza de la carga, no en cuán bien esté acomodada en el camión.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      </div>
+  <div class="results" id="results">
+    <h2>¡Cuestionario completado!</h2>
+    <div class="score" id="score">0%</div>
+    <div class="score-text" id="score-text"></div>
+    <button class="restart-btn" onclick="restart()">Intentar de nuevo</button>
+  </div>
+</div>
+<script>
+const quizData = [{"question":"En el contexto del diseño de redes logísticas, ¿cuál es el objetivo primordial al equilibrar los costos de producción, inventario y transporte?","hint":"Considere la relación entre la eficiencia operativa y la satisfacción del usuario final.","options":[{"label":"A","text":"Maximizar la capacidad de almacenamiento en todos los puntos de la red.","isCorrect":false,"rationale":"Aumentar el almacenamiento indiscriminadamente elevaría los costos de inventario, contradiciendo el principio de balance de costos."},{"label":"B","text":"Reducir exclusivamente los costos de transporte de última milla.","isCorrect":false,"rationale":"Enfocarse solo en un eslabón ignora el impacto sistémico en los costos de producción y almacenamiento."},{"label":"C","text":"Eliminar la necesidad de intermediarios en los canales de distribución.","isCorrect":false,"rationale":"La eliminación de intermediarios es una decisión de canal, no el objetivo de balancear los costos operativos de la red."},{"label":"D","text":"Garantizar el nivel de servicio al cliente de manera rentable.","isCorrect":true,"rationale":"El diseño busca una estructura óptima que cumpla con las promesas al cliente sin comprometer la rentabilidad de la empresa."}]},{"question":"¿Por qué se considera que el diseño de una red de distribución es la 'estructura ósea' de una empresa?","hint":"Piense en el rol que cumplen las plantas, almacenes y puertos en el sostenimiento del negocio.","options":[{"label":"A","text":"Porque determina la identidad visual y el marketing de los productos.","isCorrect":false,"rationale":"La red logística se ocupa del flujo físico y estratégico, no de los aspectos estéticos o de promoción de la marca."},{"label":"B","text":"Porque es la parte más rígida de la empresa y no puede modificarse en el tiempo.","isCorrect":false,"rationale":"Aunque es una decisión a largo plazo, la red debe ser adaptable a los cambios del mercado, no totalmente rígida."},{"label":"C","text":"Porque se encarga únicamente de la protección física de las mercancías.","isCorrect":false,"rationale":"La protección física es una función del empaque o el almacenamiento, no de la configuración estratégica de la red."},{"label":"D","text":"Porque define la ubicación estratégica de instalaciones para gestionar el flujo hasta el cliente.","isCorrect":true,"rationale":"Al igual que un esqueleto, la red sostiene y da forma a toda la operación logística, permitiendo que el flujo de productos sea coherente."}]},{"question":"Al aplicar el Método del Centro de Gravedad para la localización de una instalación, ¿qué variables son fundamentales para el cálculo?","hint":"Recuerde que este método utiliza coordenadas cartesianas para hallar una ubicación óptima.","options":[{"label":"A","text":"La velocidad máxima permitida en las rutas de transporte terrestre.","isCorrect":false,"rationale":"La velocidad es una variable operativa del transporte, no un insumo directo para calcular el punto de equilibrio geográfico."},{"label":"B","text":"Las coordenadas geográficas de los puntos de destino y los volúmenes de carga.","isCorrect":true,"rationale":"Este modelo matemático busca minimizar distancias y costos basándose en la ubicación y el peso o volumen movido hacia cada punto."},{"label":"C","text":"Los impuestos estatales y el costo de los terrenos en cada zona.","isCorrect":false,"rationale":"Aunque son criterios de localización, el Método del Centro de Gravedad se enfoca en la eficiencia geométrica del transporte."},{"label":"D","text":"La disponibilidad de mano de obra y el clima de la región.","isCorrect":false,"rationale":"Estos son factores cualitativos o económicos, pero no son las variables matemáticas centrales de este método específico."}]},{"question":"¿Cuál es la principal ventaja competitiva de un modelo de distribución centralizado?","hint":"Considere los beneficios de tener toda la mercancía bajo una misma administración y supervisión.","options":[{"label":"A","text":"La optimización de tránsitos, un mejor control de inventarios y mejora de tiempos globales.","isCorrect":true,"rationale":"Agrupar la operación en un gran almacén principal permite economías de escala y una visibilidad total del stock."},{"label":"B","text":"La capacidad de personalizar productos en cada zona geográfica local.","isCorrect":false,"rationale":"La personalización local es más sencilla en modelos descentralizados que están físicamente en la zona de demanda."},{"label":"C","text":"La eliminación total de los costos de fletes internacionales.","isCorrect":false,"rationale":"Ningún modelo de distribución elimina los fletes; de hecho, la centralización puede incrementarlos en el tramo de salida."},{"label":"D","text":"La reducción drástica de los tiempos de entrega al cliente final.","isCorrect":false,"rationale":"La centralización suele aumentar los tiempos de entrega finales comparada con tener almacenes cerca del cliente."}]},{"question":"En una estrategia de Cross Docking, ¿cuál es la característica operativa que la distingue del almacenamiento tradicional?","hint":"Enfoque su respuesta en la velocidad del flujo de mercancías a través del nodo.","options":[{"label":"A","text":"El uso exclusivo de transporte ferroviario para mover la carga.","isCorrect":false,"rationale":"El Cross Docking es una estrategia de flujo que puede aplicarse a diversos modos de transporte, no es exclusivo de uno."},{"label":"B","text":"La recepción, clasificación y despacho inmediato sin inmovilización a largo plazo.","isCorrect":true,"rationale":"El objetivo es que la mercancía pase el menor tiempo posible en la instalación para reducir costos de manejo y espacio."},{"label":"C","text":"El almacenamiento de productos por periodos superiores a seis meses.","isCorrect":false,"rationale":"El Cross Docking se basa en la rapidez; mantener productos por meses es lo opuesto a su naturaleza ágil."},{"label":"D","text":"La fabricación de los productos dentro de la misma planta de distribución.","isCorrect":false,"rationale":"Esta estrategia se enfoca en la distribución de productos ya terminados, no en su proceso de manufactura."}]},{"question":"Desde la perspectiva del cubicaje, ¿por qué transportar cajas de pelotas infladas puede ser proporcionalmente más costoso que transportar lingotes de acero?","hint":"Piense en qué sucede cuando el espacio del contenedor se llena pero aún queda mucha capacidad de peso disponible.","options":[{"label":"A","text":"Porque el acero se transporta siempre en barcos y las pelotas en aviones.","isCorrect":false,"rationale":"Ambos productos pueden usar diversos medios; el factor clave es la relación peso-volumen, no solo el medio."},{"label":"B","text":"Porque el acero es un material más resistente y no paga seguros de carga.","isCorrect":false,"rationale":"Toda carga internacional o crítica paga seguros; la resistencia del material no elimina el costo logístico."},{"label":"C","text":"Porque las pelotas requieren condiciones de temperatura controlada.","isCorrect":false,"rationale":"A menos que se especifique, las pelotas no suelen requerir cadena de frío; el costo elevado se debe a la densidad."},{"label":"D","text":"Porque las pelotas ocupan mucho volumen (cubo) antes de alcanzar el peso máximo permitido.","isCorrect":true,"rationale":"Los productos de baja densidad llenan el espacio del vehículo rápidamente, obligando a pagar por el 'aire' transportado."}]},{"question":"¿Qué impacto estratégico tiene la automatización del 100% en el Megapuerto de Chancay para la red logística regional?","hint":"Considere el rol del puerto como un punto de conexión masiva entre continentes.","options":[{"label":"A","text":"Limitar el ingreso de barcos de gran calado para proteger los sistemas de IA.","isCorrect":false,"rationale":"Al contrario, estos puertos están diseñados para recibir los buques más grandes del mundo gracias a su infraestructura avanzada."},{"label":"B","text":"Incrementar la necesidad de mano de obra no calificada para mover carga manual.","isCorrect":false,"rationale":"La automatización reduce la dependencia de tareas manuales, enfocándose en sistemas inteligentes y personal especializado."},{"label":"C","text":"Eliminar por completo el uso de contenedores estandarizados (TEUs).","isCorrect":false,"rationale":"Los TEUs siguen siendo la unidad estándar mundial; la automatización optimiza su manejo, no los elimina."},{"label":"D","text":"Convertirse en un hub que conecta Sudamérica con Asia reduciendo tiempos y costos de tránsito.","isCorrect":true,"rationale":"La tecnología de punta y su ubicación estratégica permiten procesar grandes volúmenes con una eficiencia que acorta las rutas globales."}]},{"question":"¿Cómo utiliza IKEA el concepto de volumetría para optimizar sus costos logísticos?","hint":"Analice la relación entre el empaque del producto y el aprovechamiento del espacio en un camión.","options":[{"label":"A","text":"Vendiendo muebles de madera sólida que son muy pesados.","isCorrect":false,"rationale":"El peso elevado generalmente aumenta los costos; la estrategia de IKEA no se basa en el peso del material sino en su forma."},{"label":"B","text":"Fabricando muebles inflables para reducir el peso al mínimo.","isCorrect":false,"rationale":"Aunque reduce el peso, el volumen seguiría siendo un problema si no se desinflan; la estrategia real es el empaque plano."},{"label":"C","text":"Subcontratando el transporte a empresas que no cobran por volumen.","isCorrect":false,"rationale":"En logística, prácticamente todos los transportistas consideran el volumen para calcular el flete (peso volumétrico)."},{"label":"D","text":"Mediante el diseño de muebles desmontados en cajas planas para maximizar el cubicaje.","isCorrect":true,"rationale":"Al reducir el volumen vacío dentro del empaque, logran transportar muchas más unidades en un solo contenedor."}]},{"question":"¿Por qué el diseño de rutas en la logística internacional es considerado más 'restringido' que en la logística local?","hint":"Piense en los controles legales y los puntos físicos de entrada que debe cruzar una mercancía del extranjero.","options":[{"label":"A","text":"Debido a que todos los productos internacionales deben ser de color estandarizado.","isCorrect":false,"rationale":"No existe tal restricción estética; las limitaciones son de carácter aduanero, geográfico y de infraestructura."},{"label":"B","text":"Porque no se permite el uso de tecnología GPS en el cruce de fronteras.","isCorrect":false,"rationale":"El GPS es fundamental y permitido en casi toda la logística global para el rastreo de mercancías."},{"label":"C","text":"Por la obligatoriedad de pasar por puntos aduanales y un número limitado de puertos habilitados.","isCorrect":true,"rationale":"A diferencia del transporte terrestre local, el comercio exterior depende de nodos legales y físicos específicos para el ingreso al país."},{"label":"D","text":"Debido a que los camiones internacionales son más lentos que los locales.","isCorrect":false,"rationale":"La velocidad del vehículo no es la restricción principal, sino la infraestructura y las normativas."}]},{"question":"En la localización de infraestructura, ¿qué factor se refiere a la cercanía con los puntos de demanda para reducir el 'lead time'?","hint":"Identifique el elemento que impacta directamente en la distancia recorrida hacia el comprador.","options":[{"label":"A","text":"Disponibilidad de mano de obra.","isCorrect":false,"rationale":"Este factor asegura la operatividad de la planta, pero no garantiza la rapidez en la entrega al mercado."},{"label":"B","text":"Proximidad al cliente.","isCorrect":true,"rationale":"Estar cerca de la demanda permite responder más rápido y reducir los tiempos de transporte final."},{"label":"C","text":"Leyes estatales y tributación.","isCorrect":false,"rationale":"Las leyes influyen en la rentabilidad fiscal, pero son independientes de la distancia física al consumidor."},{"label":"D","text":"Costo de terrenos.","isCorrect":false,"rationale":"El costo del terreno afecta la inversión inicial, pero no define directamente el tiempo de entrega al cliente."}]},{"question":"Si una empresa decide implementar una red de distribución descentralizada utilizando Zonas A, B y C, ¿qué está priorizando?","hint":"Piense en el beneficio de tener inventario distribuido geográficamente.","options":[{"label":"A","text":"La consolidación de todo el stock en un único punto de seguridad.","isCorrect":false,"rationale":"La consolidación es propia del modelo centralizado; la descentralización divide el stock."},{"label":"B","text":"La cercanía al cliente final para mejorar la respuesta local.","isCorrect":true,"rationale":"Al dispersar las delegaciones, la empresa busca estar físicamente presente donde ocurre la demanda."},{"label":"C","text":"La simplicidad de los procesos de auditoría de inventario.","isCorrect":false,"rationale":"Auditar múltiples ubicaciones es más complejo que auditar un solo almacén central."},{"label":"D","text":"La reducción masiva de los costos de gestión administrativa.","isCorrect":false,"rationale":"La descentralización suele aumentar los costos administrativos al tener múltiples sitios que gestionar."}]},{"question":"En logística, ¿qué representa la unidad de medida conocida como TEU?","hint":"Busque la definición técnica relacionada con las dimensiones de los contenedores marítimos.","options":[{"label":"A","text":"La capacidad equivalente a un contenedor de 20 pies.","isCorrect":true,"rationale":"Es la medida estándar internacional (Twenty-foot Equivalent Unit) para cuantificar el flujo de contenedores en puertos."},{"label":"B","text":"El tiempo estándar de entrega en una red descentralizada.","isCorrect":false,"rationale":"TEU es una medida de capacidad y volumen físico, no una medida de tiempo operativo."},{"label":"C","text":"Una tonelada de equipo universal para carga líquida.","isCorrect":false,"rationale":"TEU se refiere al volumen de un contenedor estándar, no a una tonelada de peso ni a carga líquida específicamente."},{"label":"D","text":"Un tipo de grúa automatizada utilizada en el Puerto de Chancay.","isCorrect":false,"rationale":"Aunque se manejan TEUs con grúas, el término TEU define la unidad de carga, no la maquinaria."}]},{"question":"¿Cuál es la relación directa entre la densidad de un producto y el costo del flete?","hint":"Piense en cómo los transportistas penalizan el uso excesivo de espacio.","options":[{"label":"A","text":"La densidad no afecta el costo del flete en el transporte marítimo.","isCorrect":false,"rationale":"Tanto en aire, tierra como mar, la relación peso-volumen es crítica para determinar la tarifa."},{"label":"B","text":"A mayor densidad, siempre se paga menos flete sin importar el peso total.","isCorrect":false,"rationale":"La densidad alta satura el peso rápidamente; el costo depende de si se cobra por peso o volumen."},{"label":"C","text":"Los productos muy densos siempre llenan el volumen del contenedor antes de alcanzar el peso máximo.","isCorrect":false,"rationale":"Es al revés: los productos muy densos (como el acero) alcanzan el límite de peso dejando mucho volumen libre."},{"label":"D","text":"Los productos de baja densidad suelen generar fletes más altos en proporción a su valor comercial.","isCorrect":true,"rationale":"Debido a que ocupan mucho espacio por poco peso, el transportista cobra por el volumen desplazado, encareciendo el producto."}]},{"question":"Un 'Terminal Portuario Multipropósito', como el de Chancay, se caracteriza por:","hint":"Observe el término 'multipropósito' y lo que implica para la variedad de mercancías.","options":[{"label":"A","text":"Estar diseñado solo para el almacenamiento de productos agrícolas locales.","isCorrect":false,"rationale":"Su escala es internacional y abarca mucho más que solo el sector agrícola local."},{"label":"B","text":"Prohibir el uso de inteligencia artificial en sus procesos de despacho.","isCorrect":false,"rationale":"Al contrario, el puerto de Chancay destaca por estar guiado por sistemas de inteligencia artificial."},{"label":"C","text":"Manejar diferentes tipos de carga como granel, líquidos y contenedores.","isCorrect":true,"rationale":"La denominación 'multipropósito' indica la versatilidad de la infraestructura para procesar distintas naturalezas de carga."},{"label":"D","text":"Operar exclusivamente con carga de pasajeros y turismo.","isCorrect":false,"rationale":"Su enfoque es logístico y comercial, manejando diversos tipos de mercancías, no solo pasajeros."}]},{"question":"¿Qué factor de localización es determinante cuando una empresa busca minimizar el riesgo de huelgas o falta de personal calificado?","hint":"Piense en el recurso humano necesario para que la infraestructura funcione.","options":[{"label":"A","text":"Leyes estatales.","isCorrect":false,"rationale":"Las leyes regulan el marco general, pero la disponibilidad efectiva de trabajadores es un factor demográfico y social específico."},{"label":"B","text":"Disponibilidad de mano de obra.","isCorrect":true,"rationale":"Analizar el mercado laboral local es vital para asegurar que la instalación tenga personal competente y un entorno estable."},{"label":"C","text":"Proximidad a rutas de transporte.","isCorrect":false,"rationale":"Esto facilita el movimiento de carga, pero no garantiza la estabilidad del equipo humano de la planta."},{"label":"D","text":"Costos de terrenos.","isCorrect":false,"rationale":"El costo del terreno es financiero, pero no resuelve problemas de gestión humana o clima laboral."}]},{"question":"La elección del canal de distribución es una decisión estratégica de alto impacto porque:","hint":"Considere la durabilidad y las consecuencias financieras de esta decisión estructural.","options":[{"label":"A","text":"Define la estructura de costos y el acceso real del producto al mercado a largo plazo.","isCorrect":true,"rationale":"Determina cómo fluirá el producto y qué tan rentable será la llegada al cliente durante años."},{"label":"B","text":"Se puede cambiar semanalmente según las ofertas del mercado.","isCorrect":false,"rationale":"Cambiar un canal implica reestructurar contratos y logística física, por lo que no es una decisión a corto plazo."},{"label":"C","text":"Solo afecta al departamento de marketing y no al de finanzas.","isCorrect":false,"rationale":"Afecta profundamente a las finanzas debido a los costos de transporte, inventario y márgenes de intermediarios."},{"label":"D","text":"Es independiente de la ubicación de los almacenes y plantas.","isCorrect":false,"rationale":"El canal y la infraestructura están íntimamente ligados; el diseño de la red apoya la ejecución del canal."}]},{"question":"Si una carga satura la capacidad de peso de un camión pero solo ocupa el 20% de su volumen, se dice que es una carga:","hint":"Piense en la relación masa/volumen de materiales como el acero o los líquidos.","options":[{"label":"A","text":"Densa.","isCorrect":true,"rationale":"Los productos como el acero tienen mucha masa en poco volumen, saturando el peso rápidamente."},{"label":"B","text":"Incompatible con el cubicaje.","isCorrect":false,"rationale":"Toda carga es objeto de cubicaje; simplemente este tipo de carga aprovecha mal el espacio cúbico."},{"label":"C","text":"Volumétrica.","isCorrect":false,"rationale":"Una carga volumétrica es la que llena el espacio antes que el peso; este caso es el opuesto."},{"label":"D","text":"De baja densidad.","isCorrect":false,"rationale":"La baja densidad implica mucho volumen y poco peso, como el algodón o los chips."}]},{"question":"¿Cuál es la función de los vehículos guiados por sistemas de IA en puertos como el de Chancay?","hint":"Enfoque su respuesta en la eficiencia operativa interna de la terminal.","options":[{"label":"A","text":"Vigilar que los empleados no tomen descansos excesivos.","isCorrect":false,"rationale":"El propósito es la eficiencia del flujo de mercancía, no la vigilancia laboral punitiva."},{"label":"B","text":"Transportar turistas por las instalaciones del puerto.","isCorrect":false,"rationale":"Su función es estrictamente operativa y logística para el movimiento de carga."},{"label":"C","text":"Optimizar el movimiento de contenedores de forma autónoma y segura.","isCorrect":true,"rationale":"La IA permite coordinar rutas internas sin conductores humanos, aumentando la precisión y eficiencia 24/7."},{"label":"D","text":"Sustituir la necesidad de barcos cargueros en el mar.","isCorrect":false,"rationale":"Estos vehículos operan solo dentro de la terminal terrestre; los barcos siguen siendo el medio de transporte marítimo."}]},{"question":"Dentro de la teoría de redes, ¿cuál es el riesgo principal de un modelo excesivamente descentralizado?","hint":"Considere lo que sucede con los costos cuando se multiplican los puntos de almacenamiento.","options":[{"label":"A","text":"La centralización del poder de decisión en una sola oficina.","isCorrect":false,"rationale":"La descentralización logística suele ir acompañada de una delegación de decisiones operativas."},{"label":"B","text":"La fragmentación del inventario y el aumento de costos fijos operativos.","isCorrect":true,"rationale":"Tener muchas delegaciones implica más alquileres, más personal y stock duplicado en varios puntos."},{"label":"C","text":"La pérdida de contacto con el cliente local.","isCorrect":false,"rationale":"Al contrario, la descentralización mejora el contacto local al estar más cerca."},{"label":"D","text":"La excesiva rapidez en los tiempos globales de respuesta.","isCorrect":false,"rationale":"La rapidez es una ventaja, no un riesgo del modelo descentralizado."}]},{"question":"¿Por qué es vital optimizar los empaques (packaging) desde una visión logística?","hint":"Piense en cómo el diseño del paquete afecta la cantidad de unidades en un camión.","options":[{"label":"A","text":"Para evitar que los productos sean detectados por las aduanas.","isCorrect":false,"rationale":"El empaque debe cumplir con las normas aduaneras para ser inspeccionado legalmente, no para ocultarse."},{"label":"B","text":"Para que el producto se vea más atractivo en las redes sociales.","isCorrect":false,"rationale":"Eso es marketing; la logística se enfoca en la eficiencia del transporte y almacenamiento."},{"label":"C","text":"Para maximizar la densidad de carga y reducir los costos de transporte por unidad.","isCorrect":true,"rationale":"Un empaque eficiente elimina el 'aire' y permite que quepan más productos en un mismo contenedor."},{"label":"D","text":"Para aumentar el peso total de la carga y cobrar más flete.","isCorrect":false,"rationale":"La empresa busca pagar menos flete, no más; aumentar el peso innecesariamente sería ineficiente."}]},{"question":"En el diseño de redes, ¿qué significa que la infraestructura sea 'la columna vertebral' de la gestión rentable?","hint":"Relacione la infraestructura con la viabilidad de todas las demás operaciones logísticas.","options":[{"label":"A","text":"Que sin una ubicación y tamaño correctos de las instalaciones, no se puede gestionar el flujo de forma eficiente.","isCorrect":true,"rationale":"La infraestructura dicta los límites de capacidad y los costos operativos base de toda la red logísitca."},{"label":"B","text":"Que la empresa solo debe preocuparse por la infraestructura en tiempos de crisis.","isCorrect":false,"rationale":"Es una decisión estratégica que debe planificarse cuidadosamente desde el inicio y mantenerse."},{"label":"C","text":"Que es el componente más barato de toda la cadena de suministro.","isCorrect":false,"rationale":"La infraestructura suele ser una de las inversiones más costosas y significativas de la empresa."},{"label":"D","text":"Que los empleados deben tener una excelente postura física al trabajar en los almacenes.","isCorrect":false,"rationale":"Es una metáfora estructural de la organización, no se refiere a la ergonomía del personal."}]},{"question":"¿Cuál es un factor crítico de localización que involucra la normativa legal de una región específica?","hint":"Considere las reglas que impone el gobierno sobre el territorio.","options":[{"label":"A","text":"Leyes estatales y regulaciones locales.","isCorrect":true,"rationale":"Los incentivos fiscales, leyes laborales y zonificación son restricciones legales que determinan dónde se puede construir."},{"label":"B","text":"Densidad del producto.","isCorrect":false,"rationale":"La densidad es una característica física del producto, no una normativa legal regional."},{"label":"C","text":"El método del centro de gravedad.","isCorrect":false,"rationale":"Es una herramienta matemática para decidir la ubicación, no una ley estatal en sí misma."},{"label":"D","text":"La velocidad del Cross Docking.","isCorrect":false,"rationale":"Es una métrica operativa de flujo de mercancía, no un factor legal del sitio."}]},{"question":"En el análisis de un puerto global como Singapur o Róterdam, ¿qué indicador se usa habitualmente para medir su importancia estratégica?","hint":"Piense en datos cuantificables de flujo de mercancías y redes de transporte.","options":[{"label":"A","text":"La cantidad de oficinas de marketing que tiene el puerto en el extranjero.","isCorrect":false,"rationale":"La importancia real reside en la capacidad operativa y de infraestructura física, no solo en la promoción."},{"label":"B","text":"El volumen de carga movilizada y la conectividad con rutas internacionales.","isCorrect":true,"rationale":"La relevancia de un puerto se mide por cuánta mercancía procesa y a cuántos destinos globales puede enviarla."},{"label":"C","text":"El color de las grúas pórtico instaladas en el muelle.","isCorrect":false,"rationale":"La estética de la maquinaria no tiene impacto en la eficiencia o importancia estratégica del nodo."},{"label":"D","text":"El número de idiomas que hablan los operarios.","isCorrect":false,"rationale":"Aunque es útil, no es un indicador técnico del volumen o capacidad logística del puerto."}]},{"question":"Al hablar de 'Volumetría', ¿qué estamos analizando específicamente?","hint":"Relacione el término con el espacio físico ocupado dentro de un transporte.","options":[{"label":"A","text":"Las dimensiones físicas y el espacio que ocupa la mercancía en relación a su peso.","isCorrect":true,"rationale":"Es el estudio de cómo el tamaño de los bultos afecta el llenado de los vehículos y los costos asociados."},{"label":"B","text":"La cantidad de agua que puede desplazar un barco en el puerto.","isCorrect":false,"rationale":"Eso es desplazamiento de calado, un concepto náutico diferente al cubicaje logístico de carga."},{"label":"C","text":"El volumen de ruido que generan los camiones en el almacén.","isCorrect":false,"rationale":"El ruido es un factor de seguridad ambiental, no es el concepto de volumetría en logística."},{"label":"D","text":"El volumen de ventas mensuales de la empresa.","isCorrect":false,"rationale":"La volumetría logística se refiere a dimensiones físicas, no a volúmenes de transacciones financieras."}]},{"question":"¿Qué diferencia fundamental existe entre un puerto tradicional y un hub automatizado como Chancay respecto al factor tiempo?","hint":"Enfoque su respuesta en cómo la tecnología afecta la velocidad de los procesos.","options":[{"label":"A","text":"La automatización reduce los tiempos de espera y carga/descarga mediante una coordinación precisa por IA.","isCorrect":true,"rationale":"Los sistemas inteligentes eliminan cuellos de botella humanos y optimizan cada segundo de la operación portuaria."},{"label":"B","text":"Los puertos tradicionales son siempre más rápidos porque dependen de la intuición humana.","isCorrect":false,"rationale":"La intuición humana es propensa a errores y fatiga, lo que suele hacer que los procesos manuales sean más lentos."},{"label":"C","text":"En el hub automatizado el tiempo se detiene para evitar errores.","isCorrect":false,"rationale":"El tiempo nunca se detiene; la eficiencia busca precisamente aprovecharlo al máximo."},{"label":"D","text":"No existe diferencia en tiempo, solo en el costo de la energía eléctrica.","isCorrect":false,"rationale":"La reducción de tiempos de navegación y tránsito es uno de los beneficios principales de la tecnología en Chancay."}]},{"question":"Cuando una empresa optimiza el cubicaje de sus envíos, el principal beneficio financiero es:","hint":"Considere cómo se distribuye el costo total del transporte entre los productos llevados.","options":[{"label":"A","text":"El pago de bonos extra a los conductores por llevar más carga.","isCorrect":false,"rationale":"Aunque puede ocurrir, el beneficio principal es para la rentabilidad de la operación corporativa, no es un incentivo de nómina."},{"label":"B","text":"La reducción del costo logístico unitario al transportar más productos en el mismo viaje.","isCorrect":true,"rationale":"Al aprovechar mejor el espacio, el costo del flete se divide entre una mayor cantidad de unidades, mejorando el margen."},{"label":"C","text":"El aumento del precio de venta del producto.","isCorrect":false,"rationale":"El precio de venta lo determina el mercado; el cubicaje optimiza los costos internos de la empresa."},{"label":"D","text":"La eliminación de los impuestos de importación.","isCorrect":false,"rationale":"Los impuestos se basan en el valor o naturaleza de la carga, no en cuán bien esté acomodada en el camión."}]}];
+const tr = {"correct":"¡Correcto!","incorrect":"Incorrecto","next":"Siguiente pregunta →","seeResults":"Ver resultados","complete":"¡Cuestionario completado!","scoreText":"Obtuviste {correct} de {total} correctas","tryAgain":"Intentar de nuevo","rightAnswer":"Respuesta correcta","notQuite":"No del todo"};
+let currentQ = 0, correctCount = 0, answered = false;
+
+function init() {
+  document.querySelectorAll('.question').forEach((q, i) => q.classList.toggle('active', i === 0));
+  updateProgress();
+  document.querySelectorAll('.option').forEach(opt => opt.addEventListener('click', () => selectOption(opt)));
+  document.querySelectorAll('.next-btn').forEach(btn => btn.addEventListener('click', nextQuestion));
+}
+
+function selectOption(opt) {
+  if (answered) return;
+  answered = true;
+  const q = opt.closest('.question');
+  const options = q.querySelectorAll('.option');
+  const nextBtn = q.querySelector('.next-btn');
+  const isCorrect = opt.dataset.correct === 'true';
+  
+  // Mark all options as disabled
+  options.forEach(o => o.classList.add('disabled'));
+  
+  // Style selected option
+  opt.classList.add('selected', isCorrect ? 'correct' : 'incorrect');
+  
+  // Show correct answer if wrong
+  if (!isCorrect) {
+    const correctOpt = [...options].find(o => o.dataset.correct === 'true');
+    if (correctOpt) correctOpt.classList.add('show-correct');
+  }
+  
+  if (isCorrect) correctCount++;
+  
+  // Show feedback for ALL options that have rationale
+  options.forEach(o => {
+    const wrapper = o.closest('.option-wrapper');
+    const feedback = wrapper.querySelector('.option-feedback');
+    const rationale = o.dataset.rationale;
+    const isThisCorrect = o.dataset.correct === 'true';
+    
+    if (rationale && rationale.trim()) {
+      feedback.classList.remove('hidden');
+      feedback.classList.add(isThisCorrect ? 'correct-feedback' : 'incorrect-feedback');
+      
+      const statusEl = feedback.querySelector('.feedback-status');
+      statusEl.className = 'feedback-status ' + (isThisCorrect ? 'correct' : 'incorrect');
+      statusEl.innerHTML = isThisCorrect 
+        ? '✓ ' + tr.rightAnswer
+        : '✗ ' + tr.notQuite;
+    }
+  });
+  
+  nextBtn.classList.remove('hidden');
+  if (currentQ === quizData.length - 1) nextBtn.textContent = tr.seeResults;
+}
+
+function nextQuestion() {
+  answered = false;
+  currentQ++;
+  if (currentQ >= quizData.length) { showResults(); return; }
+  document.querySelectorAll('.question').forEach((q, i) => q.classList.toggle('active', i === currentQ));
+  updateProgress();
+}
+
+function updateProgress() {
+  document.querySelector('.progress-fill').style.width = (currentQ / quizData.length * 100) + '%';
+}
+
+function showResults() {
+  document.querySelectorAll('.question').forEach(q => q.classList.remove('active'));
+  document.getElementById('results').classList.add('active');
+  const pct = Math.round((correctCount / quizData.length) * 100);
+  document.getElementById('score').textContent = pct + '%';
+  document.getElementById('score-text').textContent = tr.scoreText.replace('{correct}', correctCount).replace('{total}', quizData.length);
+  document.querySelector('.progress-fill').style.width = '100%';
+}
+
+function restart() {
+  currentQ = 0; correctCount = 0; answered = false;
+  document.getElementById('results').classList.remove('active');
+  document.querySelectorAll('.question').forEach((q, i) => {
+    q.classList.toggle('active', i === 0);
+    q.querySelectorAll('.option').forEach(o => o.classList.remove('selected', 'correct', 'incorrect', 'disabled', 'show-correct'));
+    q.querySelectorAll('.option-feedback').forEach(f => {
+      f.classList.add('hidden');
+      f.classList.remove('correct-feedback', 'incorrect-feedback');
+    });
+    const btn = q.querySelector('.next-btn');
+    btn.classList.add('hidden');
+    btn.textContent = tr.next;
+  });
+  updateProgress();
+}
+
+init();
+</script>
+</body>
+</html>
