@@ -1,0 +1,886 @@
+<!DOCTYPE html>
+<html lang="es" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>S9.2 Automatización</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  min-height: 100vh; padding: 20px; color: #333;
+}
+.container { max-width: 700px; margin: 0 auto; }
+.header { text-align: center; color: #fff; padding: 30px 20px; }
+.header h1 { font-size: 28px; font-weight: 700; margin-bottom: 8px; text-shadow: 0 2px 10px rgba(0,0,0,0.2); }
+.header .meta { font-size: 14px; opacity: 0.9; }
+.progress-bar { background: rgba(255,255,255,0.3); border-radius: 10px; height: 8px; margin: 20px 0; overflow: hidden; }
+.progress-fill { background: #fff; height: 100%; width: 0%; transition: width 0.4s ease; border-radius: 10px; }
+.question { background: #fff; border-radius: 16px; padding: 30px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); display: none; }
+.question.active { display: block; }
+.q-header { display: flex; justify-content: space-between; margin-bottom: 20px; font-size: 13px; color: #888; }
+.q-number { font-weight: 600; color: #667eea; }
+.q-text { font-size: 18px; font-weight: 600; line-height: 1.5; margin-bottom: 25px; color: #222; }
+.options { display: flex; flex-direction: column; gap: 12px; }
+.option-wrapper { display: flex; flex-direction: column; }
+.option {
+  display: flex; align-items: flex-start; gap: 14px; padding: 16px 18px;
+  border: 2px solid #e8e8e8; border-radius: 12px; background: #fafafa;
+  cursor: pointer; transition: all 0.2s; text-align: left; font-size: 15px; width: 100%;
+}
+[dir="rtl"] .option { text-align: right; flex-direction: row-reverse; }
+.option:hover:not(.disabled) { border-color: #667eea; background: #f5f3ff; }
+.option.selected { border-color: #667eea; background: #ede9fe; }
+.option.correct { border-color: #22c55e; background: #dcfce7; }
+.option.incorrect { border-color: #ef4444; background: #fee2e2; }
+.option.disabled { cursor: default; }
+.option.show-correct { border-color: #22c55e; background: #dcfce7; }
+.opt-label {
+  display: flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; border-radius: 50%; background: #e8e8e8;
+  font-weight: 700; font-size: 14px; flex-shrink: 0;
+}
+.option.selected .opt-label { background: #667eea; color: #fff; }
+.option.correct .opt-label { background: #22c55e; color: #fff; }
+.option.incorrect .opt-label { background: #ef4444; color: #fff; }
+.option.show-correct .opt-label { background: #22c55e; color: #fff; }
+.opt-text { padding-top: 5px; line-height: 1.5; }
+
+/* Individual option feedback */
+.option-feedback {
+  margin: 8px 0 4px 46px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+[dir="rtl"] .option-feedback { margin-left: 0; margin-right: 46px; }
+.option-feedback.correct-feedback {
+  background: #dcfce7;
+  border-left: 3px solid #22c55e;
+}
+.option-feedback.incorrect-feedback {
+  background: #fef3f2;
+  border-left: 3px solid #fca5a5;
+}
+[dir="rtl"] .option-feedback.correct-feedback,
+[dir="rtl"] .option-feedback.incorrect-feedback {
+  border-left: none;
+  border-right: 3px solid;
+}
+[dir="rtl"] .option-feedback.correct-feedback { border-right-color: #22c55e; }
+[dir="rtl"] .option-feedback.incorrect-feedback { border-right-color: #fca5a5; }
+.feedback-status {
+  font-weight: 600;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.feedback-status.correct { color: #166534; }
+.feedback-status.incorrect { color: #991b1b; }
+.feedback-rationale { color: #444; }
+
+/* Hint box */
+.hint-box {
+  margin: 12px 0;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+}
+.hint-toggle {
+  width: 100%;
+  padding: 10px 16px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  color: #92400e;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.hint-toggle:hover { background: #fef3c7; }
+.hint-content {
+  padding: 0 16px;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s, padding 0.3s;
+  font-size: 14px;
+  color: #78350f;
+  line-height: 1.5;
+}
+.hint-box.show .hint-content {
+  padding: 0 16px 12px;
+  max-height: 200px;
+}
+
+.next-btn {
+  margin-top: 20px; width: 100%; padding: 14px;
+  background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; border: none;
+  border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.next-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(102,126,234,0.4); }
+.hidden { display: none !important; }
+.results { background: #fff; border-radius: 16px; padding: 40px; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.15); display: none; }
+.results.active { display: block; }
+.results h2 { font-size: 28px; margin-bottom: 10px; color: #333; }
+.results .score { font-size: 64px; font-weight: 700; color: #667eea; margin: 20px 0; }
+.results .score-text { font-size: 18px; color: #666; margin-bottom: 30px; }
+.restart-btn {
+  padding: 14px 40px; background: linear-gradient(135deg, #667eea, #764ba2);
+  color: #fff; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer;
+}
+
+/* Math CSS */
+.math, .math-block { font-family: "Cambria Math", "Times New Roman", Times, serif; font-style: italic; }
+.math-block { display: block; text-align: center; margin: 10px 0; font-size: 110%; }
+.frac { display: inline-flex; flex-direction: column; align-items: center; vertical-align: middle; margin: 0 3px; font-size: 0.9em; }
+.frac-num { border-bottom: 1px solid currentColor; padding: 0 4px 2px; line-height: 1.2; }
+.frac-den { padding: 2px 4px 0; line-height: 1.2; }
+.sqrt { white-space: nowrap; }
+.sqrt-content { border-top: 1px solid currentColor; padding: 0 3px; margin-left: 2px; }
+sup, sub { font-size: 0.75em; }
+sup { vertical-align: super; }
+sub { vertical-align: sub; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>S9.2 Automatización</h1>
+    <div class="meta">10 preguntas</div>
+    <div class="progress-bar"><div class="progress-fill"></div></div>
+  </div>
+  <div id="quiz-container">
+        <div class="question" data-index="0">
+          <div class="q-header">
+            <span class="q-number">Pregunta 1</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿Qué componente del PLC se encarga de recibir las señales de dispositivos como pulsadores y sensores?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piense en qué parte del sistema 'siente' los cambios del entorno exterior.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Las memorias son elementos internos de software para la lógica y no puntos de conexión física para señales externas.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Memorias (<span class="math">M</span>)</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Las memorias son elementos internos de software para la lógica y no puntos de conexión física para señales externas.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El cerebro procesa la información pero la interfaz específica de recepción son los módulos de entrada.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Cerebro</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El cerebro procesa la información pero la interfaz específica de recepción son los módulos de entrada.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="true" data-rationale="En la arquitectura del PLC, los pulsadores y sensores se conectan a las entradas representadas con la letra $I$.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Entradas (<span class="math">I</span>)</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">En la arquitectura del PLC, los pulsadores y sensores se conectan a las entradas representadas con la letra <span class="math">I</span>.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Las salidas se encargan de ejecutar acciones a través de actuadores, no de recibir señales de sensores.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Salidas (<span class="math">Q</span>)</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Las salidas se encargan de ejecutar acciones a través de actuadores, no de recibir señales de sensores.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="1">
+          <div class="q-header">
+            <span class="q-number">Pregunta 2</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">En el ejercicio práctico, ¿qué acción ocurre inmediatamente después de activar el pulsador de marcha <span class="math">I0.0</span>?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Identifique el primer actuador que entra en movimiento al iniciar el proceso.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="La faja transportadora es uno de los pasos finales del proceso, no el inicial.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Se enciende el motor de la faja transportadora <span class="math">Q0.3</span>.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La faja transportadora es uno de los pasos finales del proceso, no el inicial.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El giro del brazo ocurre después de que la pieza ha sido sujetada y el pistón ha subido.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">El brazo metálico gira <span class="math">180<sup>°</sup></span>.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El giro del brazo ocurre después de que la pieza ha sido sujetada y el pistón ha subido.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="La ventosa solo se activa una vez que el pistón ha bajado mecánicamente.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Se activa la ventosa electrónica <span class="math">Q0.1</span>.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La ventosa solo se activa una vez que el pistón ha bajado mecánicamente.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="true" data-rationale="Según la secuencia lógica, el primer paso tras la marcha es el descenso del pistón neumático.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Se activa el pistón neumático <span class="math">Q0.0</span> para bajar.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Según la secuencia lógica, el primer paso tras la marcha es el descenso del pistón neumático.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="2">
+          <div class="q-header">
+            <span class="q-number">Pregunta 3</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">De acuerdo con el material, ¿qué software se asocia específicamente a la marca Schneider?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Revise la sección de 'Conocimientos previos' donde se mencionan marcas y sus programas.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Este software es característico de los PLC Siemens LOGO!, no de Schneider.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">LOGO! Soft Comfort</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Este software es característico de los PLC Siemens LOGO!, no de Schneider.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Este es un nombre genérico y no una marca de software específica mencionada en la sesión.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Ladder Logic Pro</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Este es un nombre genérico y no una marca de software específica mencionada en la sesión.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="TIA Portal es la plataforma de ingeniería de Siemens para controladores avanzados.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">TIA Portal</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">TIA Portal es la plataforma de ingeniería de Siemens para controladores avanzados.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="true" data-rationale="El material indica explícitamente que el software para Schneider es So Machine.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">So Machine</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El material indica explícitamente que el software para Schneider es So Machine.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="3">
+          <div class="q-header">
+            <span class="q-number">Pregunta 4</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿Cuál es la función de la señal <span class="math">I0.2</span> dentro de la secuencia de automatización descrita?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considere qué evento mecánico debe confirmarse antes de que la pieza caiga a la faja.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="El sensor de giro $I0.2$ confirma la posición de $180^{\circ}$ para soltar la pieza.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Detectar que el brazo metálico está en su lugar para desactivar la ventosa.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El sensor de giro <span class="math">I0.2</span> confirma la posición de <span class="math">180<sup>°</sup></span> para soltar la pieza.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El sensor $I0.2$ es de posición (giro) y no se describe como un contador en esta lógica.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Contar la cantidad de piezas terminadas.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El sensor <span class="math">I0.2</span> es de posición (giro) y no se describe como un contador en esta lógica.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="La función de parada de emergencia está asignada a la entrada $I0.1$.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Detener el sistema en caso de una emergencia crítica.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La función de parada de emergencia está asignada a la entrada <span class="math">I0.1</span>.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Aunque precede a la faja, su función principal es coordinar la desactivación de la ventosa primero.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Activar el motor de la faja transportadora de forma inmediata.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aunque precede a la faja, su función principal es coordinar la desactivación de la ventosa primero.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="4">
+          <div class="q-header">
+            <span class="q-number">Pregunta 5</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿Qué característica define el estado actual del sistema de transporte de piezas?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Busque la nota específica sobre la repetición o continuidad del proceso.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="El brazo metálico es movido por un motor ($Q0.2$) controlado por el PLC.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Requiere intervención humana para mover el brazo metálico.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El brazo metálico es movido por un motor (<span class="math">Q0.2</span>) controlado por el PLC.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El objetivo de la sesión es precisamente la automatización mediante un controlador lógico.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Es un proceso completamente manual sin PLC.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El objetivo de la sesión es precisamente la automatización mediante un controlador lógico.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="El material no menciona algoritmos de control continuo ni retroalimentación analógica.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Es un sistema de lazo cerrado con control PID.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El material no menciona algoritmos de control continuo ni retroalimentación analógica.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="true" data-rationale="El texto aclara que, en esta etapa de la programación, el proceso no se repite automáticamente.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Por el momento no es cíclico.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El texto aclara que, en esta etapa de la programación, el proceso no se repite automáticamente.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="5">
+          <div class="q-header">
+            <span class="q-number">Pregunta 6</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">En la programación Ladder, ¿cuál es el propósito fundamental de utilizar 'Memorias' (<span class="math">M</span>) con enclavamiento?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piense en cómo el programa sabe que ya se cumplió el paso anterior antes de iniciar el siguiente.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Las memorias de bit ($M$) se usan para lógica en tiempo real, no para almacenamiento masivo de datos.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Almacenar la base de datos de producción histórica del PLC.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Las memorias de bit (<span class="math">M</span>) se usan para lógica en tiempo real, no para almacenamiento masivo de datos.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Las memorias permiten 'recordar' que una etapa ha finalizado para dar paso a la siguiente de forma ordenada.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Mantener un estado o etapa activa y asegurar el orden secuencial.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Las memorias permiten 'recordar' que una etapa ha finalizado para dar paso a la siguiente de forma ordenada.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Las memorias son lógicas y no afectan las propiedades eléctricas físicas de la potencia.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Aumentar el voltaje de salida de los actuadores neumáticos.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Las memorias son lógicas y no afectan las propiedades eléctricas físicas de la potencia.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Las memorias no reemplazan sensores; requieren de ellos para cambiar de estado.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Sustituir el uso de sensores físicos para ahorrar costos.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Las memorias no reemplazan sensores; requieren de ellos para cambiar de estado.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="6">
+          <div class="q-header">
+            <span class="q-number">Pregunta 7</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿Cuál de los siguientes elementos se clasificaría como una salida (<span class="math">Q</span>) en un sistema de PLC?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Diferencie entre los dispositivos que dan órdenes al PLC y los que obedecen al PLC.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Los pulsadores envían señales al PLC, por lo que son entradas ($I$).">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Pulsador de emergencia.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Los pulsadores envían señales al PLC, por lo que son entradas (<span class="math">I</span>).</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Los finales de carrera detectan posiciones físicas y envían esa información al PLC como entrada.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Final de carrera.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Los finales de carrera detectan posiciones físicas y envían esa información al PLC como entrada.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Al igual que otros sensores, su función es informar al PLC, no ejecutar una acción motriz.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Sensor de proximidad inductivo.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Al igual que otros sensores, su función es informar al PLC, no ejecutar una acción motriz.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="true" data-rationale="Los actuadores ejecutan el trabajo físico tras recibir la orden del PLC, siendo salidas típicas.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Actuador neumático (Pistón).</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Los actuadores ejecutan el trabajo físico tras recibir la orden del PLC, siendo salidas típicas.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="7">
+          <div class="q-header">
+            <span class="q-number">Pregunta 8</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">Según las conclusiones de la sesión, ¿por qué son cruciales los 'finales de carrera' en la automatización?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piense en la relación entre el movimiento físico de un pistón y la lógica del programa.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Son dispositivos de señal, no fuentes de alimentación eléctrica.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Porque proporcionan la energía eléctrica necesaria para los motores.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Son dispositivos de señal, no fuentes de alimentación eléctrica.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Aunque pueden usarse en seguridad, su rol principal es el control de la secuencia de movimiento.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Porque sirven exclusivamente para la parada de emergencia.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aunque pueden usarse en seguridad, su rol principal es el control de la secuencia de movimiento.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="true" data-rationale="Sin finales de carrera, el PLC no tendría confirmación física del movimiento para pasar al siguiente paso.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Porque permiten que el sistema sepa cuándo un pistón ha llegado a su posición límite.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Sin finales de carrera, el PLC no tendría confirmación física del movimiento para pasar al siguiente paso.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Los finales de carrera son parte de la lógica que debe ser programada en el diagrama Ladder.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Porque reemplazan la necesidad de programar en lógica Ladder.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Los finales de carrera son parte de la lógica que debe ser programada en el diagrama Ladder.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="8">
+          <div class="q-header">
+            <span class="q-number">Pregunta 9</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿Qué salida (<span class="math">Q</span>) es responsable de mover la pieza una vez que esta ha caído desde el brazo metálico?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Busque el actuador asociado con el avance lineal de la pieza en la etapa intermedia.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="La faja transportadora es la encargada de hacer que la pieza avance de frente tras caer.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Motor de la faja transportadora <span class="math">Q0.3</span>.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La faja transportadora es la encargada de hacer que la pieza avance de frente tras caer.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Este motor posiciona el brazo a $180^{\circ}$, pero no transporta la pieza una vez soltada.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Motor del brazo metálico <span class="math">Q0.2</span>.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Este motor posiciona el brazo a <span class="math">180<sup>°</sup></span>, pero no transporta la pieza una vez soltada.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="El pistón 2 empuja la pieza al final, pero no es el encargado del transporte frontal inicial.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Pistón neumático 2 <span class="math">Q0.4</span>.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El pistón 2 empuja la pieza al final, pero no es el encargado del transporte frontal inicial.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="La ventosa sujeta la pieza; no puede moverla horizontalmente por sí misma en la faja.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Ventosa electrónica <span class="math">Q0.1</span>.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La ventosa sujeta la pieza; no puede moverla horizontalmente por sí misma en la faja.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="9">
+          <div class="q-header">
+            <span class="q-number">Pregunta 10</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">En el esquema de entradas presentado, ¿qué significa que una variable sea de tipo 'BOOL'?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considere la naturaleza de una señal de un pulsador: o está presionado o no lo está.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="El tipo de dato BOOL es independiente de la potencia del dispositivo que representa.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Que es una variable utilizada únicamente para motores de alta potencia.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El tipo de dato BOOL es independiente de la potencia del dispositivo que representa.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Las variables booleanas son binarias y no pueden representar rangos analógicos.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Que la variable puede tener múltiples valores numéricos del <span class="math">0</span> al <span class="math">100</span>.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Las variables booleanas son binarias y no pueden representar rangos analógicos.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="true" data-rationale="BOOL (Booleano) representa señales discretas como encendido/apagado o activado/desactivado.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Que la variable solo puede tener dos estados: verdadero (<span class="math">1</span>) o falso (<span class="math">0</span>).</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">BOOL (Booleano) representa señales discretas como encendido/apagado o activado/desactivado.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="BOOL se refiere a la naturaleza lógica del dato, no a su persistencia en memoria ante fallos.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Que la variable se borra automáticamente cada vez que falla el PLC.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">BOOL se refiere a la naturaleza lógica del dato, no a su persistencia en memoria ante fallos.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      </div>
+  <div class="results" id="results">
+    <h2>¡Cuestionario completado!</h2>
+    <div class="score" id="score">0%</div>
+    <div class="score-text" id="score-text"></div>
+    <button class="restart-btn" onclick="restart()">Intentar de nuevo</button>
+  </div>
+</div>
+<script>
+const quizData = [{"question":"¿Qué componente del PLC se encarga de recibir las señales de dispositivos como pulsadores y sensores?","hint":"Piense en qué parte del sistema 'siente' los cambios del entorno exterior.","options":[{"label":"A","text":"Memorias ($M$)","isCorrect":false,"rationale":"Las memorias son elementos internos de software para la lógica y no puntos de conexión física para señales externas."},{"label":"B","text":"Cerebro","isCorrect":false,"rationale":"El cerebro procesa la información pero la interfaz específica de recepción son los módulos de entrada."},{"label":"C","text":"Entradas ($I$)","isCorrect":true,"rationale":"En la arquitectura del PLC, los pulsadores y sensores se conectan a las entradas representadas con la letra $I$."},{"label":"D","text":"Salidas ($Q$)","isCorrect":false,"rationale":"Las salidas se encargan de ejecutar acciones a través de actuadores, no de recibir señales de sensores."}]},{"question":"En el ejercicio práctico, ¿qué acción ocurre inmediatamente después de activar el pulsador de marcha $I0.0$?","hint":"Identifique el primer actuador que entra en movimiento al iniciar el proceso.","options":[{"label":"A","text":"Se enciende el motor de la faja transportadora $Q0.3$.","isCorrect":false,"rationale":"La faja transportadora es uno de los pasos finales del proceso, no el inicial."},{"label":"B","text":"El brazo metálico gira $180^{\\circ}$.","isCorrect":false,"rationale":"El giro del brazo ocurre después de que la pieza ha sido sujetada y el pistón ha subido."},{"label":"C","text":"Se activa la ventosa electrónica $Q0.1$.","isCorrect":false,"rationale":"La ventosa solo se activa una vez que el pistón ha bajado mecánicamente."},{"label":"D","text":"Se activa el pistón neumático $Q0.0$ para bajar.","isCorrect":true,"rationale":"Según la secuencia lógica, el primer paso tras la marcha es el descenso del pistón neumático."}]},{"question":"De acuerdo con el material, ¿qué software se asocia específicamente a la marca Schneider?","hint":"Revise la sección de 'Conocimientos previos' donde se mencionan marcas y sus programas.","options":[{"label":"A","text":"LOGO! Soft Comfort","isCorrect":false,"rationale":"Este software es característico de los PLC Siemens LOGO!, no de Schneider."},{"label":"B","text":"Ladder Logic Pro","isCorrect":false,"rationale":"Este es un nombre genérico y no una marca de software específica mencionada en la sesión."},{"label":"C","text":"TIA Portal","isCorrect":false,"rationale":"TIA Portal es la plataforma de ingeniería de Siemens para controladores avanzados."},{"label":"D","text":"So Machine","isCorrect":true,"rationale":"El material indica explícitamente que el software para Schneider es So Machine."}]},{"question":"¿Cuál es la función de la señal $I0.2$ dentro de la secuencia de automatización descrita?","hint":"Considere qué evento mecánico debe confirmarse antes de que la pieza caiga a la faja.","options":[{"label":"A","text":"Detectar que el brazo metálico está en su lugar para desactivar la ventosa.","isCorrect":true,"rationale":"El sensor de giro $I0.2$ confirma la posición de $180^{\\circ}$ para soltar la pieza."},{"label":"B","text":"Contar la cantidad de piezas terminadas.","isCorrect":false,"rationale":"El sensor $I0.2$ es de posición (giro) y no se describe como un contador en esta lógica."},{"label":"C","text":"Detener el sistema en caso de una emergencia crítica.","isCorrect":false,"rationale":"La función de parada de emergencia está asignada a la entrada $I0.1$."},{"label":"D","text":"Activar el motor de la faja transportadora de forma inmediata.","isCorrect":false,"rationale":"Aunque precede a la faja, su función principal es coordinar la desactivación de la ventosa primero."}]},{"question":"¿Qué característica define el estado actual del sistema de transporte de piezas?","hint":"Busque la nota específica sobre la repetición o continuidad del proceso.","options":[{"label":"A","text":"Requiere intervención humana para mover el brazo metálico.","isCorrect":false,"rationale":"El brazo metálico es movido por un motor ($Q0.2$) controlado por el PLC."},{"label":"B","text":"Es un proceso completamente manual sin PLC.","isCorrect":false,"rationale":"El objetivo de la sesión es precisamente la automatización mediante un controlador lógico."},{"label":"C","text":"Es un sistema de lazo cerrado con control PID.","isCorrect":false,"rationale":"El material no menciona algoritmos de control continuo ni retroalimentación analógica."},{"label":"D","text":"Por el momento no es cíclico.","isCorrect":true,"rationale":"El texto aclara que, en esta etapa de la programación, el proceso no se repite automáticamente."}]},{"question":"En la programación Ladder, ¿cuál es el propósito fundamental de utilizar 'Memorias' ($M$) con enclavamiento?","hint":"Piense en cómo el programa sabe que ya se cumplió el paso anterior antes de iniciar el siguiente.","options":[{"label":"A","text":"Almacenar la base de datos de producción histórica del PLC.","isCorrect":false,"rationale":"Las memorias de bit ($M$) se usan para lógica en tiempo real, no para almacenamiento masivo de datos."},{"label":"B","text":"Mantener un estado o etapa activa y asegurar el orden secuencial.","isCorrect":true,"rationale":"Las memorias permiten 'recordar' que una etapa ha finalizado para dar paso a la siguiente de forma ordenada."},{"label":"C","text":"Aumentar el voltaje de salida de los actuadores neumáticos.","isCorrect":false,"rationale":"Las memorias son lógicas y no afectan las propiedades eléctricas físicas de la potencia."},{"label":"D","text":"Sustituir el uso de sensores físicos para ahorrar costos.","isCorrect":false,"rationale":"Las memorias no reemplazan sensores; requieren de ellos para cambiar de estado."}]},{"question":"¿Cuál de los siguientes elementos se clasificaría como una salida ($Q$) en un sistema de PLC?","hint":"Diferencie entre los dispositivos que dan órdenes al PLC y los que obedecen al PLC.","options":[{"label":"A","text":"Pulsador de emergencia.","isCorrect":false,"rationale":"Los pulsadores envían señales al PLC, por lo que son entradas ($I$)."},{"label":"B","text":"Final de carrera.","isCorrect":false,"rationale":"Los finales de carrera detectan posiciones físicas y envían esa información al PLC como entrada."},{"label":"C","text":"Sensor de proximidad inductivo.","isCorrect":false,"rationale":"Al igual que otros sensores, su función es informar al PLC, no ejecutar una acción motriz."},{"label":"D","text":"Actuador neumático (Pistón).","isCorrect":true,"rationale":"Los actuadores ejecutan el trabajo físico tras recibir la orden del PLC, siendo salidas típicas."}]},{"question":"Según las conclusiones de la sesión, ¿por qué son cruciales los 'finales de carrera' en la automatización?","hint":"Piense en la relación entre el movimiento físico de un pistón y la lógica del programa.","options":[{"label":"A","text":"Porque proporcionan la energía eléctrica necesaria para los motores.","isCorrect":false,"rationale":"Son dispositivos de señal, no fuentes de alimentación eléctrica."},{"label":"B","text":"Porque sirven exclusivamente para la parada de emergencia.","isCorrect":false,"rationale":"Aunque pueden usarse en seguridad, su rol principal es el control de la secuencia de movimiento."},{"label":"C","text":"Porque permiten que el sistema sepa cuándo un pistón ha llegado a su posición límite.","isCorrect":true,"rationale":"Sin finales de carrera, el PLC no tendría confirmación física del movimiento para pasar al siguiente paso."},{"label":"D","text":"Porque reemplazan la necesidad de programar en lógica Ladder.","isCorrect":false,"rationale":"Los finales de carrera son parte de la lógica que debe ser programada en el diagrama Ladder."}]},{"question":"¿Qué salida ($Q$) es responsable de mover la pieza una vez que esta ha caído desde el brazo metálico?","hint":"Busque el actuador asociado con el avance lineal de la pieza en la etapa intermedia.","options":[{"label":"A","text":"Motor de la faja transportadora $Q0.3$.","isCorrect":true,"rationale":"La faja transportadora es la encargada de hacer que la pieza avance de frente tras caer."},{"label":"B","text":"Motor del brazo metálico $Q0.2$.","isCorrect":false,"rationale":"Este motor posiciona el brazo a $180^{\\circ}$, pero no transporta la pieza una vez soltada."},{"label":"C","text":"Pistón neumático 2 $Q0.4$.","isCorrect":false,"rationale":"El pistón 2 empuja la pieza al final, pero no es el encargado del transporte frontal inicial."},{"label":"D","text":"Ventosa electrónica $Q0.1$.","isCorrect":false,"rationale":"La ventosa sujeta la pieza; no puede moverla horizontalmente por sí misma en la faja."}]},{"question":"En el esquema de entradas presentado, ¿qué significa que una variable sea de tipo 'BOOL'?","hint":"Considere la naturaleza de una señal de un pulsador: o está presionado o no lo está.","options":[{"label":"A","text":"Que es una variable utilizada únicamente para motores de alta potencia.","isCorrect":false,"rationale":"El tipo de dato BOOL es independiente de la potencia del dispositivo que representa."},{"label":"B","text":"Que la variable puede tener múltiples valores numéricos del $0$ al $100$.","isCorrect":false,"rationale":"Las variables booleanas son binarias y no pueden representar rangos analógicos."},{"label":"C","text":"Que la variable solo puede tener dos estados: verdadero ($1$) o falso ($0$).","isCorrect":true,"rationale":"BOOL (Booleano) representa señales discretas como encendido/apagado o activado/desactivado."},{"label":"D","text":"Que la variable se borra automáticamente cada vez que falla el PLC.","isCorrect":false,"rationale":"BOOL se refiere a la naturaleza lógica del dato, no a su persistencia en memoria ante fallos."}]}];
+const tr = {"correct":"¡Correcto!","incorrect":"Incorrecto","next":"Siguiente pregunta →","seeResults":"Ver resultados","complete":"¡Cuestionario completado!","scoreText":"Obtuviste {correct} de {total} correctas","tryAgain":"Intentar de nuevo","rightAnswer":"Respuesta correcta","notQuite":"No del todo"};
+let currentQ = 0, correctCount = 0, answered = false;
+
+function init() {
+  document.querySelectorAll('.question').forEach((q, i) => q.classList.toggle('active', i === 0));
+  updateProgress();
+  document.querySelectorAll('.option').forEach(opt => opt.addEventListener('click', () => selectOption(opt)));
+  document.querySelectorAll('.next-btn').forEach(btn => btn.addEventListener('click', nextQuestion));
+}
+
+function selectOption(opt) {
+  if (answered) return;
+  answered = true;
+  const q = opt.closest('.question');
+  const options = q.querySelectorAll('.option');
+  const nextBtn = q.querySelector('.next-btn');
+  const isCorrect = opt.dataset.correct === 'true';
+  
+  // Mark all options as disabled
+  options.forEach(o => o.classList.add('disabled'));
+  
+  // Style selected option
+  opt.classList.add('selected', isCorrect ? 'correct' : 'incorrect');
+  
+  // Show correct answer if wrong
+  if (!isCorrect) {
+    const correctOpt = [...options].find(o => o.dataset.correct === 'true');
+    if (correctOpt) correctOpt.classList.add('show-correct');
+  }
+  
+  if (isCorrect) correctCount++;
+  
+  // Show feedback for ALL options that have rationale
+  options.forEach(o => {
+    const wrapper = o.closest('.option-wrapper');
+    const feedback = wrapper.querySelector('.option-feedback');
+    const rationale = o.dataset.rationale;
+    const isThisCorrect = o.dataset.correct === 'true';
+    
+    if (rationale && rationale.trim()) {
+      feedback.classList.remove('hidden');
+      feedback.classList.add(isThisCorrect ? 'correct-feedback' : 'incorrect-feedback');
+      
+      const statusEl = feedback.querySelector('.feedback-status');
+      statusEl.className = 'feedback-status ' + (isThisCorrect ? 'correct' : 'incorrect');
+      statusEl.innerHTML = isThisCorrect 
+        ? '✓ ' + tr.rightAnswer
+        : '✗ ' + tr.notQuite;
+    }
+  });
+  
+  nextBtn.classList.remove('hidden');
+  if (currentQ === quizData.length - 1) nextBtn.textContent = tr.seeResults;
+}
+
+function nextQuestion() {
+  answered = false;
+  currentQ++;
+  if (currentQ >= quizData.length) { showResults(); return; }
+  document.querySelectorAll('.question').forEach((q, i) => q.classList.toggle('active', i === currentQ));
+  updateProgress();
+}
+
+function updateProgress() {
+  document.querySelector('.progress-fill').style.width = (currentQ / quizData.length * 100) + '%';
+}
+
+function showResults() {
+  document.querySelectorAll('.question').forEach(q => q.classList.remove('active'));
+  document.getElementById('results').classList.add('active');
+  const pct = Math.round((correctCount / quizData.length) * 100);
+  document.getElementById('score').textContent = pct + '%';
+  document.getElementById('score-text').textContent = tr.scoreText.replace('{correct}', correctCount).replace('{total}', quizData.length);
+  document.querySelector('.progress-fill').style.width = '100%';
+}
+
+function restart() {
+  currentQ = 0; correctCount = 0; answered = false;
+  document.getElementById('results').classList.remove('active');
+  document.querySelectorAll('.question').forEach((q, i) => {
+    q.classList.toggle('active', i === 0);
+    q.querySelectorAll('.option').forEach(o => o.classList.remove('selected', 'correct', 'incorrect', 'disabled', 'show-correct'));
+    q.querySelectorAll('.option-feedback').forEach(f => {
+      f.classList.add('hidden');
+      f.classList.remove('correct-feedback', 'incorrect-feedback');
+    });
+    const btn = q.querySelector('.next-btn');
+    btn.classList.add('hidden');
+    btn.textContent = tr.next;
+  });
+  updateProgress();
+}
+
+init();
+</script>
+</body>
+</html>
