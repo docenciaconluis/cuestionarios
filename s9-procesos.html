@@ -1,0 +1,886 @@
+<!DOCTYPE html>
+<html lang="es" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>S9 Procesos</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  min-height: 100vh; padding: 20px; color: #333;
+}
+.container { max-width: 700px; margin: 0 auto; }
+.header { text-align: center; color: #fff; padding: 30px 20px; }
+.header h1 { font-size: 28px; font-weight: 700; margin-bottom: 8px; text-shadow: 0 2px 10px rgba(0,0,0,0.2); }
+.header .meta { font-size: 14px; opacity: 0.9; }
+.progress-bar { background: rgba(255,255,255,0.3); border-radius: 10px; height: 8px; margin: 20px 0; overflow: hidden; }
+.progress-fill { background: #fff; height: 100%; width: 0%; transition: width 0.4s ease; border-radius: 10px; }
+.question { background: #fff; border-radius: 16px; padding: 30px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); display: none; }
+.question.active { display: block; }
+.q-header { display: flex; justify-content: space-between; margin-bottom: 20px; font-size: 13px; color: #888; }
+.q-number { font-weight: 600; color: #667eea; }
+.q-text { font-size: 18px; font-weight: 600; line-height: 1.5; margin-bottom: 25px; color: #222; }
+.options { display: flex; flex-direction: column; gap: 12px; }
+.option-wrapper { display: flex; flex-direction: column; }
+.option {
+  display: flex; align-items: flex-start; gap: 14px; padding: 16px 18px;
+  border: 2px solid #e8e8e8; border-radius: 12px; background: #fafafa;
+  cursor: pointer; transition: all 0.2s; text-align: left; font-size: 15px; width: 100%;
+}
+[dir="rtl"] .option { text-align: right; flex-direction: row-reverse; }
+.option:hover:not(.disabled) { border-color: #667eea; background: #f5f3ff; }
+.option.selected { border-color: #667eea; background: #ede9fe; }
+.option.correct { border-color: #22c55e; background: #dcfce7; }
+.option.incorrect { border-color: #ef4444; background: #fee2e2; }
+.option.disabled { cursor: default; }
+.option.show-correct { border-color: #22c55e; background: #dcfce7; }
+.opt-label {
+  display: flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; border-radius: 50%; background: #e8e8e8;
+  font-weight: 700; font-size: 14px; flex-shrink: 0;
+}
+.option.selected .opt-label { background: #667eea; color: #fff; }
+.option.correct .opt-label { background: #22c55e; color: #fff; }
+.option.incorrect .opt-label { background: #ef4444; color: #fff; }
+.option.show-correct .opt-label { background: #22c55e; color: #fff; }
+.opt-text { padding-top: 5px; line-height: 1.5; }
+
+/* Individual option feedback */
+.option-feedback {
+  margin: 8px 0 4px 46px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+[dir="rtl"] .option-feedback { margin-left: 0; margin-right: 46px; }
+.option-feedback.correct-feedback {
+  background: #dcfce7;
+  border-left: 3px solid #22c55e;
+}
+.option-feedback.incorrect-feedback {
+  background: #fef3f2;
+  border-left: 3px solid #fca5a5;
+}
+[dir="rtl"] .option-feedback.correct-feedback,
+[dir="rtl"] .option-feedback.incorrect-feedback {
+  border-left: none;
+  border-right: 3px solid;
+}
+[dir="rtl"] .option-feedback.correct-feedback { border-right-color: #22c55e; }
+[dir="rtl"] .option-feedback.incorrect-feedback { border-right-color: #fca5a5; }
+.feedback-status {
+  font-weight: 600;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.feedback-status.correct { color: #166534; }
+.feedback-status.incorrect { color: #991b1b; }
+.feedback-rationale { color: #444; }
+
+/* Hint box */
+.hint-box {
+  margin: 12px 0;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+}
+.hint-toggle {
+  width: 100%;
+  padding: 10px 16px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  color: #92400e;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.hint-toggle:hover { background: #fef3c7; }
+.hint-content {
+  padding: 0 16px;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s, padding 0.3s;
+  font-size: 14px;
+  color: #78350f;
+  line-height: 1.5;
+}
+.hint-box.show .hint-content {
+  padding: 0 16px 12px;
+  max-height: 200px;
+}
+
+.next-btn {
+  margin-top: 20px; width: 100%; padding: 14px;
+  background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; border: none;
+  border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.next-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(102,126,234,0.4); }
+.hidden { display: none !important; }
+.results { background: #fff; border-radius: 16px; padding: 40px; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.15); display: none; }
+.results.active { display: block; }
+.results h2 { font-size: 28px; margin-bottom: 10px; color: #333; }
+.results .score { font-size: 64px; font-weight: 700; color: #667eea; margin: 20px 0; }
+.results .score-text { font-size: 18px; color: #666; margin-bottom: 30px; }
+.restart-btn {
+  padding: 14px 40px; background: linear-gradient(135deg, #667eea, #764ba2);
+  color: #fff; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer;
+}
+
+/* Math CSS */
+.math, .math-block { font-family: "Cambria Math", "Times New Roman", Times, serif; font-style: italic; }
+.math-block { display: block; text-align: center; margin: 10px 0; font-size: 110%; }
+.frac { display: inline-flex; flex-direction: column; align-items: center; vertical-align: middle; margin: 0 3px; font-size: 0.9em; }
+.frac-num { border-bottom: 1px solid currentColor; padding: 0 4px 2px; line-height: 1.2; }
+.frac-den { padding: 2px 4px 0; line-height: 1.2; }
+.sqrt { white-space: nowrap; }
+.sqrt-content { border-top: 1px solid currentColor; padding: 0 3px; margin-left: 2px; }
+sup, sub { font-size: 0.75em; }
+sup { vertical-align: super; }
+sub { vertical-align: sub; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>S9 Procesos</h1>
+    <div class="meta">10 preguntas</div>
+    <div class="progress-bar"><div class="progress-fill"></div></div>
+  </div>
+  <div id="quiz-container">
+        <div class="question" data-index="0">
+          <div class="q-header">
+            <span class="q-number">Pregunta 1</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿Cuál es la característica fundamental que define a la Reingeniería de Procesos frente a otros métodos de optimización?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considere si el método busca parchar el sistema actual o construir uno nuevo desde sus cimientos.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Este enfoque describe el mejoramiento de procesos, que busca ajustar lo existente en lugar de una reinvención total.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">La modificación incremental de los procedimientos actuales para reducir errores.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Este enfoque describe el mejoramiento de procesos, que busca ajustar lo existente en lugar de una reinvención total.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="La simple automatización no constituye reingeniería si no hay un cuestionamiento de la naturaleza fundamental del proceso.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">La automatización de las tareas manuales sin alterar la estructura del flujo de trabajo.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La simple automatización no constituye reingeniería si no hay un cuestionamiento de la naturaleza fundamental del proceso.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="true" data-rationale="La reingeniería se define por una reinvención radical que no se ve limitada por las restricciones de los enfoques actuales.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">El rediseño completo de un proceso empezando desde cero o 'borrón y cuenta nueva'.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La reingeniería se define por una reinvención radical que no se ve limitada por las restricciones de los enfoques actuales.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="La reingeniería requiere un liderazgo fuerte y visión estratégica que trascienda los silos departamentales.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">La delegación de la toma de decisiones exclusivamente a los departamentos funcionales.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La reingeniería requiere un liderazgo fuerte y visión estratégica que trascienda los silos departamentales.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="1">
+          <div class="q-header">
+            <span class="q-number">Pregunta 2</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">En el análisis de procesos, ¿por qué se considera que la pregunta '¿Por qué?' es la más importante de todas?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piense en qué interrogante obliga a justificar la existencia misma de un paso en la cadena de valor.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="La medición del tiempo responde a la pregunta '¿Cuánto tiempo?', la cual es cuantitativa y no necesariamente crítica.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Porque ayuda a cronometrar con exactitud la duración de cada fase del proceso.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La medición del tiempo responde a la pregunta '¿Cuánto tiempo?', la cual es cuantitativa y no necesariamente crítica.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Identificar al responsable es parte de la pregunta '¿Quién?', pero no aborda la validez de la actividad en sí.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Porque permite identificar exactamente quién es el responsable de un error operativo.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Identificar al responsable es parte de la pregunta '¿Quién?', pero no aborda la validez de la actividad en sí.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="La ubicación responde a la pregunta '¿Dónde?', que es logística pero no cuestiona la esencia del proceso.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Porque define la ubicación física donde se debe realizar la transformación del producto.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La ubicación responde a la pregunta '¿Dónde?', que es logística pero no cuestiona la esencia del proceso.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="true" data-rationale="Esta pregunta es crítica porque desafía el status quo y puede llevar a la eliminación de pasos innecesarios.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Porque invita a evaluar otras posibilidades de hacer las cosas al cuestionar la necesidad de la actividad.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esta pregunta es crítica porque desafía el status quo y puede llevar a la eliminación de pasos innecesarios.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="2">
+          <div class="q-header">
+            <span class="q-number">Pregunta 3</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">Según el material, ¿qué tipo de procesos deben ser seleccionados prioritariamente para una reingeniería?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Identifique las actividades que están directamente vinculadas con la misión principal de la empresa y la satisfacción del usuario.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Se debe centrar en las actividades críticas que definen la propuesta de valor y la relación con el mercado.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Procesos de carácter fundamental, como aquellos mediante los cuales se atiende al cliente.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Se debe centrar en las actividades críticas que definen la propuesta de valor y la relación con el mercado.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="La automatización es una herramienta, pero la selección del proceso depende de su impacto estratégico, no de la facilidad tecnológica.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Cualquier proceso que pueda ser automatizado con software genérico.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La automatización es una herramienta, pero la selección del proceso depende de su impacto estratégico, no de la facilidad tecnológica.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="La reingeniería es costosa y radical, por lo que aplicarla a procesos no críticos no justificaría la inversión.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Procesos secundarios como la gestión de suministros de oficina.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La reingeniería es costosa y radical, por lo que aplicarla a procesos no críticos no justificaría la inversión.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Aunque la resistencia es un factor, los procesos críticos suelen ser los más difíciles de cambiar pero los que ofrecen mayores beneficios.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Procesos que no presenten resistencia al cambio por parte del personal.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aunque la resistencia es un factor, los procesos críticos suelen ser los más difíciles de cambiar pero los que ofrecen mayores beneficios.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="3">
+          <div class="q-header">
+            <span class="q-number">Pregunta 4</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">Dentro de los requisitos de la reingeniería, ¿qué función cumple el 'Liderazgo Fuerte'?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Analice cómo la alta gerencia debe actuar ante la fricción natural que generan los cambios drásticos en la organización.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Al contrario, el liderazgo debe fomentar la colaboración de equipos multidisciplinarios para abordar el cambio desde todos los ángulos.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Evitar el uso de equipos multidisciplinarios para centralizar la toma de decisiones.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Al contrario, el liderazgo debe fomentar la colaboración de equipos multidisciplinarios para abordar el cambio desde todos los ángulos.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="El poder de influencia de los gerentes es vital para garantizar que los cambios radicales sean aceptados y alineados con la visión de la empresa.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Asegurar que el proyecto se desarrolle dentro de un contexto estratégico y vencer la resistencia al cambio.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El poder de influencia de los gerentes es vital para garantizar que los cambios radicales sean aceptados y alineados con la visión de la empresa.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Un líder de reingeniería debe estar involucrado en el diseño del proceso, no solo en la gestión financiera de la tecnología.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Gestionar únicamente el presupuesto de TI sin involucrarse en el diseño de los procesos.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Un líder de reingeniería debe estar involucrado en el diseño del proceso, no solo en la gestión financiera de la tecnología.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="La reingeniería busca precisamente eliminar reglas rígidas u obsoletas en favor de nuevos flujos de trabajo.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Supervisar que cada empleado cumpla estrictamente con las reglas rígidas preexistentes.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La reingeniería busca precisamente eliminar reglas rígidas u obsoletas en favor de nuevos flujos de trabajo.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="4">
+          <div class="q-header">
+            <span class="q-number">Pregunta 5</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿Cuál es la relación principal entre la Tecnología de la Información (TI) y la Reingeniería de Procesos?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considere el rol de los datos y la conectividad en el diseño de una estructura empresarial moderna y ágil.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="En reingeniería, la TI suele ser el motor central alrededor del cual se diseñan los nuevos flujos, no un pensamiento posterior.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">La TI es un soporte secundario que se implementa una vez que el proceso ha sido mejorado.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">En reingeniería, la TI suele ser el motor central alrededor del cual se diseñan los nuevos flujos, no un pensamiento posterior.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Esto sería una reducción de costos o automatización simple, no una reingeniería que requiere rediseño conceptual.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">La TI se utiliza exclusivamente para reducir la cantidad de personal sin cambiar el método de trabajo.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esto sería una reducción de costos o automatización simple, no una reingeniería que requiere rediseño conceptual.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="A pesar de la filosofía de 'borrón y cuenta nueva', el equipo debe conocer el proceso actual para identificar qué eliminar o transformar.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">La TI reemplaza la necesidad de realizar un análisis previo de los procesos actuales.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">A pesar de la filosofía de 'borrón y cuenta nueva', el equipo debe conocer el proceso actual para identificar qué eliminar o transformar.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="true" data-rationale="La tecnología de computación y las redes son facilitadores críticos para que los nuevos procesos operen de manera eficiente y conectada.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Se diseñan procesos en torno a flujos de información donde la TI permite a los 'propietarios' realizar mejor sus tareas.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La tecnología de computación y las redes son facilitadores críticos para que los nuevos procesos operen de manera eficiente y conectada.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="5">
+          <div class="q-header">
+            <span class="q-number">Pregunta 6</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">Si una empresa observa que su proceso es un 'cuello de botella' y el trabajo se acumula, ¿qué acción es más apropiada según el material?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Determine qué enfoque sistemático se utiliza para resolver fallas de fluidez y entregas tardías sin necesariamente reinventar toda la empresa.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="El mejoramiento busca entender las actividades y flujos para resolver problemas específicos de productividad y capacidad.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Realizar un mejoramiento de procesos para desentrañar detalles y mejorar la puntualidad.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El mejoramiento busca entender las actividades y flujos para resolver problemas específicos de productividad y capacidad.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Las reglas rígidas suelen ser parte del problema que la reingeniería o el mejoramiento buscan eliminar.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Aumentar el número de reglas rígidas para controlar el flujo de trabajo.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Las reglas rígidas suelen ser parte del problema que la reingeniería o el mejoramiento buscan eliminar.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="La reingeniería debe reservarse precisamente para los procesos que sí tienen un impacto fundamental en el cliente.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Aplicar reingeniería solo si el proceso no tiene impacto en los pedidos de los clientes.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La reingeniería debe reservarse precisamente para los procesos que sí tienen un impacto fundamental en el cliente.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Esta es una postura pasiva que daña la competitividad y la satisfacción del cliente.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Ignorar el problema hasta que la demanda del cliente disminuya de forma natural.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esta es una postura pasiva que daña la competitividad y la satisfacción del cliente.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="6">
+          <div class="q-header">
+            <span class="q-number">Pregunta 7</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿Qué representa simbólicamente el Diagrama de Actividades del Proceso (DAP)?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Visualice una herramienta que utiliza círculos, flechas y cuadrados para describir el recorrido de un material en la planta.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="El DAP es una herramienta técnica que utiliza símbolos para mapear cada paso, inspección o transporte dentro de la operación.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Una representación gráfica del trabajo realizado a medida que un producto pasa por las etapas de un proceso.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El DAP es una herramienta técnica que utiliza símbolos para mapear cada paso, inspección o transporte dentro de la operación.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El DAP se enfoca en el valor agregado y las actividades operativas, no en la contabilidad de ventas.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Un listado de los precios de venta de los productos terminados.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El DAP se enfoca en el valor agregado y las actividades operativas, no en la contabilidad de ventas.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="El organigrama muestra jerarquías humanas, mientras que el DAP muestra el flujo de trabajo sobre un producto.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">El organigrama jerárquico de los jefes de cada departamento involucrado.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El organigrama muestra jerarquías humanas, mientras que el DAP muestra el flujo de trabajo sobre un producto.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Aunque ayuda a identificar ahorros potenciales, el DAP es una herramienta de análisis de flujo, no una proyección financiera.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Una proyección financiera del retorno de inversión tras la reingeniería.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aunque ayuda a identificar ahorros potenciales, el DAP es una herramienta de análisis de flujo, no una proyección financiera.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="7">
+          <div class="q-header">
+            <span class="q-number">Pregunta 8</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">En el contexto de la filosofía de 'borrón y cuenta nueva', ¿en qué dirección trabaja la reingeniería?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Reflexione sobre si el diseño se basa en mejorar lo viejo o en imaginar lo ideal y construirlo.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="La reingeniería requiere un impulso 'top-down' debido a la magnitud de los cambios y recursos necesarios.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">De forma ascendente, esperando que los empleados de nivel bajo propongan el cambio radical.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La reingeniería requiere un impulso 'top-down' debido a la magnitud de los cambios y recursos necesarios.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Si bien la información de la competencia es valiosa, la reingeniería busca una reinvención propia adaptada a los objetivos de la empresa.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">De manera lateral, copiando exactamente lo que hace la competencia más cercana.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Si bien la información de la competencia es valiosa, la reingeniería busca una reinvención propia adaptada a los objetivos de la empresa.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Este enfoque es tradicionalista y es lo opuesto a lo que propone la reingeniería radical.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Desde el pasado hacia el presente, basándose en lo que siempre ha funcionado.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Este enfoque es tradicionalista y es lo opuesto a lo que propone la reingeniería radical.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="true" data-rationale="Se visualiza el objetivo ideal basándose en las necesidades del cliente y luego se diseña el camino para llegar allí.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Desde el futuro hacia atrás, sin las restricciones de los enfoques actuales.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Se visualiza el objetivo ideal basándose en las necesidades del cliente y luego se diseña el camino para llegar allí.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="8">
+          <div class="q-header">
+            <span class="q-number">Pregunta 9</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿Cuál es uno de los 'dolores' o riesgos asociados a la aplicación de cambios masivos por reingeniería?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piense en las consecuencias negativas inmediatas para los trabajadores y el capital de la empresa cuando se hace un cambio radical.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Uno de los objetivos es mejorar la atención al cliente, por lo que el contacto debería fortalecerse.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">La pérdida de contacto con los clientes externos.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Uno de los objetivos es mejorar la atención al cliente, por lo que el contacto debería fortalecerse.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="La simplificación es un beneficio buscado, no un riesgo que impida el entendimiento del proceso.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">La simplificación exagerada que impide entender el proceso.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La simplificación es un beneficio buscado, no un riesgo que impida el entendimiento del proceso.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="La reingeniería busca precisamente eliminar trámites inútiles y reducir la documentación excesiva.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">El aumento excesivo de trámites inútiles y documentación.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La reingeniería busca precisamente eliminar trámites inútiles y reducir la documentación excesiva.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="true" data-rationale="El material advierte que es una 'medicina fuerte' que suele conllevar reducciones de plantilla y altos costos iniciales.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Despidos de personal y grandes egresos de efectivo para inversión tecnológica.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El material advierte que es una 'medicina fuerte' que suele conllevar reducciones de plantilla y altos costos iniciales.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="9">
+          <div class="q-header">
+            <span class="q-number">Pregunta 10</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿Cuándo se considera que la reingeniería NO es necesaria o apropiada para una organización?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Evalúe si vale la pena usar una solución extrema ('medicina fuerte') para un problema que puede resolverse con ajustes graduales.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="La presión competitiva es a menudo una razón de peso para considerar una reingeniería profunda.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Cuando la competencia está ganando cuota de mercado rápidamente.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La presión competitiva es a menudo una razón de peso para considerar una reingeniería profunda.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="La insatisfacción del cliente es un indicador crítico de que el proceso podría necesitar una reinvención.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Cuando los clientes están insatisfechos con los tiempos de respuesta actuales.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La insatisfacción del cliente es un indicador crítico de que el proceso podría necesitar una reinvención.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="true" data-rationale="Para cambios pequeños es preferible el mejoramiento de procesos, ya que la reingeniería es un cambio radical y riesgoso.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Cuando el proceso actual funciona bien y solo requiere ajustes menores de productividad.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Para cambios pequeños es preferible el mejoramiento de procesos, ya que la reingeniería es un cambio radical y riesgoso.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Tener recursos facilita la reingeniería, pero no es el criterio para decidir si es necesaria o no.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Cuando la empresa tiene exceso de tiempo y recursos financieros.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Tener recursos facilita la reingeniería, pero no es el criterio para decidir si es necesaria o no.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      </div>
+  <div class="results" id="results">
+    <h2>¡Cuestionario completado!</h2>
+    <div class="score" id="score">0%</div>
+    <div class="score-text" id="score-text"></div>
+    <button class="restart-btn" onclick="restart()">Intentar de nuevo</button>
+  </div>
+</div>
+<script>
+const quizData = [{"question":"¿Cuál es la característica fundamental que define a la Reingeniería de Procesos frente a otros métodos de optimización?","hint":"Considere si el método busca parchar el sistema actual o construir uno nuevo desde sus cimientos.","options":[{"label":"A","text":"La modificación incremental de los procedimientos actuales para reducir errores.","isCorrect":false,"rationale":"Este enfoque describe el mejoramiento de procesos, que busca ajustar lo existente en lugar de una reinvención total."},{"label":"B","text":"La automatización de las tareas manuales sin alterar la estructura del flujo de trabajo.","isCorrect":false,"rationale":"La simple automatización no constituye reingeniería si no hay un cuestionamiento de la naturaleza fundamental del proceso."},{"label":"C","text":"El rediseño completo de un proceso empezando desde cero o 'borrón y cuenta nueva'.","isCorrect":true,"rationale":"La reingeniería se define por una reinvención radical que no se ve limitada por las restricciones de los enfoques actuales."},{"label":"D","text":"La delegación de la toma de decisiones exclusivamente a los departamentos funcionales.","isCorrect":false,"rationale":"La reingeniería requiere un liderazgo fuerte y visión estratégica que trascienda los silos departamentales."}]},{"question":"En el análisis de procesos, ¿por qué se considera que la pregunta '¿Por qué?' es la más importante de todas?","hint":"Piense en qué interrogante obliga a justificar la existencia misma de un paso en la cadena de valor.","options":[{"label":"A","text":"Porque ayuda a cronometrar con exactitud la duración de cada fase del proceso.","isCorrect":false,"rationale":"La medición del tiempo responde a la pregunta '¿Cuánto tiempo?', la cual es cuantitativa y no necesariamente crítica."},{"label":"B","text":"Porque permite identificar exactamente quién es el responsable de un error operativo.","isCorrect":false,"rationale":"Identificar al responsable es parte de la pregunta '¿Quién?', pero no aborda la validez de la actividad en sí."},{"label":"C","text":"Porque define la ubicación física donde se debe realizar la transformación del producto.","isCorrect":false,"rationale":"La ubicación responde a la pregunta '¿Dónde?', que es logística pero no cuestiona la esencia del proceso."},{"label":"D","text":"Porque invita a evaluar otras posibilidades de hacer las cosas al cuestionar la necesidad de la actividad.","isCorrect":true,"rationale":"Esta pregunta es crítica porque desafía el status quo y puede llevar a la eliminación de pasos innecesarios."}]},{"question":"Según el material, ¿qué tipo de procesos deben ser seleccionados prioritariamente para una reingeniería?","hint":"Identifique las actividades que están directamente vinculadas con la misión principal de la empresa y la satisfacción del usuario.","options":[{"label":"A","text":"Procesos de carácter fundamental, como aquellos mediante los cuales se atiende al cliente.","isCorrect":true,"rationale":"Se debe centrar en las actividades críticas que definen la propuesta de valor y la relación con el mercado."},{"label":"B","text":"Cualquier proceso que pueda ser automatizado con software genérico.","isCorrect":false,"rationale":"La automatización es una herramienta, pero la selección del proceso depende de su impacto estratégico, no de la facilidad tecnológica."},{"label":"C","text":"Procesos secundarios como la gestión de suministros de oficina.","isCorrect":false,"rationale":"La reingeniería es costosa y radical, por lo que aplicarla a procesos no críticos no justificaría la inversión."},{"label":"D","text":"Procesos que no presenten resistencia al cambio por parte del personal.","isCorrect":false,"rationale":"Aunque la resistencia es un factor, los procesos críticos suelen ser los más difíciles de cambiar pero los que ofrecen mayores beneficios."}]},{"question":"Dentro de los requisitos de la reingeniería, ¿qué función cumple el 'Liderazgo Fuerte'?","hint":"Analice cómo la alta gerencia debe actuar ante la fricción natural que generan los cambios drásticos en la organización.","options":[{"label":"A","text":"Evitar el uso de equipos multidisciplinarios para centralizar la toma de decisiones.","isCorrect":false,"rationale":"Al contrario, el liderazgo debe fomentar la colaboración de equipos multidisciplinarios para abordar el cambio desde todos los ángulos."},{"label":"B","text":"Asegurar que el proyecto se desarrolle dentro de un contexto estratégico y vencer la resistencia al cambio.","isCorrect":true,"rationale":"El poder de influencia de los gerentes es vital para garantizar que los cambios radicales sean aceptados y alineados con la visión de la empresa."},{"label":"C","text":"Gestionar únicamente el presupuesto de TI sin involucrarse en el diseño de los procesos.","isCorrect":false,"rationale":"Un líder de reingeniería debe estar involucrado en el diseño del proceso, no solo en la gestión financiera de la tecnología."},{"label":"D","text":"Supervisar que cada empleado cumpla estrictamente con las reglas rígidas preexistentes.","isCorrect":false,"rationale":"La reingeniería busca precisamente eliminar reglas rígidas u obsoletas en favor de nuevos flujos de trabajo."}]},{"question":"¿Cuál es la relación principal entre la Tecnología de la Información (TI) y la Reingeniería de Procesos?","hint":"Considere el rol de los datos y la conectividad en el diseño de una estructura empresarial moderna y ágil.","options":[{"label":"A","text":"La TI es un soporte secundario que se implementa una vez que el proceso ha sido mejorado.","isCorrect":false,"rationale":"En reingeniería, la TI suele ser el motor central alrededor del cual se diseñan los nuevos flujos, no un pensamiento posterior."},{"label":"B","text":"La TI se utiliza exclusivamente para reducir la cantidad de personal sin cambiar el método de trabajo.","isCorrect":false,"rationale":"Esto sería una reducción de costos o automatización simple, no una reingeniería que requiere rediseño conceptual."},{"label":"C","text":"La TI reemplaza la necesidad de realizar un análisis previo de los procesos actuales.","isCorrect":false,"rationale":"A pesar de la filosofía de 'borrón y cuenta nueva', el equipo debe conocer el proceso actual para identificar qué eliminar o transformar."},{"label":"D","text":"Se diseñan procesos en torno a flujos de información donde la TI permite a los 'propietarios' realizar mejor sus tareas.","isCorrect":true,"rationale":"La tecnología de computación y las redes son facilitadores críticos para que los nuevos procesos operen de manera eficiente y conectada."}]},{"question":"Si una empresa observa que su proceso es un 'cuello de botella' y el trabajo se acumula, ¿qué acción es más apropiada según el material?","hint":"Determine qué enfoque sistemático se utiliza para resolver fallas de fluidez y entregas tardías sin necesariamente reinventar toda la empresa.","options":[{"label":"A","text":"Realizar un mejoramiento de procesos para desentrañar detalles y mejorar la puntualidad.","isCorrect":true,"rationale":"El mejoramiento busca entender las actividades y flujos para resolver problemas específicos de productividad y capacidad."},{"label":"B","text":"Aumentar el número de reglas rígidas para controlar el flujo de trabajo.","isCorrect":false,"rationale":"Las reglas rígidas suelen ser parte del problema que la reingeniería o el mejoramiento buscan eliminar."},{"label":"C","text":"Aplicar reingeniería solo si el proceso no tiene impacto en los pedidos de los clientes.","isCorrect":false,"rationale":"La reingeniería debe reservarse precisamente para los procesos que sí tienen un impacto fundamental en el cliente."},{"label":"D","text":"Ignorar el problema hasta que la demanda del cliente disminuya de forma natural.","isCorrect":false,"rationale":"Esta es una postura pasiva que daña la competitividad y la satisfacción del cliente."}]},{"question":"¿Qué representa simbólicamente el Diagrama de Actividades del Proceso (DAP)?","hint":"Visualice una herramienta que utiliza círculos, flechas y cuadrados para describir el recorrido de un material en la planta.","options":[{"label":"A","text":"Una representación gráfica del trabajo realizado a medida que un producto pasa por las etapas de un proceso.","isCorrect":true,"rationale":"El DAP es una herramienta técnica que utiliza símbolos para mapear cada paso, inspección o transporte dentro de la operación."},{"label":"B","text":"Un listado de los precios de venta de los productos terminados.","isCorrect":false,"rationale":"El DAP se enfoca en el valor agregado y las actividades operativas, no en la contabilidad de ventas."},{"label":"C","text":"El organigrama jerárquico de los jefes de cada departamento involucrado.","isCorrect":false,"rationale":"El organigrama muestra jerarquías humanas, mientras que el DAP muestra el flujo de trabajo sobre un producto."},{"label":"D","text":"Una proyección financiera del retorno de inversión tras la reingeniería.","isCorrect":false,"rationale":"Aunque ayuda a identificar ahorros potenciales, el DAP es una herramienta de análisis de flujo, no una proyección financiera."}]},{"question":"En el contexto de la filosofía de 'borrón y cuenta nueva', ¿en qué dirección trabaja la reingeniería?","hint":"Reflexione sobre si el diseño se basa en mejorar lo viejo o en imaginar lo ideal y construirlo.","options":[{"label":"A","text":"De forma ascendente, esperando que los empleados de nivel bajo propongan el cambio radical.","isCorrect":false,"rationale":"La reingeniería requiere un impulso 'top-down' debido a la magnitud de los cambios y recursos necesarios."},{"label":"B","text":"De manera lateral, copiando exactamente lo que hace la competencia más cercana.","isCorrect":false,"rationale":"Si bien la información de la competencia es valiosa, la reingeniería busca una reinvención propia adaptada a los objetivos de la empresa."},{"label":"C","text":"Desde el pasado hacia el presente, basándose en lo que siempre ha funcionado.","isCorrect":false,"rationale":"Este enfoque es tradicionalista y es lo opuesto a lo que propone la reingeniería radical."},{"label":"D","text":"Desde el futuro hacia atrás, sin las restricciones de los enfoques actuales.","isCorrect":true,"rationale":"Se visualiza el objetivo ideal basándose en las necesidades del cliente y luego se diseña el camino para llegar allí."}]},{"question":"¿Cuál es uno de los 'dolores' o riesgos asociados a la aplicación de cambios masivos por reingeniería?","hint":"Piense en las consecuencias negativas inmediatas para los trabajadores y el capital de la empresa cuando se hace un cambio radical.","options":[{"label":"A","text":"La pérdida de contacto con los clientes externos.","isCorrect":false,"rationale":"Uno de los objetivos es mejorar la atención al cliente, por lo que el contacto debería fortalecerse."},{"label":"B","text":"La simplificación exagerada que impide entender el proceso.","isCorrect":false,"rationale":"La simplificación es un beneficio buscado, no un riesgo que impida el entendimiento del proceso."},{"label":"C","text":"El aumento excesivo de trámites inútiles y documentación.","isCorrect":false,"rationale":"La reingeniería busca precisamente eliminar trámites inútiles y reducir la documentación excesiva."},{"label":"D","text":"Despidos de personal y grandes egresos de efectivo para inversión tecnológica.","isCorrect":true,"rationale":"El material advierte que es una 'medicina fuerte' que suele conllevar reducciones de plantilla y altos costos iniciales."}]},{"question":"¿Cuándo se considera que la reingeniería NO es necesaria o apropiada para una organización?","hint":"Evalúe si vale la pena usar una solución extrema ('medicina fuerte') para un problema que puede resolverse con ajustes graduales.","options":[{"label":"A","text":"Cuando la competencia está ganando cuota de mercado rápidamente.","isCorrect":false,"rationale":"La presión competitiva es a menudo una razón de peso para considerar una reingeniería profunda."},{"label":"B","text":"Cuando los clientes están insatisfechos con los tiempos de respuesta actuales.","isCorrect":false,"rationale":"La insatisfacción del cliente es un indicador crítico de que el proceso podría necesitar una reinvención."},{"label":"C","text":"Cuando el proceso actual funciona bien y solo requiere ajustes menores de productividad.","isCorrect":true,"rationale":"Para cambios pequeños es preferible el mejoramiento de procesos, ya que la reingeniería es un cambio radical y riesgoso."},{"label":"D","text":"Cuando la empresa tiene exceso de tiempo y recursos financieros.","isCorrect":false,"rationale":"Tener recursos facilita la reingeniería, pero no es el criterio para decidir si es necesaria o no."}]}];
+const tr = {"correct":"¡Correcto!","incorrect":"Incorrecto","next":"Siguiente pregunta →","seeResults":"Ver resultados","complete":"¡Cuestionario completado!","scoreText":"Obtuviste {correct} de {total} correctas","tryAgain":"Intentar de nuevo","rightAnswer":"Respuesta correcta","notQuite":"No del todo"};
+let currentQ = 0, correctCount = 0, answered = false;
+
+function init() {
+  document.querySelectorAll('.question').forEach((q, i) => q.classList.toggle('active', i === 0));
+  updateProgress();
+  document.querySelectorAll('.option').forEach(opt => opt.addEventListener('click', () => selectOption(opt)));
+  document.querySelectorAll('.next-btn').forEach(btn => btn.addEventListener('click', nextQuestion));
+}
+
+function selectOption(opt) {
+  if (answered) return;
+  answered = true;
+  const q = opt.closest('.question');
+  const options = q.querySelectorAll('.option');
+  const nextBtn = q.querySelector('.next-btn');
+  const isCorrect = opt.dataset.correct === 'true';
+  
+  // Mark all options as disabled
+  options.forEach(o => o.classList.add('disabled'));
+  
+  // Style selected option
+  opt.classList.add('selected', isCorrect ? 'correct' : 'incorrect');
+  
+  // Show correct answer if wrong
+  if (!isCorrect) {
+    const correctOpt = [...options].find(o => o.dataset.correct === 'true');
+    if (correctOpt) correctOpt.classList.add('show-correct');
+  }
+  
+  if (isCorrect) correctCount++;
+  
+  // Show feedback for ALL options that have rationale
+  options.forEach(o => {
+    const wrapper = o.closest('.option-wrapper');
+    const feedback = wrapper.querySelector('.option-feedback');
+    const rationale = o.dataset.rationale;
+    const isThisCorrect = o.dataset.correct === 'true';
+    
+    if (rationale && rationale.trim()) {
+      feedback.classList.remove('hidden');
+      feedback.classList.add(isThisCorrect ? 'correct-feedback' : 'incorrect-feedback');
+      
+      const statusEl = feedback.querySelector('.feedback-status');
+      statusEl.className = 'feedback-status ' + (isThisCorrect ? 'correct' : 'incorrect');
+      statusEl.innerHTML = isThisCorrect 
+        ? '✓ ' + tr.rightAnswer
+        : '✗ ' + tr.notQuite;
+    }
+  });
+  
+  nextBtn.classList.remove('hidden');
+  if (currentQ === quizData.length - 1) nextBtn.textContent = tr.seeResults;
+}
+
+function nextQuestion() {
+  answered = false;
+  currentQ++;
+  if (currentQ >= quizData.length) { showResults(); return; }
+  document.querySelectorAll('.question').forEach((q, i) => q.classList.toggle('active', i === currentQ));
+  updateProgress();
+}
+
+function updateProgress() {
+  document.querySelector('.progress-fill').style.width = (currentQ / quizData.length * 100) + '%';
+}
+
+function showResults() {
+  document.querySelectorAll('.question').forEach(q => q.classList.remove('active'));
+  document.getElementById('results').classList.add('active');
+  const pct = Math.round((correctCount / quizData.length) * 100);
+  document.getElementById('score').textContent = pct + '%';
+  document.getElementById('score-text').textContent = tr.scoreText.replace('{correct}', correctCount).replace('{total}', quizData.length);
+  document.querySelector('.progress-fill').style.width = '100%';
+}
+
+function restart() {
+  currentQ = 0; correctCount = 0; answered = false;
+  document.getElementById('results').classList.remove('active');
+  document.querySelectorAll('.question').forEach((q, i) => {
+    q.classList.toggle('active', i === 0);
+    q.querySelectorAll('.option').forEach(o => o.classList.remove('selected', 'correct', 'incorrect', 'disabled', 'show-correct'));
+    q.querySelectorAll('.option-feedback').forEach(f => {
+      f.classList.add('hidden');
+      f.classList.remove('correct-feedback', 'incorrect-feedback');
+    });
+    const btn = q.querySelector('.next-btn');
+    btn.classList.add('hidden');
+    btn.textContent = tr.next;
+  });
+  updateProgress();
+}
+
+init();
+</script>
+</body>
+</html>
