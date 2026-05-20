@@ -1,0 +1,886 @@
+<!DOCTYPE html>
+<html lang="es" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>S9.2 IOP</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  min-height: 100vh; padding: 20px; color: #333;
+}
+.container { max-width: 700px; margin: 0 auto; }
+.header { text-align: center; color: #fff; padding: 30px 20px; }
+.header h1 { font-size: 28px; font-weight: 700; margin-bottom: 8px; text-shadow: 0 2px 10px rgba(0,0,0,0.2); }
+.header .meta { font-size: 14px; opacity: 0.9; }
+.progress-bar { background: rgba(255,255,255,0.3); border-radius: 10px; height: 8px; margin: 20px 0; overflow: hidden; }
+.progress-fill { background: #fff; height: 100%; width: 0%; transition: width 0.4s ease; border-radius: 10px; }
+.question { background: #fff; border-radius: 16px; padding: 30px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); display: none; }
+.question.active { display: block; }
+.q-header { display: flex; justify-content: space-between; margin-bottom: 20px; font-size: 13px; color: #888; }
+.q-number { font-weight: 600; color: #667eea; }
+.q-text { font-size: 18px; font-weight: 600; line-height: 1.5; margin-bottom: 25px; color: #222; }
+.options { display: flex; flex-direction: column; gap: 12px; }
+.option-wrapper { display: flex; flex-direction: column; }
+.option {
+  display: flex; align-items: flex-start; gap: 14px; padding: 16px 18px;
+  border: 2px solid #e8e8e8; border-radius: 12px; background: #fafafa;
+  cursor: pointer; transition: all 0.2s; text-align: left; font-size: 15px; width: 100%;
+}
+[dir="rtl"] .option { text-align: right; flex-direction: row-reverse; }
+.option:hover:not(.disabled) { border-color: #667eea; background: #f5f3ff; }
+.option.selected { border-color: #667eea; background: #ede9fe; }
+.option.correct { border-color: #22c55e; background: #dcfce7; }
+.option.incorrect { border-color: #ef4444; background: #fee2e2; }
+.option.disabled { cursor: default; }
+.option.show-correct { border-color: #22c55e; background: #dcfce7; }
+.opt-label {
+  display: flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; border-radius: 50%; background: #e8e8e8;
+  font-weight: 700; font-size: 14px; flex-shrink: 0;
+}
+.option.selected .opt-label { background: #667eea; color: #fff; }
+.option.correct .opt-label { background: #22c55e; color: #fff; }
+.option.incorrect .opt-label { background: #ef4444; color: #fff; }
+.option.show-correct .opt-label { background: #22c55e; color: #fff; }
+.opt-text { padding-top: 5px; line-height: 1.5; }
+
+/* Individual option feedback */
+.option-feedback {
+  margin: 8px 0 4px 46px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+[dir="rtl"] .option-feedback { margin-left: 0; margin-right: 46px; }
+.option-feedback.correct-feedback {
+  background: #dcfce7;
+  border-left: 3px solid #22c55e;
+}
+.option-feedback.incorrect-feedback {
+  background: #fef3f2;
+  border-left: 3px solid #fca5a5;
+}
+[dir="rtl"] .option-feedback.correct-feedback,
+[dir="rtl"] .option-feedback.incorrect-feedback {
+  border-left: none;
+  border-right: 3px solid;
+}
+[dir="rtl"] .option-feedback.correct-feedback { border-right-color: #22c55e; }
+[dir="rtl"] .option-feedback.incorrect-feedback { border-right-color: #fca5a5; }
+.feedback-status {
+  font-weight: 600;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.feedback-status.correct { color: #166534; }
+.feedback-status.incorrect { color: #991b1b; }
+.feedback-rationale { color: #444; }
+
+/* Hint box */
+.hint-box {
+  margin: 12px 0;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+}
+.hint-toggle {
+  width: 100%;
+  padding: 10px 16px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  color: #92400e;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.hint-toggle:hover { background: #fef3c7; }
+.hint-content {
+  padding: 0 16px;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s, padding 0.3s;
+  font-size: 14px;
+  color: #78350f;
+  line-height: 1.5;
+}
+.hint-box.show .hint-content {
+  padding: 0 16px 12px;
+  max-height: 200px;
+}
+
+.next-btn {
+  margin-top: 20px; width: 100%; padding: 14px;
+  background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; border: none;
+  border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.next-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(102,126,234,0.4); }
+.hidden { display: none !important; }
+.results { background: #fff; border-radius: 16px; padding: 40px; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.15); display: none; }
+.results.active { display: block; }
+.results h2 { font-size: 28px; margin-bottom: 10px; color: #333; }
+.results .score { font-size: 64px; font-weight: 700; color: #667eea; margin: 20px 0; }
+.results .score-text { font-size: 18px; color: #666; margin-bottom: 30px; }
+.restart-btn {
+  padding: 14px 40px; background: linear-gradient(135deg, #667eea, #764ba2);
+  color: #fff; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer;
+}
+
+/* Math CSS */
+.math, .math-block { font-family: "Cambria Math", "Times New Roman", Times, serif; font-style: italic; }
+.math-block { display: block; text-align: center; margin: 10px 0; font-size: 110%; }
+.frac { display: inline-flex; flex-direction: column; align-items: center; vertical-align: middle; margin: 0 3px; font-size: 0.9em; }
+.frac-num { border-bottom: 1px solid currentColor; padding: 0 4px 2px; line-height: 1.2; }
+.frac-den { padding: 2px 4px 0; line-height: 1.2; }
+.sqrt { white-space: nowrap; }
+.sqrt-content { border-top: 1px solid currentColor; padding: 0 3px; margin-left: 2px; }
+sup, sub { font-size: 0.75em; }
+sup { vertical-align: super; }
+sub { vertical-align: sub; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>S9.2 IOP</h1>
+    <div class="meta">10 preguntas</div>
+    <div class="progress-bar"><div class="progress-fill"></div></div>
+  </div>
+  <div id="quiz-container">
+        <div class="question" data-index="0">
+          <div class="q-header">
+            <span class="q-number">Pregunta 1</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿Qué representa específicamente el índice <span class="math">k</span> dentro de la estructura de conjuntos del modelo?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Recuerda el orden de la cadena de suministro: Plantas (<span class="math">i</span>), Distribuidores (<span class="math">j</span>) y el destino final.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="El tiempo o los meses se representan mediante el índice $m$.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">La cantidad de meses evaluados.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El tiempo o los meses se representan mediante el índice <span class="math">m</span>.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="En la nomenclatura del modelo, $k$ se utiliza sistemáticamente para identificar a las tiendas donde llega el producto final.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">El número de tiendas finales.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">En la nomenclatura del modelo, <span class="math">k</span> se utiliza sistemáticamente para identificar a las tiendas donde llega el producto final.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="El índice para las plantas de producción es $i$, no $k$.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">El número de plantas de producción.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El índice para las plantas de producción es <span class="math">i</span>, no <span class="math">k</span>.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Los distribuidores se identifican con el índice $j$ en este modelo de transbordo.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">El número de distribuidores o almacenes.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Los distribuidores se identifican con el índice <span class="math">j</span> en este modelo de transbordo.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="1">
+          <div class="q-header">
+            <span class="q-number">Pregunta 2</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">Dentro de la función objetivo definida en LINGO, ¿por qué se utiliza la instrucción <span class="math">MAX</span>?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Observa que la fórmula incluye el precio de venta multiplicado por las unidades enviadas a las tiendas.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="La capacidad de producción es un parámetro fijo (restricción), no algo que se busca maximizar en la función objetivo.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Para maximizar la capacidad de producción de las plantas.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La capacidad de producción es un parámetro fijo (restricción), no algo que se busca maximizar en la función objetivo.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Si el objetivo fuera solo minimizar costos, se usaría la función $MIN$ y no se incluirían los ingresos por ventas.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Para minimizar los costos totales de transporte.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Si el objetivo fuera solo minimizar costos, se usaría la función <span class="math">MIN</span> y no se incluirían los ingresos por ventas.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Maximizar el flujo no garantiza rentabilidad; el modelo busca el beneficio económico óptimo.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Para maximizar el flujo de productos que pasa por los distribuidores.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Maximizar el flujo no garantiza rentabilidad; el modelo busca el beneficio económico óptimo.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="true" data-rationale="La función objetivo resta los costos de transporte y producción de los ingresos por ventas ($precioV \times y$), buscando el mayor beneficio posible.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Para maximizar la utilidad neta (Ingresos menos Costos).</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La función objetivo resta los costos de transporte y producción de los ingresos por ventas (<span class="math">precioV × y</span>), buscando el mayor beneficio posible.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="2">
+          <div class="q-header">
+            <span class="q-number">Pregunta 3</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">En el modelo de LINGO, ¿qué función cumple la restricción etiquetada como <span class="math">[BAL]</span>?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Analiza el comportamiento de un punto de transbordo donde no debe 'sobrar' ni 'faltar' mercadería al final del proceso.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="El balance se refiere a unidades físicas de producto, no a una equivalencia entre unidades y costos monetarios.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Establecer que la producción total debe balancearse con el costo de transporte.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El balance se refiere a unidades físicas de producto, no a una equivalencia entre unidades y costos monetarios.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Esa limitación corresponde a la restricción de capacidad de almacenaje $[ALM]$, no al balance de flujo.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Limitar el stock máximo que puede almacenar cada distribuidor.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esa limitación corresponde a la restricción de capacidad de almacenaje <span class="math">[ALM]</span>, no al balance de flujo.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Esa es una visión global, pero $[BAL]$ se enfoca específicamente en los puntos intermedios (distribuidores).">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Garantizar que lo que sale de las plantas sea igual a la demanda de las tiendas.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esa es una visión global, pero <span class="math">[BAL]</span> se enfoca específicamente en los puntos intermedios (distribuidores).</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="true" data-rationale="Esta es la condición de transbordo: los distribuidores no consumen ni crean producto, solo lo transfieren, manteniendo el balance de inventario.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Asegurar que la cantidad recibida por un distribuidor sea igual a la cantidad que envía a las tiendas.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esta es la condición de transbordo: los distribuidores no consumen ni crean producto, solo lo transfieren, manteniendo el balance de inventario.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="3">
+          <div class="q-header">
+            <span class="q-number">Pregunta 4</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">Según el material, ¿qué variables determinan la variación en los costos de transporte por unidad?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considera los factores logísticos externos que afectan directamente el gasto de mover un camión de un punto a otro.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="La capacidad de producción limita cuánto se puede enviar, pero no define el costo unitario del flete.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">La capacidad máxima de producción de la planta <span class="math">i</span>.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La capacidad de producción limita cuánto se puede enviar, pero no define el costo unitario del flete.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Aunque es un factor real, el material no menciona el tiempo como determinante del costo unitario de transporte.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">El mes en el que se realiza el envío debido a la estacionalidad.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aunque es un factor real, el material no menciona el tiempo como determinante del costo unitario de transporte.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="El precio de venta afecta los ingresos, pero no tiene relación directa con el gasto de trasladar la mercadería.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Únicamente el precio de venta en la tienda final.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El precio de venta afecta los ingresos, pero no tiene relación directa con el gasto de trasladar la mercadería.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="true" data-rationale="El texto menciona explícitamente que el costo varía según la distancia y el vehículo, además de la cantidad trasladada.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">La distancia recorrida y el tipo de vehículo de transporte utilizado.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El texto menciona explícitamente que el costo varía según la distancia y el vehículo, además de la cantidad trasladada.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="4">
+          <div class="q-header">
+            <span class="q-number">Pregunta 5</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿Cuál es la función del comando <span class="math">@OLE(ejel.xlsx)</span> en el bloque de <span class="math">DATA</span> de LINGO?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piensa en cómo se conectan las herramientas para evitar transcribir manualmente cientos de datos.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="El modelo lo resuelve LINGO; Excel solo sirve como interfaz de entrada y salida de datos.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Resolver el modelo matemático utilizando el motor de cálculo de Excel.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El modelo lo resuelve LINGO; Excel solo sirve como interfaz de entrada y salida de datos.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El código no se exporta; lo que se intercambia son los valores numéricos de los parámetros y variables.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Exportar el código de LINGO para que sea legible en formato Excel.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El código no se exporta; lo que se intercambia son los valores numéricos de los parámetros y variables.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="true" data-rationale="La función $@OLE$ permite que LINGO tome datos de celdas de Excel y devuelva los valores de las variables óptimas al mismo archivo.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Vincular LINGO con un archivo Excel para leer parámetros y escribir los resultados.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La función <span class="math">@OLE</span> permite que LINGO tome datos de celdas de Excel y devuelva los valores de las variables óptimas al mismo archivo.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="LINGO no genera gráficos automáticamente mediante $@OLE$; solo transfiere datos tabulares.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Crear automáticamente un gráfico de la red de transporte en Excel.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">LINGO no genera gráficos automáticamente mediante <span class="math">@OLE</span>; solo transfiere datos tabulares.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="5">
+          <div class="q-header">
+            <span class="q-number">Pregunta 6</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">En la restricción <span class="math">[TDA]</span>, ¿por qué se utiliza el operador de desigualdad <span class="math">≤</span> respecto a la demanda?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considera qué pasaría si el costo de transporte fuera más alto que el precio de venta en una tienda específica.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="En modelos de maximización de utilidad, si el costo de servir una unidad supera su beneficio, el modelo optará por no enviarla, por lo que el envío es menor o igual a la demanda.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Porque no es obligatorio satisfacer toda la demanda si no es rentable.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">En modelos de maximización de utilidad, si el costo de servir una unidad supera su beneficio, el modelo optará por no enviarla, por lo que el envío es menor o igual a la demanda.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Un símbolo de $\le$ indica un tope máximo; enviar más de la demanda violaría la lógica comercial si no se pide.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Para permitir que la tienda reciba más productos de los que solicita.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Un símbolo de <span class="math">≤</span> indica un tope máximo; enviar más de la demanda violaría la lógica comercial si no se pide.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="No es un error; es una formulación estándar cuando se busca la máxima rentabilidad y el suministro es finito.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Debido a un error común de programación en modelos de transbordo.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">No es un error; es una formulación estándar cuando se busca la máxima rentabilidad y el suministro es finito.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="El material no menciona restricciones de capacidad en tiendas, solo demanda de producto.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Porque las tiendas tienen una capacidad de almacenamiento limitada.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El material no menciona restricciones de capacidad en tiendas, solo demanda de producto.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="6">
+          <div class="q-header">
+            <span class="q-number">Pregunta 7</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿Qué representa la variable de decisión <span class="math">y(j, k, m)</span> en el modelo planteado?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Fíjate en los índices <span class="math">j</span> y <span class="math">k</span>; estos representan el segundo tramo de la cadena de suministro.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="El modelo presentado no define variables de inventario inicial para las tiendas, solo flujos de envío.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">El inventario inicial disponible en cada tienda al inicio del mes <span class="math">m</span>.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El modelo presentado no define variables de inventario inicial para las tiendas, solo flujos de envío.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El costo es un parámetro conocido ($costransp\_2$), no una variable de decisión $y$.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">El costo de transporte unitario del almacén a la tienda.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El costo es un parámetro conocido (<span class="math">costransp\<sub>2</sub></span>), no una variable de decisión <span class="math">y</span>.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="true" data-rationale="La variable $y$ vincula los almacenes/distribuidores ($j$) con las tiendas ($k$) a través del tiempo ($m$).">
+            <span class="opt-label">C</span>
+            <span class="opt-text">La cantidad de producto enviada del distribuidor <span class="math">j</span> a la tienda <span class="math">k</span> en el mes <span class="math">m</span>.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La variable <span class="math">y</span> vincula los almacenes/distribuidores (<span class="math">j</span>) con las tiendas (<span class="math">k</span>) a través del tiempo (<span class="math">m</span>).</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Esa definición corresponde a la variable $x(i, j, m)$.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">La cantidad de producto enviada de la planta <span class="math">i</span> al distribuidor <span class="math">j</span> en el mes <span class="math">m</span>.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esa definición corresponde a la variable <span class="math">x(i, j, m)</span>.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="7">
+          <div class="q-header">
+            <span class="q-number">Pregunta 8</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">En el conjunto <span class="math">PAM(planta, almacen, mes)</span>, ¿cuántas combinaciones posibles de variables <span class="math">x</span> existen si hay 2 plantas, 2 almacenes y 3 meses?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Aplica el principio multiplicativo para determinar el tamaño de un conjunto que cruza tres categorías distintas.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Esto solo consideraría las plantas y los meses, ignorando la cantidad de almacenes.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">6 combinaciones.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esto solo consideraría las plantas y los meses, ignorando la cantidad de almacenes.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="No se llega a este número mediante ninguna operación lógica entre las dimensiones de los conjuntos proporcionados.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">10 combinaciones.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">No se llega a este número mediante ninguna operación lógica entre las dimensiones de los conjuntos proporcionados.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Este resultado vendría de sumar $2+2+3$, lo cual es incorrecto para un producto cartesiano de conjuntos.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">7 combinaciones.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Este resultado vendría de sumar <span class="math">2+2+3</span>, lo cual es incorrecto para un producto cartesiano de conjuntos.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="true" data-rationale="El número de elementos en un conjunto compuesto es el producto de sus dimensiones: $2 \times 2 \times 3 = 12$.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">12 combinaciones.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El número de elementos en un conjunto compuesto es el producto de sus dimensiones: <span class="math">2 × 2 × 3 = 12</span>.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="8">
+          <div class="q-header">
+            <span class="q-number">Pregunta 9</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">Según las recomendaciones del docente, ¿cuál es el primer paso sugerido antes de programar en LINGO?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Se trata de una técnica visual para entender mejor las conexiones entre los diferentes puntos de la red.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Hacer esto sin una estructura previa puede llevar a errores graves de lógica en los índices.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Escribir directamente la función objetivo en el software.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Hacer esto sin una estructura previa puede llevar a errores graves de lógica en los índices.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Graficar permite visualizar los nodos (plantas, distribuidores, tiendas) y los flujos, facilitando la comprensión del problema de transbordo.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Graficar el ejercicio.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Graficar permite visualizar los nodos (plantas, distribuidores, tiendas) y los flujos, facilitando la comprensión del problema de transbordo.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="El análisis de sensibilidad es un paso posterior a la obtención de la solución óptima, no el inicial.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Realizar un análisis de sensibilidad manual.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El análisis de sensibilidad es un paso posterior a la obtención de la solución óptima, no el inicial.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Aunque es necesario, el material sugiere una actividad de visualización previa a la entrada de datos.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Definir los costos de producción en el Excel.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aunque es necesario, el material sugiere una actividad de visualización previa a la entrada de datos.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="9">
+          <div class="q-header">
+            <span class="q-number">Pregunta 10</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿Qué restricción asegura que no se exceda la capacidad física de los almacenes intermedios?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Busca la etiqueta en el código LINGO que se asocie directamente con los distribuidores y su almacenaje.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Esta etiqueta identifica la limitación de lo que entra a los distribuidores frente a su $capacidad\_alm$.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">La restricción <span class="math">[ALM]</span>.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esta etiqueta identifica la limitación de lo que entra a los distribuidores frente a su <span class="math">capacidad\<sub>a</sub>lm</span>.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="La función objetivo mide el rendimiento económico, no impone límites físicos de capacidad.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">La sumatoria de la función objetivo.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La función objetivo mide el rendimiento económico, no impone límites físicos de capacidad.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Esta restricción limita los envíos según la demanda de las tiendas ($TDA$ de Tiendas).">
+            <span class="opt-label">C</span>
+            <span class="opt-text">La restricción <span class="math">[TDA]</span>.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esta restricción limita los envíos según la demanda de las tiendas (<span class="math">TDA</span> de Tiendas).</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Esta restricción se refiere a la capacidad de las plantas ($PLT$ de Plantas).">
+            <span class="opt-label">D</span>
+            <span class="opt-text">La restricción <span class="math">[PLT]</span>.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esta restricción se refiere a la capacidad de las plantas (<span class="math">PLT</span> de Plantas).</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      </div>
+  <div class="results" id="results">
+    <h2>¡Cuestionario completado!</h2>
+    <div class="score" id="score">0%</div>
+    <div class="score-text" id="score-text"></div>
+    <button class="restart-btn" onclick="restart()">Intentar de nuevo</button>
+  </div>
+</div>
+<script>
+const quizData = [{"question":"¿Qué representa específicamente el índice $k$ dentro de la estructura de conjuntos del modelo?","hint":"Recuerda el orden de la cadena de suministro: Plantas ($i$), Distribuidores ($j$) y el destino final.","options":[{"label":"A","text":"La cantidad de meses evaluados.","isCorrect":false,"rationale":"El tiempo o los meses se representan mediante el índice $m$."},{"label":"B","text":"El número de tiendas finales.","isCorrect":true,"rationale":"En la nomenclatura del modelo, $k$ se utiliza sistemáticamente para identificar a las tiendas donde llega el producto final."},{"label":"C","text":"El número de plantas de producción.","isCorrect":false,"rationale":"El índice para las plantas de producción es $i$, no $k$."},{"label":"D","text":"El número de distribuidores o almacenes.","isCorrect":false,"rationale":"Los distribuidores se identifican con el índice $j$ en este modelo de transbordo."}]},{"question":"Dentro de la función objetivo definida en LINGO, ¿por qué se utiliza la instrucción $MAX$?","hint":"Observa que la fórmula incluye el precio de venta multiplicado por las unidades enviadas a las tiendas.","options":[{"label":"A","text":"Para maximizar la capacidad de producción de las plantas.","isCorrect":false,"rationale":"La capacidad de producción es un parámetro fijo (restricción), no algo que se busca maximizar en la función objetivo."},{"label":"B","text":"Para minimizar los costos totales de transporte.","isCorrect":false,"rationale":"Si el objetivo fuera solo minimizar costos, se usaría la función $MIN$ y no se incluirían los ingresos por ventas."},{"label":"C","text":"Para maximizar el flujo de productos que pasa por los distribuidores.","isCorrect":false,"rationale":"Maximizar el flujo no garantiza rentabilidad; el modelo busca el beneficio económico óptimo."},{"label":"D","text":"Para maximizar la utilidad neta (Ingresos menos Costos).","isCorrect":true,"rationale":"La función objetivo resta los costos de transporte y producción de los ingresos por ventas ($precioV \\times y$), buscando el mayor beneficio posible."}]},{"question":"En el modelo de LINGO, ¿qué función cumple la restricción etiquetada como $[BAL]$?","hint":"Analiza el comportamiento de un punto de transbordo donde no debe 'sobrar' ni 'faltar' mercadería al final del proceso.","options":[{"label":"A","text":"Establecer que la producción total debe balancearse con el costo de transporte.","isCorrect":false,"rationale":"El balance se refiere a unidades físicas de producto, no a una equivalencia entre unidades y costos monetarios."},{"label":"B","text":"Limitar el stock máximo que puede almacenar cada distribuidor.","isCorrect":false,"rationale":"Esa limitación corresponde a la restricción de capacidad de almacenaje $[ALM]$, no al balance de flujo."},{"label":"C","text":"Garantizar que lo que sale de las plantas sea igual a la demanda de las tiendas.","isCorrect":false,"rationale":"Esa es una visión global, pero $[BAL]$ se enfoca específicamente en los puntos intermedios (distribuidores)."},{"label":"D","text":"Asegurar que la cantidad recibida por un distribuidor sea igual a la cantidad que envía a las tiendas.","isCorrect":true,"rationale":"Esta es la condición de transbordo: los distribuidores no consumen ni crean producto, solo lo transfieren, manteniendo el balance de inventario."}]},{"question":"Según el material, ¿qué variables determinan la variación en los costos de transporte por unidad?","hint":"Considera los factores logísticos externos que afectan directamente el gasto de mover un camión de un punto a otro.","options":[{"label":"A","text":"La capacidad máxima de producción de la planta $i$.","isCorrect":false,"rationale":"La capacidad de producción limita cuánto se puede enviar, pero no define el costo unitario del flete."},{"label":"B","text":"El mes en el que se realiza el envío debido a la estacionalidad.","isCorrect":false,"rationale":"Aunque es un factor real, el material no menciona el tiempo como determinante del costo unitario de transporte."},{"label":"C","text":"Únicamente el precio de venta en la tienda final.","isCorrect":false,"rationale":"El precio de venta afecta los ingresos, pero no tiene relación directa con el gasto de trasladar la mercadería."},{"label":"D","text":"La distancia recorrida y el tipo de vehículo de transporte utilizado.","isCorrect":true,"rationale":"El texto menciona explícitamente que el costo varía según la distancia y el vehículo, además de la cantidad trasladada."}]},{"question":"¿Cuál es la función del comando $@OLE(ejel.xlsx)$ en el bloque de $DATA$ de LINGO?","hint":"Piensa en cómo se conectan las herramientas para evitar transcribir manualmente cientos de datos.","options":[{"label":"A","text":"Resolver el modelo matemático utilizando el motor de cálculo de Excel.","isCorrect":false,"rationale":"El modelo lo resuelve LINGO; Excel solo sirve como interfaz de entrada y salida de datos."},{"label":"B","text":"Exportar el código de LINGO para que sea legible en formato Excel.","isCorrect":false,"rationale":"El código no se exporta; lo que se intercambia son los valores numéricos de los parámetros y variables."},{"label":"C","text":"Vincular LINGO con un archivo Excel para leer parámetros y escribir los resultados.","isCorrect":true,"rationale":"La función $@OLE$ permite que LINGO tome datos de celdas de Excel y devuelva los valores de las variables óptimas al mismo archivo."},{"label":"D","text":"Crear automáticamente un gráfico de la red de transporte en Excel.","isCorrect":false,"rationale":"LINGO no genera gráficos automáticamente mediante $@OLE$; solo transfiere datos tabulares."}]},{"question":"En la restricción $[TDA]$, ¿por qué se utiliza el operador de desigualdad $\\le$ respecto a la demanda?","hint":"Considera qué pasaría si el costo de transporte fuera más alto que el precio de venta en una tienda específica.","options":[{"label":"A","text":"Porque no es obligatorio satisfacer toda la demanda si no es rentable.","isCorrect":true,"rationale":"En modelos de maximización de utilidad, si el costo de servir una unidad supera su beneficio, el modelo optará por no enviarla, por lo que el envío es menor o igual a la demanda."},{"label":"B","text":"Para permitir que la tienda reciba más productos de los que solicita.","isCorrect":false,"rationale":"Un símbolo de $\\le$ indica un tope máximo; enviar más de la demanda violaría la lógica comercial si no se pide."},{"label":"C","text":"Debido a un error común de programación en modelos de transbordo.","isCorrect":false,"rationale":"No es un error; es una formulación estándar cuando se busca la máxima rentabilidad y el suministro es finito."},{"label":"D","text":"Porque las tiendas tienen una capacidad de almacenamiento limitada.","isCorrect":false,"rationale":"El material no menciona restricciones de capacidad en tiendas, solo demanda de producto."}]},{"question":"¿Qué representa la variable de decisión $y(j, k, m)$ en el modelo planteado?","hint":"Fíjate en los índices $j$ y $k$; estos representan el segundo tramo de la cadena de suministro.","options":[{"label":"A","text":"El inventario inicial disponible en cada tienda al inicio del mes $m$.","isCorrect":false,"rationale":"El modelo presentado no define variables de inventario inicial para las tiendas, solo flujos de envío."},{"label":"B","text":"El costo de transporte unitario del almacén a la tienda.","isCorrect":false,"rationale":"El costo es un parámetro conocido ($costransp\\_2$), no una variable de decisión $y$."},{"label":"C","text":"La cantidad de producto enviada del distribuidor $j$ a la tienda $k$ en el mes $m$.","isCorrect":true,"rationale":"La variable $y$ vincula los almacenes/distribuidores ($j$) con las tiendas ($k$) a través del tiempo ($m$)."},{"label":"D","text":"La cantidad de producto enviada de la planta $i$ al distribuidor $j$ en el mes $m$.","isCorrect":false,"rationale":"Esa definición corresponde a la variable $x(i, j, m)$."}]},{"question":"En el conjunto $PAM(planta, almacen, mes)$, ¿cuántas combinaciones posibles de variables $x$ existen si hay 2 plantas, 2 almacenes y 3 meses?","hint":"Aplica el principio multiplicativo para determinar el tamaño de un conjunto que cruza tres categorías distintas.","options":[{"label":"A","text":"6 combinaciones.","isCorrect":false,"rationale":"Esto solo consideraría las plantas y los meses, ignorando la cantidad de almacenes."},{"label":"B","text":"10 combinaciones.","isCorrect":false,"rationale":"No se llega a este número mediante ninguna operación lógica entre las dimensiones de los conjuntos proporcionados."},{"label":"C","text":"7 combinaciones.","isCorrect":false,"rationale":"Este resultado vendría de sumar $2+2+3$, lo cual es incorrecto para un producto cartesiano de conjuntos."},{"label":"D","text":"12 combinaciones.","isCorrect":true,"rationale":"El número de elementos en un conjunto compuesto es el producto de sus dimensiones: $2 \\times 2 \\times 3 = 12$."}]},{"question":"Según las recomendaciones del docente, ¿cuál es el primer paso sugerido antes de programar en LINGO?","hint":"Se trata de una técnica visual para entender mejor las conexiones entre los diferentes puntos de la red.","options":[{"label":"A","text":"Escribir directamente la función objetivo en el software.","isCorrect":false,"rationale":"Hacer esto sin una estructura previa puede llevar a errores graves de lógica en los índices."},{"label":"B","text":"Graficar el ejercicio.","isCorrect":true,"rationale":"Graficar permite visualizar los nodos (plantas, distribuidores, tiendas) y los flujos, facilitando la comprensión del problema de transbordo."},{"label":"C","text":"Realizar un análisis de sensibilidad manual.","isCorrect":false,"rationale":"El análisis de sensibilidad es un paso posterior a la obtención de la solución óptima, no el inicial."},{"label":"D","text":"Definir los costos de producción en el Excel.","isCorrect":false,"rationale":"Aunque es necesario, el material sugiere una actividad de visualización previa a la entrada de datos."}]},{"question":"¿Qué restricción asegura que no se exceda la capacidad física de los almacenes intermedios?","hint":"Busca la etiqueta en el código LINGO que se asocie directamente con los distribuidores y su almacenaje.","options":[{"label":"A","text":"La restricción $[ALM]$.","isCorrect":true,"rationale":"Esta etiqueta identifica la limitación de lo que entra a los distribuidores frente a su $capacidad\\_alm$."},{"label":"B","text":"La sumatoria de la función objetivo.","isCorrect":false,"rationale":"La función objetivo mide el rendimiento económico, no impone límites físicos de capacidad."},{"label":"C","text":"La restricción $[TDA]$.","isCorrect":false,"rationale":"Esta restricción limita los envíos según la demanda de las tiendas ($TDA$ de Tiendas)."},{"label":"D","text":"La restricción $[PLT]$.","isCorrect":false,"rationale":"Esta restricción se refiere a la capacidad de las plantas ($PLT$ de Plantas)."}]}];
+const tr = {"correct":"¡Correcto!","incorrect":"Incorrecto","next":"Siguiente pregunta →","seeResults":"Ver resultados","complete":"¡Cuestionario completado!","scoreText":"Obtuviste {correct} de {total} correctas","tryAgain":"Intentar de nuevo","rightAnswer":"Respuesta correcta","notQuite":"No del todo"};
+let currentQ = 0, correctCount = 0, answered = false;
+
+function init() {
+  document.querySelectorAll('.question').forEach((q, i) => q.classList.toggle('active', i === 0));
+  updateProgress();
+  document.querySelectorAll('.option').forEach(opt => opt.addEventListener('click', () => selectOption(opt)));
+  document.querySelectorAll('.next-btn').forEach(btn => btn.addEventListener('click', nextQuestion));
+}
+
+function selectOption(opt) {
+  if (answered) return;
+  answered = true;
+  const q = opt.closest('.question');
+  const options = q.querySelectorAll('.option');
+  const nextBtn = q.querySelector('.next-btn');
+  const isCorrect = opt.dataset.correct === 'true';
+  
+  // Mark all options as disabled
+  options.forEach(o => o.classList.add('disabled'));
+  
+  // Style selected option
+  opt.classList.add('selected', isCorrect ? 'correct' : 'incorrect');
+  
+  // Show correct answer if wrong
+  if (!isCorrect) {
+    const correctOpt = [...options].find(o => o.dataset.correct === 'true');
+    if (correctOpt) correctOpt.classList.add('show-correct');
+  }
+  
+  if (isCorrect) correctCount++;
+  
+  // Show feedback for ALL options that have rationale
+  options.forEach(o => {
+    const wrapper = o.closest('.option-wrapper');
+    const feedback = wrapper.querySelector('.option-feedback');
+    const rationale = o.dataset.rationale;
+    const isThisCorrect = o.dataset.correct === 'true';
+    
+    if (rationale && rationale.trim()) {
+      feedback.classList.remove('hidden');
+      feedback.classList.add(isThisCorrect ? 'correct-feedback' : 'incorrect-feedback');
+      
+      const statusEl = feedback.querySelector('.feedback-status');
+      statusEl.className = 'feedback-status ' + (isThisCorrect ? 'correct' : 'incorrect');
+      statusEl.innerHTML = isThisCorrect 
+        ? '✓ ' + tr.rightAnswer
+        : '✗ ' + tr.notQuite;
+    }
+  });
+  
+  nextBtn.classList.remove('hidden');
+  if (currentQ === quizData.length - 1) nextBtn.textContent = tr.seeResults;
+}
+
+function nextQuestion() {
+  answered = false;
+  currentQ++;
+  if (currentQ >= quizData.length) { showResults(); return; }
+  document.querySelectorAll('.question').forEach((q, i) => q.classList.toggle('active', i === currentQ));
+  updateProgress();
+}
+
+function updateProgress() {
+  document.querySelector('.progress-fill').style.width = (currentQ / quizData.length * 100) + '%';
+}
+
+function showResults() {
+  document.querySelectorAll('.question').forEach(q => q.classList.remove('active'));
+  document.getElementById('results').classList.add('active');
+  const pct = Math.round((correctCount / quizData.length) * 100);
+  document.getElementById('score').textContent = pct + '%';
+  document.getElementById('score-text').textContent = tr.scoreText.replace('{correct}', correctCount).replace('{total}', quizData.length);
+  document.querySelector('.progress-fill').style.width = '100%';
+}
+
+function restart() {
+  currentQ = 0; correctCount = 0; answered = false;
+  document.getElementById('results').classList.remove('active');
+  document.querySelectorAll('.question').forEach((q, i) => {
+    q.classList.toggle('active', i === 0);
+    q.querySelectorAll('.option').forEach(o => o.classList.remove('selected', 'correct', 'incorrect', 'disabled', 'show-correct'));
+    q.querySelectorAll('.option-feedback').forEach(f => {
+      f.classList.add('hidden');
+      f.classList.remove('correct-feedback', 'incorrect-feedback');
+    });
+    const btn = q.querySelector('.next-btn');
+    btn.classList.add('hidden');
+    btn.textContent = tr.next;
+  });
+  updateProgress();
+}
+
+init();
+</script>
+</body>
+</html>
