@@ -1,0 +1,1878 @@
+<!DOCTYPE html>
+<html lang="es" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>S9 - GCA</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  min-height: 100vh; padding: 20px; color: #333;
+}
+.container { max-width: 700px; margin: 0 auto; }
+.header { text-align: center; color: #fff; padding: 30px 20px; }
+.header h1 { font-size: 28px; font-weight: 700; margin-bottom: 8px; text-shadow: 0 2px 10px rgba(0,0,0,0.2); }
+.header .meta { font-size: 14px; opacity: 0.9; }
+.progress-bar { background: rgba(255,255,255,0.3); border-radius: 10px; height: 8px; margin: 20px 0; overflow: hidden; }
+.progress-fill { background: #fff; height: 100%; width: 0%; transition: width 0.4s ease; border-radius: 10px; }
+.question { background: #fff; border-radius: 16px; padding: 30px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); display: none; }
+.question.active { display: block; }
+.q-header { display: flex; justify-content: space-between; margin-bottom: 20px; font-size: 13px; color: #888; }
+.q-number { font-weight: 600; color: #667eea; }
+.q-text { font-size: 18px; font-weight: 600; line-height: 1.5; margin-bottom: 25px; color: #222; }
+.options { display: flex; flex-direction: column; gap: 12px; }
+.option-wrapper { display: flex; flex-direction: column; }
+.option {
+  display: flex; align-items: flex-start; gap: 14px; padding: 16px 18px;
+  border: 2px solid #e8e8e8; border-radius: 12px; background: #fafafa;
+  cursor: pointer; transition: all 0.2s; text-align: left; font-size: 15px; width: 100%;
+}
+[dir="rtl"] .option { text-align: right; flex-direction: row-reverse; }
+.option:hover:not(.disabled) { border-color: #667eea; background: #f5f3ff; }
+.option.selected { border-color: #667eea; background: #ede9fe; }
+.option.correct { border-color: #22c55e; background: #dcfce7; }
+.option.incorrect { border-color: #ef4444; background: #fee2e2; }
+.option.disabled { cursor: default; }
+.option.show-correct { border-color: #22c55e; background: #dcfce7; }
+.opt-label {
+  display: flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; border-radius: 50%; background: #e8e8e8;
+  font-weight: 700; font-size: 14px; flex-shrink: 0;
+}
+.option.selected .opt-label { background: #667eea; color: #fff; }
+.option.correct .opt-label { background: #22c55e; color: #fff; }
+.option.incorrect .opt-label { background: #ef4444; color: #fff; }
+.option.show-correct .opt-label { background: #22c55e; color: #fff; }
+.opt-text { padding-top: 5px; line-height: 1.5; }
+
+/* Individual option feedback */
+.option-feedback {
+  margin: 8px 0 4px 46px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+[dir="rtl"] .option-feedback { margin-left: 0; margin-right: 46px; }
+.option-feedback.correct-feedback {
+  background: #dcfce7;
+  border-left: 3px solid #22c55e;
+}
+.option-feedback.incorrect-feedback {
+  background: #fef3f2;
+  border-left: 3px solid #fca5a5;
+}
+[dir="rtl"] .option-feedback.correct-feedback,
+[dir="rtl"] .option-feedback.incorrect-feedback {
+  border-left: none;
+  border-right: 3px solid;
+}
+[dir="rtl"] .option-feedback.correct-feedback { border-right-color: #22c55e; }
+[dir="rtl"] .option-feedback.incorrect-feedback { border-right-color: #fca5a5; }
+.feedback-status {
+  font-weight: 600;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.feedback-status.correct { color: #166534; }
+.feedback-status.incorrect { color: #991b1b; }
+.feedback-rationale { color: #444; }
+
+/* Hint box */
+.hint-box {
+  margin: 12px 0;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+}
+.hint-toggle {
+  width: 100%;
+  padding: 10px 16px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  color: #92400e;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.hint-toggle:hover { background: #fef3c7; }
+.hint-content {
+  padding: 0 16px;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s, padding 0.3s;
+  font-size: 14px;
+  color: #78350f;
+  line-height: 1.5;
+}
+.hint-box.show .hint-content {
+  padding: 0 16px 12px;
+  max-height: 200px;
+}
+
+.next-btn {
+  margin-top: 20px; width: 100%; padding: 14px;
+  background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; border: none;
+  border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.next-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(102,126,234,0.4); }
+.hidden { display: none !important; }
+.results { background: #fff; border-radius: 16px; padding: 40px; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.15); display: none; }
+.results.active { display: block; }
+.results h2 { font-size: 28px; margin-bottom: 10px; color: #333; }
+.results .score { font-size: 64px; font-weight: 700; color: #667eea; margin: 20px 0; }
+.results .score-text { font-size: 18px; color: #666; margin-bottom: 30px; }
+.restart-btn {
+  padding: 14px 40px; background: linear-gradient(135deg, #667eea, #764ba2);
+  color: #fff; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer;
+}
+
+/* Math CSS */
+.math, .math-block { font-family: "Cambria Math", "Times New Roman", Times, serif; font-style: italic; }
+.math-block { display: block; text-align: center; margin: 10px 0; font-size: 110%; }
+.frac { display: inline-flex; flex-direction: column; align-items: center; vertical-align: middle; margin: 0 3px; font-size: 0.9em; }
+.frac-num { border-bottom: 1px solid currentColor; padding: 0 4px 2px; line-height: 1.2; }
+.frac-den { padding: 2px 4px 0; line-height: 1.2; }
+.sqrt { white-space: nowrap; }
+.sqrt-content { border-top: 1px solid currentColor; padding: 0 3px; margin-left: 2px; }
+sup, sub { font-size: 0.75em; }
+sup { vertical-align: super; }
+sub { vertical-align: sub; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>S9 - GCA</h1>
+    <div class="meta">26 preguntas</div>
+    <div class="progress-bar"><div class="progress-fill"></div></div>
+  </div>
+  <div id="quiz-container">
+        <div class="question" data-index="0">
+          <div class="q-header">
+            <span class="q-number">Pregunta 1</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿Cuál es el objetivo principal de la planificación de la producción según lo revisado en la sesión?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Se relaciona con la toma de decisiones previa sobre los volúmenes y cronogramas de fabricación.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="La planificación se enfoca en la programación anticipada de los niveles y tiempos de producción para satisfacer la demanda.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Programar qué, cuánto y cuándo producir.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La planificación se enfoca en la programación anticipada de los niveles y tiempos de producción para satisfacer la demanda.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Esta función corresponde específicamente al control de producción, no a la fase inicial de planificación.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Supervisar el cumplimiento del plan diario.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esta función corresponde específicamente al control de producción, no a la fase inicial de planificación.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="La gestión de devoluciones es parte de la logística inversa y el servicio al cliente, no de la planificación de producción base.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Gestionar las devoluciones de los clientes.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La gestión de devoluciones es parte de la logística inversa y el servicio al cliente, no de la planificación de producción base.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Aunque es vital para la producción, el mantenimiento es una función de soporte técnico y no la definición de planificación productiva.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Realizar el mantenimiento preventivo de las máquinas.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aunque es vital para la producción, el mantenimiento es una función de soporte técnico y no la definición de planificación productiva.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="1">
+          <div class="q-header">
+            <span class="q-number">Pregunta 2</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">En el contexto de la automatización logística, ¿a qué se refiere el término 'mínima intervención humana'?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considere el rol que desempeñan los sistemas tecnológicos frente al esfuerzo manual.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Delegar tareas a otras empresas es 'outsourcing', lo cual es distinto a implementar tecnología propia para la ejecución automática.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">A la externalización de los procesos a terceros.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Delegar tareas a otras empresas es 'outsourcing', lo cual es distinto a implementar tecnología propia para la ejecución automática.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="La automatización busca que los sistemas operen con la menor asistencia manual posible para ganar eficiencia.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Al uso de tecnologías para ejecutar tareas logísticas de forma autónoma.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La automatización busca que los sistemas operen con la menor asistencia manual posible para ganar eficiencia.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="La automatización no implica necesariamente la eliminación de todo el personal, sino el cambio de sus funciones hacia tareas de mayor valor.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">A la reducción total del personal en todas las áreas de la empresa.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La automatización no implica necesariamente la eliminación de todo el personal, sino el cambio de sus funciones hacia tareas de mayor valor.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Esto se refiere a la capacitación y mejora de la productividad manual, no a la automatización tecnológica propiamente dicha.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Al entrenamiento de empleados para que trabajen más rápido.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esto se refiere a la capacitación y mejora de la productividad manual, no a la automatización tecnológica propiamente dicha.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="2">
+          <div class="q-header">
+            <span class="q-number">Pregunta 3</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿Qué herramienta se menciona como parte del procesamiento de pedidos automatizado?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piense en las tareas administrativas que se vuelven digitales para evitar el uso de papel.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="La digitalización de documentos legales y comerciales agiliza el flujo administrativo dentro del procesamiento de pedidos.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Facturación y documentación electrónica.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La digitalización de documentos legales y comerciales agiliza el flujo administrativo dentro del procesamiento de pedidos.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Estos sistemas son parte de la infraestructura física del almacén, pero no intervienen en el flujo lógico del pedido.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Sistemas de ventilación mecánica.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Estos sistemas son parte de la infraestructura física del almacén, pero no intervienen en el flujo lógico del pedido.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Si bien son tecnológicas, su función es la vigilancia y no el procesamiento transaccional de los pedidos de clientes.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Cámaras de seguridad de circuito cerrado.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Si bien son tecnológicas, su función es la vigilancia y no el procesamiento transaccional de los pedidos de clientes.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Los vehículos manuales representan una logística tradicional y no una herramienta de automatización de procesamiento.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Vehículos de transporte manual de carga.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Los vehículos manuales representan una logística tradicional y no una herramienta de automatización de procesamiento.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="3">
+          <div class="q-header">
+            <span class="q-number">Pregunta 4</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿Cuál es el primer paso recomendado para la implementación de la automatización logística?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Implica una revisión detallada de lo que la empresa hace actualmente antes de realizar cualquier cambio.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Aumentar la planilla no es un paso de implementación tecnológica, sino una medida de expansión de capacidad operativa manual.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Contratar nuevos operarios de almacén.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aumentar la planilla no es un paso de implementación tecnológica, sino una medida de expansión de capacidad operativa manual.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El marketing es externo a la eficiencia operativa logística que busca la automatización interna.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Diseñar el plan de marketing de la empresa.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El marketing es externo a la eficiencia operativa logística que busca la automatización interna.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="true" data-rationale="Antes de invertir, es crucial mapear los procesos vigentes e identificar los cuellos de botella actuales.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Análisis de la situación actual.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Antes de invertir, es crucial mapear los procesos vigentes e identificar los cuellos de botella actuales.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="El costo no garantiza la efectividad; la selección debe basarse en las necesidades identificadas en el diagnóstico inicial.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Seleccionar la tecnología más cara del mercado.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El costo no garantiza la efectividad; la selección debe basarse en las necesidades identificadas en el diagnóstico inicial.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="4">
+          <div class="q-header">
+            <span class="q-number">Pregunta 5</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">Dentro de las áreas de automatización, ¿para qué se utilizan los sensores IoT en la gestión de inventarios?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piense en la capacidad de estos dispositivos para transmitir datos constantes sobre la carga.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="El Internet de las Cosas permite tener visibilidad constante sobre la ubicación y estado de las existencias.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Para el monitoreo en tiempo real de los productos.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El Internet de las Cosas permite tener visibilidad constante sobre la ubicación y estado de las existencias.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Aunque existen robots de limpieza, el propósito principal del IoT en inventario es la trazabilidad y captura de datos.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Para limpiar automáticamente los pasillos del almacén.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aunque existen robots de limpieza, el propósito principal del IoT en inventario es la trazabilidad y captura de datos.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="La comunicación con proveedores suele ser una tarea de gestión humana o sistemas EDI, no una función de sensores de inventario.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Para realizar llamadas telefónicas a los proveedores.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La comunicación con proveedores suele ser una tarea de gestión humana o sistemas EDI, no una función de sensores de inventario.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="El IoT complementa al ERP proporcionando datos, pero no sustituye la gestión integral de recursos que ofrece el software.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Para reemplazar la necesidad de un sistema ERP.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El IoT complementa al ERP proporcionando datos, pero no sustituye la gestión integral de recursos que ofrece el software.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="5">
+          <div class="q-header">
+            <span class="q-number">Pregunta 6</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿Qué función cumple el sistema WMS en un almacén automatizado?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Sus siglas en inglés significan 'Sistema de Gestión de Almacenes'.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="El diseño de productos corresponde a las áreas de ingeniería o desarrollo, no a la gestión operativa del almacenamiento.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Diseño de los productos terminados.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El diseño de productos corresponde a las áreas de ingeniería o desarrollo, no a la gestión operativa del almacenamiento.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="El Warehouse Management System coordina desde la recepción hasta el despacho, optimizando el flujo de materiales.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Gestión de las operaciones del almacén.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El Warehouse Management System coordina desde la recepción hasta el despacho, optimizando el flujo de materiales.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="La gestión de transporte externo es función del TMS, mientras que el WMS se centra en el interior del centro de distribución.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Manejo exclusivo de la flota de camiones externa.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La gestión de transporte externo es función del TMS, mientras que el WMS se centra en el interior del centro de distribución.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Las funciones contables y tributarias son propias de módulos financieros del ERP y no del sistema de gestión de almacenes.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Cálculo del pago de impuestos anuales.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Las funciones contables y tributarias son propias de módulos financieros del ERP y no del sistema de gestión de almacenes.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="6">
+          <div class="q-header">
+            <span class="q-number">Pregunta 7</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿Por qué se deben priorizar las tareas repetitivas y de alto volumen al automatizar?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considere dónde se pierde más tiempo y dinero debido a errores humanos constantes.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Al automatizar procesos frecuentes, se reducen más errores acumulados y se ahorra más tiempo operativo total.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Porque ofrecen un mayor impacto y factibilidad en el retorno de inversión.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Al automatizar procesos frecuentes, se reducen más errores acumulados y se ahorra más tiempo operativo total.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="La prioridad se basa en la eficiencia de costos y operativa, no solo en la simplicidad de comprensión ejecutiva.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Porque son las tareas más fáciles de entender para los gerentes.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La prioridad se basa en la eficiencia de costos y operativa, no solo en la simplicidad de comprensión ejecutiva.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Toda automatización tecnológica requiere energía; el volumen de la tarea no elimina esta necesidad técnica.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Porque no requieren el uso de electricidad.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Toda automatización tecnológica requiere energía; el volumen de la tarea no elimina esta necesidad técnica.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Aunque ayuda a la satisfacción laboral, la decisión técnica se basa principalmente en la rentabilidad y precisión.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Porque son tareas que los humanos disfrutan menos.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aunque ayuda a la satisfacción laboral, la decisión técnica se basa principalmente en la rentabilidad y precisión.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="7">
+          <div class="q-header">
+            <span class="q-number">Pregunta 8</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">En la etapa de implementación, ¿cuál es el propósito de realizar una 'fase piloto'?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Es similar a un ensayo antes del estreno principal de una obra.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Permite detectar fallos a pequeña escala antes de extender la tecnología a toda la organización.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Validar resultados y ajustar parámetros en un área controlada.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Permite detectar fallos a pequeña escala antes de extender la tecnología a toda la organización.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Una fase piloto es una prueba interna técnica y no una estrategia de mercado de choque directo.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Eliminar inmediatamente a todos los competidores.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Una fase piloto es una prueba interna técnica y no una estrategia de mercado de choque directo.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Las inversiones en automatización son planificadas estratégicamente para mejorar la rentabilidad, no para agotar recursos.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Gastar el presupuesto sobrante del año.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Las inversiones en automatización son planificadas estratégicamente para mejorar la rentabilidad, no para agotar recursos.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="El objetivo es justamente el contrario: asegurar que la implementación sea exitosa y cumpla los objetivos trazados.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Demostrar que la automatización no es necesaria.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El objetivo es justamente el contrario: asegurar que la implementación sea exitosa y cumpla los objetivos trazados.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="8">
+          <div class="q-header">
+            <span class="q-number">Pregunta 9</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿Cuál es un ejemplo de tecnología utilizada para el almacenamiento y picking?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Busque dispositivos móviles que puedan transportar cajas o pallets de forma independiente.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Es una tecnología de oficina obsoleta que no contribuye al movimiento físico automatizado de productos.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Impresoras de matriz de puntos.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Es una tecnología de oficina obsoleta que no contribuye al movimiento físico automatizado de productos.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Las estanterías tradicionales son estáticas y no poseen los componentes electrónicos para ser consideradas automatizadas.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Estanterías de madera convencionales.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Las estanterías tradicionales son estáticas y no poseen los componentes electrónicos para ser consideradas automatizadas.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="true" data-rationale="Los Vehículos de Guiado Automático (AGV) trasladan mercancía sin conductor, facilitando la preparación de pedidos.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Robots colaborativos o sistemas AGV.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Los Vehículos de Guiado Automático (AGV) trasladan mercancía sin conductor, facilitando la preparación de pedidos.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Son herramientas de comunicación básica que no automatizan el proceso de selección de mercancía.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Teléfonos fijos de escritorio.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Son herramientas de comunicación básica que no automatizan el proceso de selección de mercancía.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="9">
+          <div class="q-header">
+            <span class="q-number">Pregunta 10</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿Qué beneficio aporta el uso de drones en la gestión de inventarios?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piense en cómo facilitan la visibilidad en lugares de difícil acceso manual.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Aunque es una tendencia en desarrollo, el material se enfoca en su utilidad interna para el control de inventario en almacenes.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Entrega directa de productos a las casas de los clientes finales.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aunque es una tendencia en desarrollo, el material se enfoca en su utilidad interna para el control de inventario en almacenes.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Los drones son usuarios de la red de datos, no dispositivos diseñados para proveer infraestructura de conectividad.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Sustitución de la red de internet Wi-Fi del almacén.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Los drones son usuarios de la red de datos, no dispositivos diseñados para proveer infraestructura de conectividad.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="true" data-rationale="Los drones pueden acceder a niveles elevados sin necesidad de montacargas, agilizando el conteo de existencias.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Escaneo rápido de códigos de barras en estanterías altas.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Los drones pueden acceder a niveles elevados sin necesidad de montacargas, agilizando el conteo de existencias.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="El uso logístico mencionado se centra en la captura de datos de productos, no en la seguridad física de combate.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Vigilancia armada del perímetro exterior.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El uso logístico mencionado se centra en la captura de datos de productos, no en la seguridad física de combate.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="10">
+          <div class="q-header">
+            <span class="q-number">Pregunta 11</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">En el paso 8 del plan de implementación, ¿qué significa 'Mejora continua'?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Es un ciclo constante de revisión, aprendizaje y ajuste.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="La automatización no termina con la instalación; requiere un análisis constante de métricas para optimizar el rendimiento.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Evaluar KPIs y ajustar el sistema según la retroalimentación.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La automatización no termina con la instalación; requiere un análisis constante de métricas para optimizar el rendimiento.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="La mejora continua se basa en optimizar lo existente y escalar lo que funciona, no en compras compulsivas de equipo.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Comprar máquinas nuevas todos los meses sin importar el resultado.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La mejora continua se basa en optimizar lo existente y escalar lo que funciona, no en compras compulsivas de equipo.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="La retroalimentación del equipo es vital para identificar fallas operativas reales que el sistema podría no registrar.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Ignorar las quejas de los operarios sobre el nuevo sistema.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La retroalimentación del equipo es vital para identificar fallas operativas reales que el sistema podría no registrar.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Esto sería una degradación del proceso; la mejora busca mayor eficiencia manteniendo o elevando la calidad.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Reducir la calidad de los materiales para ahorrar dinero.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esto sería una degradación del proceso; la mejora busca mayor eficiencia manteniendo o elevando la calidad.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="11">
+          <div class="q-header">
+            <span class="q-number">Pregunta 12</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿Qué rol juegan los chatbots en la atención al cliente logística?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Relaciónelo con la comunicación automatizada a través de texto o voz.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Los chatbots manejan tareas operativas de comunicación simple, no decisiones estratégicas de alta dirección.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Sustituir al gerente general de la compañía.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Los chatbots manejan tareas operativas de comunicación simple, no decisiones estratégicas de alta dirección.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Permiten que el cliente obtenga información de su envío $24/7$ sin intervención de un operador humano.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Automatizar el seguimiento de pedidos y responder dudas frecuentes.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Permiten que el cliente obtenga información de su envío <span class="math">24/7</span> sin intervención de un operador humano.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Los chatbots son interfaces de software para comunicación y no tienen presencia física para reparaciones mecánicas.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Reparar físicamente los camiones averiados en ruta.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Los chatbots son interfaces de software para comunicación y no tienen presencia física para reparaciones mecánicas.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Nuevamente, se trata de software de mensajería, no de robots de servicio de limpieza física.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Realizar la limpieza de las oficinas administrativas.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Nuevamente, se trata de software de mensajería, no de robots de servicio de limpieza física.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="12">
+          <div class="q-header">
+            <span class="q-number">Pregunta 13</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿Qué tecnología permite el ruteo inteligente y el análisis predictivo en transporte?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Es la base tecnológica que usamos hoy en día para navegar con aplicaciones móviles.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Depender de personas locales es una solución tradicional que no utiliza tecnología de análisis predictivo.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Contratación de guías locales en cada ciudad.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Depender de personas locales es una solución tradicional que no utiliza tecnología de análisis predictivo.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="La radio es un medio de comunicación, pero no provee por sí sola capacidades de análisis de rutas óptimas.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Uso exclusivo de radios de onda corta.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La radio es un medio de comunicación, pero no provee por sí sola capacidades de análisis de rutas óptimas.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="true" data-rationale="La combinación de ubicación en vivo y datos históricos permite encontrar las rutas más eficientes para la flota.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">GPS y algoritmos de análisis de datos.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La combinación de ubicación en vivo y datos históricos permite encontrar las rutas más eficientes para la flota.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Los mapas físicos no permiten el análisis dinámico ni el seguimiento en tiempo real que requiere la logística moderna.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Mapas de papel actualizados manualmente.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Los mapas físicos no permiten el análisis dinámico ni el seguimiento en tiempo real que requiere la logística moderna.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="13">
+          <div class="q-header">
+            <span class="q-number">Pregunta 14</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">En el flujo de actividades revisado, ¿qué sistema se encarga de la planificación detallada de recursos de capacidad?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Sus siglas indican que se enfoca en los requerimientos de capacidad.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Estas se usan para comunicación interna o marketing, no para calcular horas-máquina o capacidad productiva.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Redes sociales corporativas.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Estas se usan para comunicación interna o marketing, no para calcular horas-máquina o capacidad productiva.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="El CRP evalúa si la carga de trabajo programada puede ser soportada por los recursos de producción disponibles.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">CRP detallado (Capacity Requirements Planning).</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El CRP evalúa si la carga de trabajo programada puede ser soportada por los recursos de producción disponibles.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="La facturación es un proceso contable de salida, no una herramienta de planificación de capacidad de planta.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Sistema de facturación electrónica.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La facturación es un proceso contable de salida, no una herramienta de planificación de capacidad de planta.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Es un documento administrativo de recursos humanos que no tiene relación con la planificación técnica de la producción.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Manual de convivencia de la empresa.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Es un documento administrativo de recursos humanos que no tiene relación con la planificación técnica de la producción.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="14">
+          <div class="q-header">
+            <span class="q-number">Pregunta 15</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿Qué aspecto es fundamental gestionar en el paso 6 del plan de implementación?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Se refiere al factor humano frente a la introducción de nuevas herramientas.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Es una mejora del entorno laboral, pero no influye en la adopción tecnológica de los procesos logísticos centrales.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">La decoración de las áreas de descanso.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Es una mejora del entorno laboral, pero no influye en la adopción tecnológica de los procesos logísticos centrales.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Sin el compromiso de las personas y la capacitación adecuada, la tecnología instalada no será utilizada correctamente.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">La resistencia al cambio y la formación del equipo.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Sin el compromiso de las personas y la capacitación adecuada, la tecnología instalada no será utilizada correctamente.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Aunque es parte de la imagen, no es un factor crítico para el éxito técnico de la automatización logística.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">La compra de uniformes nuevos para el personal.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aunque es parte de la imagen, no es un factor crítico para el éxito técnico de la automatización logística.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="La marca puede permanecer igual; lo que cambia es la forma interna de operar los procesos mediante tecnología.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">El cambio de nombre de la organización.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La marca puede permanecer igual; lo que cambia es la forma interna de operar los procesos mediante tecnología.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="15">
+          <div class="q-header">
+            <span class="q-number">Pregunta 16</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿Cuál es un beneficio directo de automatizar el control de condiciones ambientales mediante IoT?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Es crítico para alimentos y medicinas que requieren temperaturas específicas.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="El control ambiental logístico se centra en la integridad del producto, no en la estética olfativa del recinto.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Hacer que el almacén huela mejor para los visitantes.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El control ambiental logístico se centra en la integridad del producto, no en la estética olfativa del recinto.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="No existe una utilidad logística demostrada para esta función en el marco de la eficiencia operativa.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Cambiar el color de las paredes según el clima exterior.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">No existe una utilidad logística demostrada para esta función en el marco de la eficiencia operativa.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="true" data-rationale="Los sensores alertan inmediatamente si la cadena de frío se rompe, evitando la pérdida de mercancía sensible.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Asegurar la calidad en productos refrigerados detectando cambios de temperatura.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Los sensores alertan inmediatamente si la cadena de frío se rompe, evitando la pérdida de mercancía sensible.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="El análisis de datos se usa para fines científicos y operativos, no para pseudociencias o entretenimiento.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Predecir el horóscopo de los empleados según la humedad.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El análisis de datos se usa para fines científicos y operativos, no para pseudociencias o entretenimiento.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="16">
+          <div class="q-header">
+            <span class="q-number">Pregunta 17</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">En el procesamiento de pedidos, ¿qué permite la clasificación automática de productos?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Imagine una cinta transportadora que envía cajas a diferentes rampas de salida.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="La clasificación es un proceso físico/lógico de manejo de carga, no una actividad de marketing digital.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Escribir reseñas positivas automáticas en internet.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La clasificación es un proceso físico/lógico de manejo de carga, no una actividad de marketing digital.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="La traducción es una tarea lingüística; la clasificación logística se ocupa de la organización física del flujo de salida.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Traducir los nombres de los productos a todos los idiomas.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La traducción es una tarea lingüística; la clasificación logística se ocupa de la organización física del flujo de salida.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="true" data-rationale="Los sorters o clasificadores automáticos reducen el tiempo de preparación antes del despacho final.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Separar y organizar artículos rápidamente según su destino o tipo.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Los sorters o clasificadores automáticos reducen el tiempo de preparación antes del despacho final.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="La evaluación de desempeño humano es un proceso de recursos humanos ajeno a la clasificación física de mercancía.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Determinar qué empleados deben ser promovidos.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La evaluación de desempeño humano es un proceso de recursos humanos ajeno a la clasificación física de mercancía.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="17">
+          <div class="q-header">
+            <span class="q-number">Pregunta 18</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿Qué herramienta de software se utiliza específicamente para la planificación de la cadena de suministro integrada?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Es un sistema que centraliza toda la información clave del negocio.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Aunque sirven para comunicarse, carecen de la estructura de base de datos y procesos necesarios para un ERP.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Aplicaciones de mensajería instantánea personal.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aunque sirven para comunicarse, carecen de la estructura de base de datos y procesos necesarios para un ERP.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Es una herramienta creativa que no tiene funciones para la gestión de stocks o planificación de producción.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Editor de fotografías profesional.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Es una herramienta creativa que no tiene funciones para la gestión de stocks o planificación de producción.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Son el medio para acceder a sistemas, pero por sí solos no poseen la lógica de planificación de recursos empresariales.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Navegadores web simples.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Son el medio para acceder a sistemas, pero por sí solos no poseen la lógica de planificación de recursos empresariales.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="true" data-rationale="El ERP integra diversas áreas como compras, ventas y finanzas, permitiendo una visión única de la organización.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">ERP (Enterprise Resource Planning).</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El ERP integra diversas áreas como compras, ventas y finanzas, permitiendo una visión única de la organización.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="18">
+          <div class="q-header">
+            <span class="q-number">Pregunta 19</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿Cuál es la función de las estanterías inteligentes en un almacén moderno?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Tienen la capacidad de 'comunicar' cuánto producto queda en ellas.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Aunque existen sistemas compactos, la inteligencia suele centrarse en la información y trazabilidad, no en la metamorfosis física.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Cambiar su tamaño según el volumen de la caja de forma automática.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aunque existen sistemas compactos, la inteligencia suele centrarse en la información y trazabilidad, no en la metamorfosis física.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Equipadas con sensores, pueden alertar sobre faltantes o guiar al operario hacia la ubicación exacta del producto.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Detectar automáticamente el nivel de stock y facilitar el picking.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Equipadas con sensores, pueden alertar sobre faltantes o guiar al operario hacia la ubicación exacta del producto.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="La característica 'inteligente' se refiere a su electrónica y conectividad, no a su capacidad de carga mecánica.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Soportar más peso que las estanterías de acero normales.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La característica 'inteligente' se refiere a su electrónica y conectividad, no a su capacidad de carga mecánica.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="La tecnología integrada busca eficiencia en datos, no funciones de entretenimiento para objetos inanimados.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Reproducir música para mejorar el ánimo de la carga.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La tecnología integrada busca eficiencia en datos, no funciones de entretenimiento para objetos inanimados.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="19">
+          <div class="q-header">
+            <span class="q-number">Pregunta 20</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">En la gestión de transporte, ¿qué significa el término TMS?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Es un software que ayuda a planificar, ejecutar y optimizar el traslado de productos.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Aunque existan servicios de mantenimiento, el TMS en este contexto se refiere específicamente a la gestión del transporte.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Technical Maintenance Service.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aunque existan servicios de mantenimiento, el TMS en este contexto se refiere específicamente a la gestión del transporte.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Este término no se utiliza comúnmente para referirse a plataformas de gestión de transporte en logística.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Total Manufacturing Solution.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Este término no se utiliza comúnmente para referirse a plataformas de gestión de transporte en logística.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Es una función de control vial público, no una herramienta empresarial para la gestión de flotas y distribución.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Traffic Monitoring Station.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Es una función de control vial público, no una herramienta empresarial para la gestión de flotas y distribución.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="true" data-rationale="Es la plataforma tecnológica dedicada a optimizar los movimientos físicos de mercancías en la cadena de suministro.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Transportation Management System.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Es la plataforma tecnológica dedicada a optimizar los movimientos físicos de mercancías en la cadena de suministro.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="20">
+          <div class="q-header">
+            <span class="q-number">Pregunta 21</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿Cómo contribuye la automatización a la rentabilidad de las organizaciones?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piense en la relación entre eficiencia interna y márgenes de ganancia.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Ninguna empresa sobrevive sin clientes; la automatización busca precisamente servirlos mejor y a menor costo.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Eliminando la necesidad de tener clientes.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Ninguna empresa sobrevive sin clientes; la automatización busca precisamente servirlos mejor y a menor costo.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="La automatización no otorga beneficios legales para evadir responsabilidades tributarias.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Permitiendo que la empresa deje de pagar impuestos.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La automatización no otorga beneficios legales para evadir responsabilidades tributarias.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="true" data-rationale="Procesos más rápidos y precisos significan menos desperdicio de recursos y mejor aprovechamiento del capital.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Al optimizar costos y reducir errores operativos costosos.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Procesos más rápidos y precisos significan menos desperdicio de recursos y mejor aprovechamiento del capital.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="La rentabilidad mejora por eficiencia interna, no necesariamente por subir los precios al cliente.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Aumentando el precio de venta final de forma obligatoria.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La rentabilidad mejora por eficiencia interna, no necesariamente por subir los precios al cliente.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="21">
+          <div class="q-header">
+            <span class="q-number">Pregunta 22</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿Qué tarea se encarga de supervisar el cumplimiento del plan de producción?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Es la fase que viene después de la planificación para asegurar que las órdenes se ejecuten.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Esta función ajusta la operación según las variaciones reales frente a lo que se había planificado originalmente.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">El control de producción.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esta función ajusta la operación según las variaciones reales frente a lo que se había planificado originalmente.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Marketing se enfoca en la demanda y el mercado, no en la supervisión técnica del cumplimiento en planta.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">La gerencia de marketing.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Marketing se enfoca en la demanda y el mercado, no en la supervisión técnica del cumplimiento en planta.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Se encarga del personal, pero la supervisión técnica del flujo de materiales es una tarea de operaciones/producción.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">El departamento de recursos humanos.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Se encarga del personal, pero la supervisión técnica del flujo de materiales es una tarea de operaciones/producción.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Ellos ven resultados financieros de alto nivel y no la supervisión diaria de los planes de fabricación.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">La junta de accionistas.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Ellos ven resultados financieros de alto nivel y no la supervisión diaria de los planes de fabricación.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="22">
+          <div class="q-header">
+            <span class="q-number">Pregunta 23</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿Cuál es una característica de la Logística <span class="math">4.0</span> mencionada en el material?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Está relacionada con la digitalización y el uso de dispositivos autónomos aéreos.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="La tecnología logística busca integrar mercados globales, no aislarlos.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">El cierre total de las fronteras comerciales internacionales.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La tecnología logística busca integrar mercados globales, no aislarlos.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Representa la integración de nuevas tecnologías para automatizar capturas de datos masivas en el almacén.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">El uso de drones para la gestión del inventario.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Representa la integración de nuevas tecnologías para automatizar capturas de datos masivas en el almacén.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Al contrario, la digitalización extrema es la base de la industria $4.0$.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">La prohibición del uso de computadoras en la planta.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Al contrario, la digitalización extrema es la base de la industria <span class="math">4.0</span>.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="La evolución industrial busca mayor tecnología, no el regreso a métodos de transporte antiguos y lentos.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">El retorno al uso de carretas tiradas por caballos.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La evolución industrial busca mayor tecnología, no el regreso a métodos de transporte antiguos y lentos.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="23">
+          <div class="q-header">
+            <span class="q-number">Pregunta 24</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿Qué permite el seguimiento en tiempo real de flotas?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Aumenta la visibilidad de los activos una vez que salen del centro de distribución.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Las empresas logísticas no tienen autoridad sobre la infraestructura vial pública de gestión de tráfico urbano.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Controlar el color de los semáforos de toda la ciudad.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Las empresas logísticas no tienen autoridad sobre la infraestructura vial pública de gestión de tráfico urbano.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El seguimiento es profesional y operativo, enfocado en la seguridad y eficiencia de la ruta, no en la privacidad personal.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Escuchar las conversaciones privadas de los conductores.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El seguimiento es profesional y operativo, enfocado en la seguridad y eficiencia de la ruta, no en la privacidad personal.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="true" data-rationale="Mejora la trazabilidad del envío y permite reaccionar ante imprevistos en la carretera de forma inmediata.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Conocer la ubicación exacta y el estado de cada vehículo de transporte.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Mejora la trazabilidad del envío y permite reaccionar ante imprevistos en la carretera de forma inmediata.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="El análisis de datos se aplica a la telemetría y logística, no a eventos de azar ajenos a la operación.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Predecir qué conductores ganarán la lotería.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El análisis de datos se aplica a la telemetría y logística, no a eventos de azar ajenos a la operación.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="24">
+          <div class="q-header">
+            <span class="q-number">Pregunta 25</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿Para qué se utiliza la automatización de procesos robóticos (RPA) en logística?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piense en 'robots de software' que manejan planillas o correos electrónicos.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="El RPA utiliza software para imitar acciones humanas en computadoras, como el ingreso de datos de facturas.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Para automatizar tareas administrativas digitales repetitivas.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El RPA utiliza software para imitar acciones humanas en computadoras, como el ingreso de datos de facturas.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El RPA actúa sobre los procesos lógicos y de datos, no sobre la infraestructura física de los edificios.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Para reemplazar la estructura física de los almacenes.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El RPA actúa sobre los procesos lógicos y de datos, no sobre la infraestructura física de los edificios.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Aunque existen robots de carga, el término RPA se refiere específicamente a la automatización de software de oficina.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Para construir robots gigantes que carguen camiones enteros.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aunque existen robots de carga, el término RPA se refiere específicamente a la automatización de software de oficina.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="La fabricación es un proceso industrial distinto; el RPA es una herramienta de automatización de procesos de negocio.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Para fabricar componentes electrónicos desde cero.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La fabricación es un proceso industrial distinto; el RPA es una herramienta de automatización de procesos de negocio.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="25">
+          <div class="q-header">
+            <span class="q-number">Pregunta 26</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">En el flujograma de actividades, ¿qué elemento conecta la demanda de los clientes con el programa maestro?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Es la manifestación directa de la necesidad de compra de quien adquiere el producto.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Son documentos de mantenimiento de higiene que no tienen impacto en la planificación de qué fabricar.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Informes de limpieza del almacén.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Son documentos de mantenimiento de higiene que no tienen impacto en la planificación de qué fabricar.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Las órdenes reales de compra son el insumo principal para alimentar el programa maestro de producción.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Pedidos de clientes.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Las órdenes reales de compra son el insumo principal para alimentar el programa maestro de producción.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Es información confidencial de carácter personal sin relevancia para el programa maestro de producción.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Historial crediticio de los empleados.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Es información confidencial de carácter personal sin relevancia para el programa maestro de producción.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="La publicidad estimula la demanda, pero no es el documento operativo que ingresa al flujo de planificación de planta.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Publicidad en televisión.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La publicidad estimula la demanda, pero no es el documento operativo que ingresa al flujo de planificación de planta.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      </div>
+  <div class="results" id="results">
+    <h2>¡Cuestionario completado!</h2>
+    <div class="score" id="score">0%</div>
+    <div class="score-text" id="score-text"></div>
+    <button class="restart-btn" onclick="restart()">Intentar de nuevo</button>
+  </div>
+</div>
+<script>
+const quizData = [{"question":"¿Cuál es el objetivo principal de la planificación de la producción según lo revisado en la sesión?","hint":"Se relaciona con la toma de decisiones previa sobre los volúmenes y cronogramas de fabricación.","options":[{"label":"A","text":"Programar qué, cuánto y cuándo producir.","isCorrect":true,"rationale":"La planificación se enfoca en la programación anticipada de los niveles y tiempos de producción para satisfacer la demanda."},{"label":"B","text":"Supervisar el cumplimiento del plan diario.","isCorrect":false,"rationale":"Esta función corresponde específicamente al control de producción, no a la fase inicial de planificación."},{"label":"C","text":"Gestionar las devoluciones de los clientes.","isCorrect":false,"rationale":"La gestión de devoluciones es parte de la logística inversa y el servicio al cliente, no de la planificación de producción base."},{"label":"D","text":"Realizar el mantenimiento preventivo de las máquinas.","isCorrect":false,"rationale":"Aunque es vital para la producción, el mantenimiento es una función de soporte técnico y no la definición de planificación productiva."}]},{"question":"En el contexto de la automatización logística, ¿a qué se refiere el término 'mínima intervención humana'?","hint":"Considere el rol que desempeñan los sistemas tecnológicos frente al esfuerzo manual.","options":[{"label":"A","text":"A la externalización de los procesos a terceros.","isCorrect":false,"rationale":"Delegar tareas a otras empresas es 'outsourcing', lo cual es distinto a implementar tecnología propia para la ejecución automática."},{"label":"B","text":"Al uso de tecnologías para ejecutar tareas logísticas de forma autónoma.","isCorrect":true,"rationale":"La automatización busca que los sistemas operen con la menor asistencia manual posible para ganar eficiencia."},{"label":"C","text":"A la reducción total del personal en todas las áreas de la empresa.","isCorrect":false,"rationale":"La automatización no implica necesariamente la eliminación de todo el personal, sino el cambio de sus funciones hacia tareas de mayor valor."},{"label":"D","text":"Al entrenamiento de empleados para que trabajen más rápido.","isCorrect":false,"rationale":"Esto se refiere a la capacitación y mejora de la productividad manual, no a la automatización tecnológica propiamente dicha."}]},{"question":"¿Qué herramienta se menciona como parte del procesamiento de pedidos automatizado?","hint":"Piense en las tareas administrativas que se vuelven digitales para evitar el uso de papel.","options":[{"label":"A","text":"Facturación y documentación electrónica.","isCorrect":true,"rationale":"La digitalización de documentos legales y comerciales agiliza el flujo administrativo dentro del procesamiento de pedidos."},{"label":"B","text":"Sistemas de ventilación mecánica.","isCorrect":false,"rationale":"Estos sistemas son parte de la infraestructura física del almacén, pero no intervienen en el flujo lógico del pedido."},{"label":"C","text":"Cámaras de seguridad de circuito cerrado.","isCorrect":false,"rationale":"Si bien son tecnológicas, su función es la vigilancia y no el procesamiento transaccional de los pedidos de clientes."},{"label":"D","text":"Vehículos de transporte manual de carga.","isCorrect":false,"rationale":"Los vehículos manuales representan una logística tradicional y no una herramienta de automatización de procesamiento."}]},{"question":"¿Cuál es el primer paso recomendado para la implementación de la automatización logística?","hint":"Implica una revisión detallada de lo que la empresa hace actualmente antes de realizar cualquier cambio.","options":[{"label":"A","text":"Contratar nuevos operarios de almacén.","isCorrect":false,"rationale":"Aumentar la planilla no es un paso de implementación tecnológica, sino una medida de expansión de capacidad operativa manual."},{"label":"B","text":"Diseñar el plan de marketing de la empresa.","isCorrect":false,"rationale":"El marketing es externo a la eficiencia operativa logística que busca la automatización interna."},{"label":"C","text":"Análisis de la situación actual.","isCorrect":true,"rationale":"Antes de invertir, es crucial mapear los procesos vigentes e identificar los cuellos de botella actuales."},{"label":"D","text":"Seleccionar la tecnología más cara del mercado.","isCorrect":false,"rationale":"El costo no garantiza la efectividad; la selección debe basarse en las necesidades identificadas en el diagnóstico inicial."}]},{"question":"Dentro de las áreas de automatización, ¿para qué se utilizan los sensores IoT en la gestión de inventarios?","hint":"Piense en la capacidad de estos dispositivos para transmitir datos constantes sobre la carga.","options":[{"label":"A","text":"Para el monitoreo en tiempo real de los productos.","isCorrect":true,"rationale":"El Internet de las Cosas permite tener visibilidad constante sobre la ubicación y estado de las existencias."},{"label":"B","text":"Para limpiar automáticamente los pasillos del almacén.","isCorrect":false,"rationale":"Aunque existen robots de limpieza, el propósito principal del IoT en inventario es la trazabilidad y captura de datos."},{"label":"C","text":"Para realizar llamadas telefónicas a los proveedores.","isCorrect":false,"rationale":"La comunicación con proveedores suele ser una tarea de gestión humana o sistemas EDI, no una función de sensores de inventario."},{"label":"D","text":"Para reemplazar la necesidad de un sistema ERP.","isCorrect":false,"rationale":"El IoT complementa al ERP proporcionando datos, pero no sustituye la gestión integral de recursos que ofrece el software."}]},{"question":"¿Qué función cumple el sistema WMS en un almacén automatizado?","hint":"Sus siglas en inglés significan 'Sistema de Gestión de Almacenes'.","options":[{"label":"A","text":"Diseño de los productos terminados.","isCorrect":false,"rationale":"El diseño de productos corresponde a las áreas de ingeniería o desarrollo, no a la gestión operativa del almacenamiento."},{"label":"B","text":"Gestión de las operaciones del almacén.","isCorrect":true,"rationale":"El Warehouse Management System coordina desde la recepción hasta el despacho, optimizando el flujo de materiales."},{"label":"C","text":"Manejo exclusivo de la flota de camiones externa.","isCorrect":false,"rationale":"La gestión de transporte externo es función del TMS, mientras que el WMS se centra en el interior del centro de distribución."},{"label":"D","text":"Cálculo del pago de impuestos anuales.","isCorrect":false,"rationale":"Las funciones contables y tributarias son propias de módulos financieros del ERP y no del sistema de gestión de almacenes."}]},{"question":"¿Por qué se deben priorizar las tareas repetitivas y de alto volumen al automatizar?","hint":"Considere dónde se pierde más tiempo y dinero debido a errores humanos constantes.","options":[{"label":"A","text":"Porque ofrecen un mayor impacto y factibilidad en el retorno de inversión.","isCorrect":true,"rationale":"Al automatizar procesos frecuentes, se reducen más errores acumulados y se ahorra más tiempo operativo total."},{"label":"B","text":"Porque son las tareas más fáciles de entender para los gerentes.","isCorrect":false,"rationale":"La prioridad se basa en la eficiencia de costos y operativa, no solo en la simplicidad de comprensión ejecutiva."},{"label":"C","text":"Porque no requieren el uso de electricidad.","isCorrect":false,"rationale":"Toda automatización tecnológica requiere energía; el volumen de la tarea no elimina esta necesidad técnica."},{"label":"D","text":"Porque son tareas que los humanos disfrutan menos.","isCorrect":false,"rationale":"Aunque ayuda a la satisfacción laboral, la decisión técnica se basa principalmente en la rentabilidad y precisión."}]},{"question":"En la etapa de implementación, ¿cuál es el propósito de realizar una 'fase piloto'?","hint":"Es similar a un ensayo antes del estreno principal de una obra.","options":[{"label":"A","text":"Validar resultados y ajustar parámetros en un área controlada.","isCorrect":true,"rationale":"Permite detectar fallos a pequeña escala antes de extender la tecnología a toda la organización."},{"label":"B","text":"Eliminar inmediatamente a todos los competidores.","isCorrect":false,"rationale":"Una fase piloto es una prueba interna técnica y no una estrategia de mercado de choque directo."},{"label":"C","text":"Gastar el presupuesto sobrante del año.","isCorrect":false,"rationale":"Las inversiones en automatización son planificadas estratégicamente para mejorar la rentabilidad, no para agotar recursos."},{"label":"D","text":"Demostrar que la automatización no es necesaria.","isCorrect":false,"rationale":"El objetivo es justamente el contrario: asegurar que la implementación sea exitosa y cumpla los objetivos trazados."}]},{"question":"¿Cuál es un ejemplo de tecnología utilizada para el almacenamiento y picking?","hint":"Busque dispositivos móviles que puedan transportar cajas o pallets de forma independiente.","options":[{"label":"A","text":"Impresoras de matriz de puntos.","isCorrect":false,"rationale":"Es una tecnología de oficina obsoleta que no contribuye al movimiento físico automatizado de productos."},{"label":"B","text":"Estanterías de madera convencionales.","isCorrect":false,"rationale":"Las estanterías tradicionales son estáticas y no poseen los componentes electrónicos para ser consideradas automatizadas."},{"label":"C","text":"Robots colaborativos o sistemas AGV.","isCorrect":true,"rationale":"Los Vehículos de Guiado Automático (AGV) trasladan mercancía sin conductor, facilitando la preparación de pedidos."},{"label":"D","text":"Teléfonos fijos de escritorio.","isCorrect":false,"rationale":"Son herramientas de comunicación básica que no automatizan el proceso de selección de mercancía."}]},{"question":"¿Qué beneficio aporta el uso de drones en la gestión de inventarios?","hint":"Piense en cómo facilitan la visibilidad en lugares de difícil acceso manual.","options":[{"label":"A","text":"Entrega directa de productos a las casas de los clientes finales.","isCorrect":false,"rationale":"Aunque es una tendencia en desarrollo, el material se enfoca en su utilidad interna para el control de inventario en almacenes."},{"label":"B","text":"Sustitución de la red de internet Wi-Fi del almacén.","isCorrect":false,"rationale":"Los drones son usuarios de la red de datos, no dispositivos diseñados para proveer infraestructura de conectividad."},{"label":"C","text":"Escaneo rápido de códigos de barras en estanterías altas.","isCorrect":true,"rationale":"Los drones pueden acceder a niveles elevados sin necesidad de montacargas, agilizando el conteo de existencias."},{"label":"D","text":"Vigilancia armada del perímetro exterior.","isCorrect":false,"rationale":"El uso logístico mencionado se centra en la captura de datos de productos, no en la seguridad física de combate."}]},{"question":"En el paso 8 del plan de implementación, ¿qué significa 'Mejora continua'?","hint":"Es un ciclo constante de revisión, aprendizaje y ajuste.","options":[{"label":"A","text":"Evaluar KPIs y ajustar el sistema según la retroalimentación.","isCorrect":true,"rationale":"La automatización no termina con la instalación; requiere un análisis constante de métricas para optimizar el rendimiento."},{"label":"B","text":"Comprar máquinas nuevas todos los meses sin importar el resultado.","isCorrect":false,"rationale":"La mejora continua se basa en optimizar lo existente y escalar lo que funciona, no en compras compulsivas de equipo."},{"label":"C","text":"Ignorar las quejas de los operarios sobre el nuevo sistema.","isCorrect":false,"rationale":"La retroalimentación del equipo es vital para identificar fallas operativas reales que el sistema podría no registrar."},{"label":"D","text":"Reducir la calidad de los materiales para ahorrar dinero.","isCorrect":false,"rationale":"Esto sería una degradación del proceso; la mejora busca mayor eficiencia manteniendo o elevando la calidad."}]},{"question":"¿Qué rol juegan los chatbots en la atención al cliente logística?","hint":"Relaciónelo con la comunicación automatizada a través de texto o voz.","options":[{"label":"A","text":"Sustituir al gerente general de la compañía.","isCorrect":false,"rationale":"Los chatbots manejan tareas operativas de comunicación simple, no decisiones estratégicas de alta dirección."},{"label":"B","text":"Automatizar el seguimiento de pedidos y responder dudas frecuentes.","isCorrect":true,"rationale":"Permiten que el cliente obtenga información de su envío $24/7$ sin intervención de un operador humano."},{"label":"C","text":"Reparar físicamente los camiones averiados en ruta.","isCorrect":false,"rationale":"Los chatbots son interfaces de software para comunicación y no tienen presencia física para reparaciones mecánicas."},{"label":"D","text":"Realizar la limpieza de las oficinas administrativas.","isCorrect":false,"rationale":"Nuevamente, se trata de software de mensajería, no de robots de servicio de limpieza física."}]},{"question":"¿Qué tecnología permite el ruteo inteligente y el análisis predictivo en transporte?","hint":"Es la base tecnológica que usamos hoy en día para navegar con aplicaciones móviles.","options":[{"label":"A","text":"Contratación de guías locales en cada ciudad.","isCorrect":false,"rationale":"Depender de personas locales es una solución tradicional que no utiliza tecnología de análisis predictivo."},{"label":"B","text":"Uso exclusivo de radios de onda corta.","isCorrect":false,"rationale":"La radio es un medio de comunicación, pero no provee por sí sola capacidades de análisis de rutas óptimas."},{"label":"C","text":"GPS y algoritmos de análisis de datos.","isCorrect":true,"rationale":"La combinación de ubicación en vivo y datos históricos permite encontrar las rutas más eficientes para la flota."},{"label":"D","text":"Mapas de papel actualizados manualmente.","isCorrect":false,"rationale":"Los mapas físicos no permiten el análisis dinámico ni el seguimiento en tiempo real que requiere la logística moderna."}]},{"question":"En el flujo de actividades revisado, ¿qué sistema se encarga de la planificación detallada de recursos de capacidad?","hint":"Sus siglas indican que se enfoca en los requerimientos de capacidad.","options":[{"label":"A","text":"Redes sociales corporativas.","isCorrect":false,"rationale":"Estas se usan para comunicación interna o marketing, no para calcular horas-máquina o capacidad productiva."},{"label":"B","text":"CRP detallado (Capacity Requirements Planning).","isCorrect":true,"rationale":"El CRP evalúa si la carga de trabajo programada puede ser soportada por los recursos de producción disponibles."},{"label":"C","text":"Sistema de facturación electrónica.","isCorrect":false,"rationale":"La facturación es un proceso contable de salida, no una herramienta de planificación de capacidad de planta."},{"label":"D","text":"Manual de convivencia de la empresa.","isCorrect":false,"rationale":"Es un documento administrativo de recursos humanos que no tiene relación con la planificación técnica de la producción."}]},{"question":"¿Qué aspecto es fundamental gestionar en el paso 6 del plan de implementación?","hint":"Se refiere al factor humano frente a la introducción de nuevas herramientas.","options":[{"label":"A","text":"La decoración de las áreas de descanso.","isCorrect":false,"rationale":"Es una mejora del entorno laboral, pero no influye en la adopción tecnológica de los procesos logísticos centrales."},{"label":"B","text":"La resistencia al cambio y la formación del equipo.","isCorrect":true,"rationale":"Sin el compromiso de las personas y la capacitación adecuada, la tecnología instalada no será utilizada correctamente."},{"label":"C","text":"La compra de uniformes nuevos para el personal.","isCorrect":false,"rationale":"Aunque es parte de la imagen, no es un factor crítico para el éxito técnico de la automatización logística."},{"label":"D","text":"El cambio de nombre de la organización.","isCorrect":false,"rationale":"La marca puede permanecer igual; lo que cambia es la forma interna de operar los procesos mediante tecnología."}]},{"question":"¿Cuál es un beneficio directo de automatizar el control de condiciones ambientales mediante IoT?","hint":"Es crítico para alimentos y medicinas que requieren temperaturas específicas.","options":[{"label":"A","text":"Hacer que el almacén huela mejor para los visitantes.","isCorrect":false,"rationale":"El control ambiental logístico se centra en la integridad del producto, no en la estética olfativa del recinto."},{"label":"B","text":"Cambiar el color de las paredes según el clima exterior.","isCorrect":false,"rationale":"No existe una utilidad logística demostrada para esta función en el marco de la eficiencia operativa."},{"label":"C","text":"Asegurar la calidad en productos refrigerados detectando cambios de temperatura.","isCorrect":true,"rationale":"Los sensores alertan inmediatamente si la cadena de frío se rompe, evitando la pérdida de mercancía sensible."},{"label":"D","text":"Predecir el horóscopo de los empleados según la humedad.","isCorrect":false,"rationale":"El análisis de datos se usa para fines científicos y operativos, no para pseudociencias o entretenimiento."}]},{"question":"En el procesamiento de pedidos, ¿qué permite la clasificación automática de productos?","hint":"Imagine una cinta transportadora que envía cajas a diferentes rampas de salida.","options":[{"label":"A","text":"Escribir reseñas positivas automáticas en internet.","isCorrect":false,"rationale":"La clasificación es un proceso físico/lógico de manejo de carga, no una actividad de marketing digital."},{"label":"B","text":"Traducir los nombres de los productos a todos los idiomas.","isCorrect":false,"rationale":"La traducción es una tarea lingüística; la clasificación logística se ocupa de la organización física del flujo de salida."},{"label":"C","text":"Separar y organizar artículos rápidamente según su destino o tipo.","isCorrect":true,"rationale":"Los sorters o clasificadores automáticos reducen el tiempo de preparación antes del despacho final."},{"label":"D","text":"Determinar qué empleados deben ser promovidos.","isCorrect":false,"rationale":"La evaluación de desempeño humano es un proceso de recursos humanos ajeno a la clasificación física de mercancía."}]},{"question":"¿Qué herramienta de software se utiliza específicamente para la planificación de la cadena de suministro integrada?","hint":"Es un sistema que centraliza toda la información clave del negocio.","options":[{"label":"A","text":"Aplicaciones de mensajería instantánea personal.","isCorrect":false,"rationale":"Aunque sirven para comunicarse, carecen de la estructura de base de datos y procesos necesarios para un ERP."},{"label":"B","text":"Editor de fotografías profesional.","isCorrect":false,"rationale":"Es una herramienta creativa que no tiene funciones para la gestión de stocks o planificación de producción."},{"label":"C","text":"Navegadores web simples.","isCorrect":false,"rationale":"Son el medio para acceder a sistemas, pero por sí solos no poseen la lógica de planificación de recursos empresariales."},{"label":"D","text":"ERP (Enterprise Resource Planning).","isCorrect":true,"rationale":"El ERP integra diversas áreas como compras, ventas y finanzas, permitiendo una visión única de la organización."}]},{"question":"¿Cuál es la función de las estanterías inteligentes en un almacén moderno?","hint":"Tienen la capacidad de 'comunicar' cuánto producto queda en ellas.","options":[{"label":"A","text":"Cambiar su tamaño según el volumen de la caja de forma automática.","isCorrect":false,"rationale":"Aunque existen sistemas compactos, la inteligencia suele centrarse en la información y trazabilidad, no en la metamorfosis física."},{"label":"B","text":"Detectar automáticamente el nivel de stock y facilitar el picking.","isCorrect":true,"rationale":"Equipadas con sensores, pueden alertar sobre faltantes o guiar al operario hacia la ubicación exacta del producto."},{"label":"C","text":"Soportar más peso que las estanterías de acero normales.","isCorrect":false,"rationale":"La característica 'inteligente' se refiere a su electrónica y conectividad, no a su capacidad de carga mecánica."},{"label":"D","text":"Reproducir música para mejorar el ánimo de la carga.","isCorrect":false,"rationale":"La tecnología integrada busca eficiencia en datos, no funciones de entretenimiento para objetos inanimados."}]},{"question":"En la gestión de transporte, ¿qué significa el término TMS?","hint":"Es un software que ayuda a planificar, ejecutar y optimizar el traslado de productos.","options":[{"label":"A","text":"Technical Maintenance Service.","isCorrect":false,"rationale":"Aunque existan servicios de mantenimiento, el TMS en este contexto se refiere específicamente a la gestión del transporte."},{"label":"B","text":"Total Manufacturing Solution.","isCorrect":false,"rationale":"Este término no se utiliza comúnmente para referirse a plataformas de gestión de transporte en logística."},{"label":"C","text":"Traffic Monitoring Station.","isCorrect":false,"rationale":"Es una función de control vial público, no una herramienta empresarial para la gestión de flotas y distribución."},{"label":"D","text":"Transportation Management System.","isCorrect":true,"rationale":"Es la plataforma tecnológica dedicada a optimizar los movimientos físicos de mercancías en la cadena de suministro."}]},{"question":"¿Cómo contribuye la automatización a la rentabilidad de las organizaciones?","hint":"Piense en la relación entre eficiencia interna y márgenes de ganancia.","options":[{"label":"A","text":"Eliminando la necesidad de tener clientes.","isCorrect":false,"rationale":"Ninguna empresa sobrevive sin clientes; la automatización busca precisamente servirlos mejor y a menor costo."},{"label":"B","text":"Permitiendo que la empresa deje de pagar impuestos.","isCorrect":false,"rationale":"La automatización no otorga beneficios legales para evadir responsabilidades tributarias."},{"label":"C","text":"Al optimizar costos y reducir errores operativos costosos.","isCorrect":true,"rationale":"Procesos más rápidos y precisos significan menos desperdicio de recursos y mejor aprovechamiento del capital."},{"label":"D","text":"Aumentando el precio de venta final de forma obligatoria.","isCorrect":false,"rationale":"La rentabilidad mejora por eficiencia interna, no necesariamente por subir los precios al cliente."}]},{"question":"¿Qué tarea se encarga de supervisar el cumplimiento del plan de producción?","hint":"Es la fase que viene después de la planificación para asegurar que las órdenes se ejecuten.","options":[{"label":"A","text":"El control de producción.","isCorrect":true,"rationale":"Esta función ajusta la operación según las variaciones reales frente a lo que se había planificado originalmente."},{"label":"B","text":"La gerencia de marketing.","isCorrect":false,"rationale":"Marketing se enfoca en la demanda y el mercado, no en la supervisión técnica del cumplimiento en planta."},{"label":"C","text":"El departamento de recursos humanos.","isCorrect":false,"rationale":"Se encarga del personal, pero la supervisión técnica del flujo de materiales es una tarea de operaciones/producción."},{"label":"D","text":"La junta de accionistas.","isCorrect":false,"rationale":"Ellos ven resultados financieros de alto nivel y no la supervisión diaria de los planes de fabricación."}]},{"question":"¿Cuál es una característica de la Logística $4.0$ mencionada en el material?","hint":"Está relacionada con la digitalización y el uso de dispositivos autónomos aéreos.","options":[{"label":"A","text":"El cierre total de las fronteras comerciales internacionales.","isCorrect":false,"rationale":"La tecnología logística busca integrar mercados globales, no aislarlos."},{"label":"B","text":"El uso de drones para la gestión del inventario.","isCorrect":true,"rationale":"Representa la integración de nuevas tecnologías para automatizar capturas de datos masivas en el almacén."},{"label":"C","text":"La prohibición del uso de computadoras en la planta.","isCorrect":false,"rationale":"Al contrario, la digitalización extrema es la base de la industria $4.0$."},{"label":"D","text":"El retorno al uso de carretas tiradas por caballos.","isCorrect":false,"rationale":"La evolución industrial busca mayor tecnología, no el regreso a métodos de transporte antiguos y lentos."}]},{"question":"¿Qué permite el seguimiento en tiempo real de flotas?","hint":"Aumenta la visibilidad de los activos una vez que salen del centro de distribución.","options":[{"label":"A","text":"Controlar el color de los semáforos de toda la ciudad.","isCorrect":false,"rationale":"Las empresas logísticas no tienen autoridad sobre la infraestructura vial pública de gestión de tráfico urbano."},{"label":"B","text":"Escuchar las conversaciones privadas de los conductores.","isCorrect":false,"rationale":"El seguimiento es profesional y operativo, enfocado en la seguridad y eficiencia de la ruta, no en la privacidad personal."},{"label":"C","text":"Conocer la ubicación exacta y el estado de cada vehículo de transporte.","isCorrect":true,"rationale":"Mejora la trazabilidad del envío y permite reaccionar ante imprevistos en la carretera de forma inmediata."},{"label":"D","text":"Predecir qué conductores ganarán la lotería.","isCorrect":false,"rationale":"El análisis de datos se aplica a la telemetría y logística, no a eventos de azar ajenos a la operación."}]},{"question":"¿Para qué se utiliza la automatización de procesos robóticos (RPA) en logística?","hint":"Piense en 'robots de software' que manejan planillas o correos electrónicos.","options":[{"label":"A","text":"Para automatizar tareas administrativas digitales repetitivas.","isCorrect":true,"rationale":"El RPA utiliza software para imitar acciones humanas en computadoras, como el ingreso de datos de facturas."},{"label":"B","text":"Para reemplazar la estructura física de los almacenes.","isCorrect":false,"rationale":"El RPA actúa sobre los procesos lógicos y de datos, no sobre la infraestructura física de los edificios."},{"label":"C","text":"Para construir robots gigantes que carguen camiones enteros.","isCorrect":false,"rationale":"Aunque existen robots de carga, el término RPA se refiere específicamente a la automatización de software de oficina."},{"label":"D","text":"Para fabricar componentes electrónicos desde cero.","isCorrect":false,"rationale":"La fabricación es un proceso industrial distinto; el RPA es una herramienta de automatización de procesos de negocio."}]},{"question":"En el flujograma de actividades, ¿qué elemento conecta la demanda de los clientes con el programa maestro?","hint":"Es la manifestación directa de la necesidad de compra de quien adquiere el producto.","options":[{"label":"A","text":"Informes de limpieza del almacén.","isCorrect":false,"rationale":"Son documentos de mantenimiento de higiene que no tienen impacto en la planificación de qué fabricar."},{"label":"B","text":"Pedidos de clientes.","isCorrect":true,"rationale":"Las órdenes reales de compra son el insumo principal para alimentar el programa maestro de producción."},{"label":"C","text":"Historial crediticio de los empleados.","isCorrect":false,"rationale":"Es información confidencial de carácter personal sin relevancia para el programa maestro de producción."},{"label":"D","text":"Publicidad en televisión.","isCorrect":false,"rationale":"La publicidad estimula la demanda, pero no es el documento operativo que ingresa al flujo de planificación de planta."}]}];
+const tr = {"correct":"¡Correcto!","incorrect":"Incorrecto","next":"Siguiente pregunta →","seeResults":"Ver resultados","complete":"¡Cuestionario completado!","scoreText":"Obtuviste {correct} de {total} correctas","tryAgain":"Intentar de nuevo","rightAnswer":"Respuesta correcta","notQuite":"No del todo"};
+let currentQ = 0, correctCount = 0, answered = false;
+
+function init() {
+  document.querySelectorAll('.question').forEach((q, i) => q.classList.toggle('active', i === 0));
+  updateProgress();
+  document.querySelectorAll('.option').forEach(opt => opt.addEventListener('click', () => selectOption(opt)));
+  document.querySelectorAll('.next-btn').forEach(btn => btn.addEventListener('click', nextQuestion));
+}
+
+function selectOption(opt) {
+  if (answered) return;
+  answered = true;
+  const q = opt.closest('.question');
+  const options = q.querySelectorAll('.option');
+  const nextBtn = q.querySelector('.next-btn');
+  const isCorrect = opt.dataset.correct === 'true';
+  
+  // Mark all options as disabled
+  options.forEach(o => o.classList.add('disabled'));
+  
+  // Style selected option
+  opt.classList.add('selected', isCorrect ? 'correct' : 'incorrect');
+  
+  // Show correct answer if wrong
+  if (!isCorrect) {
+    const correctOpt = [...options].find(o => o.dataset.correct === 'true');
+    if (correctOpt) correctOpt.classList.add('show-correct');
+  }
+  
+  if (isCorrect) correctCount++;
+  
+  // Show feedback for ALL options that have rationale
+  options.forEach(o => {
+    const wrapper = o.closest('.option-wrapper');
+    const feedback = wrapper.querySelector('.option-feedback');
+    const rationale = o.dataset.rationale;
+    const isThisCorrect = o.dataset.correct === 'true';
+    
+    if (rationale && rationale.trim()) {
+      feedback.classList.remove('hidden');
+      feedback.classList.add(isThisCorrect ? 'correct-feedback' : 'incorrect-feedback');
+      
+      const statusEl = feedback.querySelector('.feedback-status');
+      statusEl.className = 'feedback-status ' + (isThisCorrect ? 'correct' : 'incorrect');
+      statusEl.innerHTML = isThisCorrect 
+        ? '✓ ' + tr.rightAnswer
+        : '✗ ' + tr.notQuite;
+    }
+  });
+  
+  nextBtn.classList.remove('hidden');
+  if (currentQ === quizData.length - 1) nextBtn.textContent = tr.seeResults;
+}
+
+function nextQuestion() {
+  answered = false;
+  currentQ++;
+  if (currentQ >= quizData.length) { showResults(); return; }
+  document.querySelectorAll('.question').forEach((q, i) => q.classList.toggle('active', i === currentQ));
+  updateProgress();
+}
+
+function updateProgress() {
+  document.querySelector('.progress-fill').style.width = (currentQ / quizData.length * 100) + '%';
+}
+
+function showResults() {
+  document.querySelectorAll('.question').forEach(q => q.classList.remove('active'));
+  document.getElementById('results').classList.add('active');
+  const pct = Math.round((correctCount / quizData.length) * 100);
+  document.getElementById('score').textContent = pct + '%';
+  document.getElementById('score-text').textContent = tr.scoreText.replace('{correct}', correctCount).replace('{total}', quizData.length);
+  document.querySelector('.progress-fill').style.width = '100%';
+}
+
+function restart() {
+  currentQ = 0; correctCount = 0; answered = false;
+  document.getElementById('results').classList.remove('active');
+  document.querySelectorAll('.question').forEach((q, i) => {
+    q.classList.toggle('active', i === 0);
+    q.querySelectorAll('.option').forEach(o => o.classList.remove('selected', 'correct', 'incorrect', 'disabled', 'show-correct'));
+    q.querySelectorAll('.option-feedback').forEach(f => {
+      f.classList.add('hidden');
+      f.classList.remove('correct-feedback', 'incorrect-feedback');
+    });
+    const btn = q.querySelector('.next-btn');
+    btn.classList.add('hidden');
+    btn.textContent = tr.next;
+  });
+  updateProgress();
+}
+
+init();
+</script>
+</body>
+</html>
