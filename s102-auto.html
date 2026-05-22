@@ -1,0 +1,886 @@
+<!DOCTYPE html>
+<html lang="es" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>S10.2 Auto</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  min-height: 100vh; padding: 20px; color: #333;
+}
+.container { max-width: 700px; margin: 0 auto; }
+.header { text-align: center; color: #fff; padding: 30px 20px; }
+.header h1 { font-size: 28px; font-weight: 700; margin-bottom: 8px; text-shadow: 0 2px 10px rgba(0,0,0,0.2); }
+.header .meta { font-size: 14px; opacity: 0.9; }
+.progress-bar { background: rgba(255,255,255,0.3); border-radius: 10px; height: 8px; margin: 20px 0; overflow: hidden; }
+.progress-fill { background: #fff; height: 100%; width: 0%; transition: width 0.4s ease; border-radius: 10px; }
+.question { background: #fff; border-radius: 16px; padding: 30px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); display: none; }
+.question.active { display: block; }
+.q-header { display: flex; justify-content: space-between; margin-bottom: 20px; font-size: 13px; color: #888; }
+.q-number { font-weight: 600; color: #667eea; }
+.q-text { font-size: 18px; font-weight: 600; line-height: 1.5; margin-bottom: 25px; color: #222; }
+.options { display: flex; flex-direction: column; gap: 12px; }
+.option-wrapper { display: flex; flex-direction: column; }
+.option {
+  display: flex; align-items: flex-start; gap: 14px; padding: 16px 18px;
+  border: 2px solid #e8e8e8; border-radius: 12px; background: #fafafa;
+  cursor: pointer; transition: all 0.2s; text-align: left; font-size: 15px; width: 100%;
+}
+[dir="rtl"] .option { text-align: right; flex-direction: row-reverse; }
+.option:hover:not(.disabled) { border-color: #667eea; background: #f5f3ff; }
+.option.selected { border-color: #667eea; background: #ede9fe; }
+.option.correct { border-color: #22c55e; background: #dcfce7; }
+.option.incorrect { border-color: #ef4444; background: #fee2e2; }
+.option.disabled { cursor: default; }
+.option.show-correct { border-color: #22c55e; background: #dcfce7; }
+.opt-label {
+  display: flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; border-radius: 50%; background: #e8e8e8;
+  font-weight: 700; font-size: 14px; flex-shrink: 0;
+}
+.option.selected .opt-label { background: #667eea; color: #fff; }
+.option.correct .opt-label { background: #22c55e; color: #fff; }
+.option.incorrect .opt-label { background: #ef4444; color: #fff; }
+.option.show-correct .opt-label { background: #22c55e; color: #fff; }
+.opt-text { padding-top: 5px; line-height: 1.5; }
+
+/* Individual option feedback */
+.option-feedback {
+  margin: 8px 0 4px 46px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+[dir="rtl"] .option-feedback { margin-left: 0; margin-right: 46px; }
+.option-feedback.correct-feedback {
+  background: #dcfce7;
+  border-left: 3px solid #22c55e;
+}
+.option-feedback.incorrect-feedback {
+  background: #fef3f2;
+  border-left: 3px solid #fca5a5;
+}
+[dir="rtl"] .option-feedback.correct-feedback,
+[dir="rtl"] .option-feedback.incorrect-feedback {
+  border-left: none;
+  border-right: 3px solid;
+}
+[dir="rtl"] .option-feedback.correct-feedback { border-right-color: #22c55e; }
+[dir="rtl"] .option-feedback.incorrect-feedback { border-right-color: #fca5a5; }
+.feedback-status {
+  font-weight: 600;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.feedback-status.correct { color: #166534; }
+.feedback-status.incorrect { color: #991b1b; }
+.feedback-rationale { color: #444; }
+
+/* Hint box */
+.hint-box {
+  margin: 12px 0;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+}
+.hint-toggle {
+  width: 100%;
+  padding: 10px 16px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  color: #92400e;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.hint-toggle:hover { background: #fef3c7; }
+.hint-content {
+  padding: 0 16px;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s, padding 0.3s;
+  font-size: 14px;
+  color: #78350f;
+  line-height: 1.5;
+}
+.hint-box.show .hint-content {
+  padding: 0 16px 12px;
+  max-height: 200px;
+}
+
+.next-btn {
+  margin-top: 20px; width: 100%; padding: 14px;
+  background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; border: none;
+  border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.next-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(102,126,234,0.4); }
+.hidden { display: none !important; }
+.results { background: #fff; border-radius: 16px; padding: 40px; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.15); display: none; }
+.results.active { display: block; }
+.results h2 { font-size: 28px; margin-bottom: 10px; color: #333; }
+.results .score { font-size: 64px; font-weight: 700; color: #667eea; margin: 20px 0; }
+.results .score-text { font-size: 18px; color: #666; margin-bottom: 30px; }
+.restart-btn {
+  padding: 14px 40px; background: linear-gradient(135deg, #667eea, #764ba2);
+  color: #fff; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer;
+}
+
+/* Math CSS */
+.math, .math-block { font-family: "Cambria Math", "Times New Roman", Times, serif; font-style: italic; }
+.math-block { display: block; text-align: center; margin: 10px 0; font-size: 110%; }
+.frac { display: inline-flex; flex-direction: column; align-items: center; vertical-align: middle; margin: 0 3px; font-size: 0.9em; }
+.frac-num { border-bottom: 1px solid currentColor; padding: 0 4px 2px; line-height: 1.2; }
+.frac-den { padding: 2px 4px 0; line-height: 1.2; }
+.sqrt { white-space: nowrap; }
+.sqrt-content { border-top: 1px solid currentColor; padding: 0 3px; margin-left: 2px; }
+sup, sub { font-size: 0.75em; }
+sup { vertical-align: super; }
+sub { vertical-align: sub; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>S10.2 Auto</h1>
+    <div class="meta">10 preguntas</div>
+    <div class="progress-bar"><div class="progress-fill"></div></div>
+  </div>
+  <div id="quiz-container">
+        <div class="question" data-index="0">
+          <div class="q-header">
+            <span class="q-number">Pregunta 1</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿Cuál es el propósito principal de la sesión de la semana 10 según el material proporcionado?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Revisa la sección de 'Logro de sesión' al inicio del texto.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Aunque es un tema de PLCs, la sesión se centra en instrucciones básicas como temporizadores y contadores.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Configurar redes de comunicación industrial entre múltiples PLCs.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aunque es un tema de PLCs, la sesión se centra en instrucciones básicas como temporizadores y contadores.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El material se enfoca en la lógica de control LADDER y no en el diseño de circuitos de potencia eléctrica.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Diseñar exclusivamente circuitos de fuerza para motores trifásicos.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El material se enfoca en la lógica de control LADDER y no en el diseño de circuitos de potencia eléctrica.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="true" data-rationale="El logro de la sesión especifica el uso de estas herramientas para resolver problemas de automatización industrial.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Resolver ejercicios de programación LADDER utilizando temporizadores, contadores y comparadores.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El logro de la sesión especifica el uso de estas herramientas para resolver problemas de automatización industrial.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="La sesión está orientada al desarrollo de la lógica de programación en un simulador, no a la instalación física.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Aprender a instalar físicamente un PLC en un tablero eléctrico.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La sesión está orientada al desarrollo de la lógica de programación en un simulador, no a la instalación física.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="1">
+          <div class="q-header">
+            <span class="q-number">Pregunta 2</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">En el primer ejercicio, ¿qué sucede inmediatamente después de presionar el pulsador de marcha <span class="math">PMARCHA \ I0.1</span>?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Observa las primeras dos líneas (rungs) del primer esquema de simulación.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="El segundo temporizador depende de la activación previa de la segunda memoria, no del pulsador inicial.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Empieza a correr el tiempo del <span class="math">TEMPORIZADOR \ 2</span>.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El segundo temporizador depende de la activación previa de la segunda memoria, no del pulsador inicial.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="La lógica muestra que el pulsador activa la memoria que, a su vez, cierra el contacto para energizar la salida del primer motor.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Se activa la <span class="math">MEMORIA \ 1</span> y se enciende el <span class="math">MOTOR \ 1 \ Q0.1</span>.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La lógica muestra que el pulsador activa la memoria que, a su vez, cierra el contacto para energizar la salida del primer motor.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="El ejercicio describe una secuencia temporizada, no un encendido paralelo de todos los motores.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Se activan los tres motores de forma simultánea.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El ejercicio describe una secuencia temporizada, no un encendido paralelo de todos los motores.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="El contacto de paro es una condición de entrada normalmente cerrada que permite el flujo, no una acción resultante del arranque.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Se activa la señal de <span class="math">PPARO \ I0.2</span> para seguridad.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El contacto de paro es una condición de entrada normalmente cerrada que permite el flujo, no una acción resultante del arranque.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="2">
+          <div class="q-header">
+            <span class="q-number">Pregunta 3</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">En la lógica del segundo ejercicio, ¿cuál es la función del componente <span class="math">SENSOR \ 1</span> conectado al bloque <span class="math">CTU</span>?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">El bloque CTU es un contador ascendente que requiere una señal de entrada para trabajar.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="El sensor está vinculado a la lógica del contador para detener el sistema, no para el encendido directo del motor.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Activar directamente la salida <span class="math">MOTOR \ 1</span> por seguridad.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El sensor está vinculado a la lógica del contador para detener el sistema, no para el encendido directo del motor.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El sensor interactúa con un contador para registrar eventos, mientras que el tiempo es gestionado por bloques TON.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Medir el tiempo de funcionamiento del motor principal.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El sensor interactúa con un contador para registrar eventos, mientras que el tiempo es gestionado por bloques TON.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="true" data-rationale="En un bloque CTU, la entrada CU recibe señales discretas que aumentan el conteo hasta alcanzar el valor preestablecido.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Proporcionar los pulsos necesarios para que el contador incremente su valor actual.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">En un bloque CTU, la entrada CU recibe señales discretas que aumentan el conteo hasta alcanzar el valor preestablecido.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="La función de reinicio corresponde a la entrada R, no a la entrada de conteo CU.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Reiniciar el valor del contador a cero cada vez que se activa.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La función de reinicio corresponde a la entrada R, no a la entrada de conteo CU.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="3">
+          <div class="q-header">
+            <span class="q-number">Pregunta 4</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿Qué tipo de temporizador se utiliza en los ejercicios para generar retardos a la conexión?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Fíjate en las siglas que aparecen en la parte superior de los bloques de tiempo en las capturas.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Un TOF mantiene la salida activa tras perder la señal de entrada, lo cual no coincide con la lógica de retardo al arranque mostrada.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">TOF (Timer Off Delay).</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Un TOF mantiene la salida activa tras perder la señal de entrada, lo cual no coincide con la lógica de retardo al arranque mostrada.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El RTC se usa para horas y fechas reales, no para retardos de pocos segundos en procesos industriales.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">RTC (Real Time Clock).</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El RTC se usa para horas y fechas reales, no para retardos de pocos segundos en procesos industriales.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="El bloque de pulso genera una salida de duración fija, diferente al retardo necesario para secuenciar los motores.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">TP (Timer Pulse).</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El bloque de pulso genera una salida de duración fija, diferente al retardo necesario para secuenciar los motores.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="true" data-rationale="Este bloque inicia la cuenta cuando la entrada recibe señal y activa su salida $Q$ solo tras completar el tiempo programado.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">TON (Timer On Delay).</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Este bloque inicia la cuenta cuando la entrada recibe señal y activa su salida <span class="math">Q</span> solo tras completar el tiempo programado.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="4">
+          <div class="q-header">
+            <span class="q-number">Pregunta 5</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">En el tercer ejercicio, se utiliza un bloque <span class="math">MUL</span>. Si las entradas son <span class="math">5</span> y <span class="math">9</span>, ¿cuál es el resultado evaluado por el comparador?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">La instrucción MUL realiza una operación matemática básica entre dos números.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Este valor resultaría de una división, lo cual no corresponde a la instrucción de multiplicación ejecutada.">
+            <span class="opt-label">A</span>
+            <span class="opt-text"><span class="math">0.55</span></span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Este valor resultaría de una división, lo cual no corresponde a la instrucción de multiplicación ejecutada.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Este valor sería el resultado de una suma, no de la operación de multiplicación indicada por el bloque MUL.">
+            <span class="opt-label">B</span>
+            <span class="opt-text"><span class="math">14</span></span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Este valor sería el resultado de una suma, no de la operación de multiplicación indicada por el bloque MUL.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="El valor $50$ es el límite de comparación establecido en el bloque siguiente, no el resultado de la operación inicial.">
+            <span class="opt-label">C</span>
+            <span class="opt-text"><span class="math">50</span></span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El valor <span class="math">50</span> es el límite de comparación establecido en el bloque siguiente, no el resultado de la operación inicial.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="true" data-rationale="El bloque realiza una multiplicación aritmética simple donde $5 \times 9 = 45$.">
+            <span class="opt-label">D</span>
+            <span class="opt-text"><span class="math">45</span></span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El bloque realiza una multiplicación aritmética simple donde <span class="math">5 × 9 = 45</span>.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="5">
+          <div class="q-header">
+            <span class="q-number">Pregunta 6</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿Bajo qué condición se activa el <span class="math">MOTOR \ 1</span> en el esquema del tercer ejercicio?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Observa el símbolo matemático ubicado entre el resultado de la multiplicación y el valor comparado.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Para esto se requeriría un comparador de igualdad ($=$), pero se observa el símbolo de menor que.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Cuando el resultado de la multiplicación es exactamente igual a <span class="math">50</span>.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Para esto se requeriría un comparador de igualdad (<span class="math">=</span>), pero se observa el símbolo de menor que.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="El comparador está configurado con el símbolo $&lt;$ (menor que) comparando el resultado $45$ contra la constante $50$.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Cuando el resultado de la multiplicación es menor que <span class="math">50</span>.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El comparador está configurado con el símbolo <span class="math">&lt;</span> (menor que) comparando el resultado <span class="math">45</span> contra la constante <span class="math">50</span>.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="La activación del motor depende de que se cumpla la condición lógica del comparador en serie.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Siempre que el bloque <span class="math">MUL</span> reciba energía, sin importar el resultado.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La activación del motor depende de que se cumpla la condición lógica del comparador en serie.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Aunque lógicamente equivalente en este caso, la instrucción específica es evaluar si el 'RESULTADO' es menor que el 'VALOR COMPARADO'.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Cuando el valor comparado es mayor que el resultado de la multiplicación.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aunque lógicamente equivalente en este caso, la instrucción específica es evaluar si el 'RESULTADO' es menor que el 'VALOR COMPARADO'.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="6">
+          <div class="q-header">
+            <span class="q-number">Pregunta 7</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">En la simulación, ¿para qué sirve el contacto de <span class="math">MEMORIA \ 1</span> colocado en paralelo debajo del contacto <span class="math">PMARCHA \ I0.1</span>?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piensa en qué sucede con el circuito cuando dejas de presionar el botón de inicio.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="La protección contra cortocircuitos es una función de hardware (fusibles/disyuntores), no de la lógica de contactos en paralelo.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Para evitar que el motor sufra un cortocircuito eléctrico.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La protección contra cortocircuitos es una función de hardware (fusibles/disyuntores), no de la lógica de contactos en paralelo.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El contacto está en el primer escalón para mantener la alimentación de la lógica, no para funciones de reset de tiempo.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Para resetear el temporizador automáticamente.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El contacto está en el primer escalón para mantener la alimentación de la lógica, no para funciones de reset de tiempo.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="true" data-rationale="Esto permite que la bobina permanezca activa incluso después de soltar el pulsador de marcha físico.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Para realizar un enclavamiento o autorretención de la señal de marcha.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esto permite que la bobina permanezca activa incluso después de soltar el pulsador de marcha físico.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Esa función la cumple usualmente un contacto normalmente cerrado de paro, no una memoria en paralelo.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Para indicar que el pulsador de emergencia ha sido presionado.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esa función la cumple usualmente un contacto normalmente cerrado de paro, no una memoria en paralelo.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="7">
+          <div class="q-header">
+            <span class="q-number">Pregunta 8</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">En el ejercicio 2, ¿cuál es el valor de preselección (<span class="math">PV</span>) configurado en el <span class="math">CONTADOR \ 1</span>?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Busca el valor numérico asociado a la etiqueta 'PV' en el bloque del contador.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="$0$ suele ser el valor inicial de la cuenta acumulada (CV), no el límite para la activación.">
+            <span class="opt-label">A</span>
+            <span class="opt-text"><span class="math">0</span></span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale"><span class="math">0</span> suele ser el valor inicial de la cuenta acumulada (CV), no el límite para la activación.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Aunque es la semana 10 de clase, el ejercicio especifica explícitamente una cuenta de $5$ veces para el sensor.">
+            <span class="opt-label">B</span>
+            <span class="opt-text"><span class="math">10</span></span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aunque es la semana 10 de clase, el ejercicio especifica explícitamente una cuenta de <span class="math">5</span> veces para el sensor.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Este valor corresponde a los milisegundos del temporizador ($5$ segundos), no a la cuenta del sensor.">
+            <span class="opt-label">C</span>
+            <span class="opt-text"><span class="math">5000</span></span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Este valor corresponde a los milisegundos del temporizador (<span class="math">5</span> segundos), no a la cuenta del sensor.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="true" data-rationale="El parámetro PV (Preset Value) determina cuántos pulsos debe recibir el contador para activar su salida $Q$.">
+            <span class="opt-label">D</span>
+            <span class="opt-text"><span class="math">5</span></span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El parámetro PV (Preset Value) determina cuántos pulsos debe recibir el contador para activar su salida <span class="math">Q</span>.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="8">
+          <div class="q-header">
+            <span class="q-number">Pregunta 9</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿Qué sucede con los motores en el ejercicio 1 si se presiona el pulsador <span class="math">PPARO \ I0.2</span>?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Observa que el contacto <span class="math">PPARO</span> está presente en múltiples líneas de código de forma serial.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Al abrirse el contacto de paro en los escalones de control, se desactivan las bobinas de memoria que mantienen encendidas las salidas.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Se interrumpe la alimentación de las memorias y todos los motores se apagan.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Al abrirse el contacto de paro en los escalones de control, se desactivan las bobinas de memoria que mantienen encendidas las salidas.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="La lógica LADDER mostrada corta directamente las señales de salida Q, desactivando los actuadores.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Se activa una alarma sonora pero los motores siguen girando por inercia.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La lógica LADDER mostrada corta directamente las señales de salida Q, desactivando los actuadores.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="El paro está diseñado para resetear la lógica principal, afectando a toda la cadena de memorias en cascada.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Solo se apaga el motor que esté funcionando en ese momento.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El paro está diseñado para resetear la lógica principal, afectando a toda la cadena de memorias en cascada.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="En PLC, un pulsador de paro normalmente quita la retención, requiriendo una nueva marcha para iniciar.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">El sistema entra en un modo de pausa y reanuda cuando se suelta el botón.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">En PLC, un pulsador de paro normalmente quita la retención, requiriendo una nueva marcha para iniciar.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="9">
+          <div class="q-header">
+            <span class="q-number">Pregunta 10</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">En la configuración del temporizador, ¿qué representa el valor '<span class="math">5000</span>' en el parámetro <span class="math">PT</span>?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Relaciona el valor numérico con la unidad de medida de tiempo estándar en programación industrial.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="En muchos simuladores de PLC, el tiempo se expresa en milisegundos, por lo que $5000$ $ms$ equivalen a $5$ segundos.">
+            <span class="opt-label">A</span>
+            <span class="opt-text"><span class="math">5</span> segundos de tiempo preestablecido.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">En muchos simuladores de PLC, el tiempo se expresa en milisegundos, por lo que <span class="math">5000</span> <span class="math">ms</span> equivalen a <span class="math">5</span> segundos.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El parámetro PT se refiere a tiempo (Time), no a ciclos de procesamiento de la CPU.">
+            <span class="opt-label">B</span>
+            <span class="opt-text"><span class="math">5000</span> ciclos de escaneo del programa.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El parámetro PT se refiere a tiempo (Time), no a ciclos de procesamiento de la CPU.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="PT significa 'Preset Time' y define la duración del retardo lógico.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">La cantidad de corriente máxima permitida en miliamperios.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">PT significa 'Preset Time' y define la duración del retardo lógico.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="El bloque es un temporizador (TON) y no un variador de frecuencia o controlador de velocidad.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">La velocidad de giro del motor en <span class="math">RPM</span>.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El bloque es un temporizador (TON) y no un variador de frecuencia o controlador de velocidad.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      </div>
+  <div class="results" id="results">
+    <h2>¡Cuestionario completado!</h2>
+    <div class="score" id="score">0%</div>
+    <div class="score-text" id="score-text"></div>
+    <button class="restart-btn" onclick="restart()">Intentar de nuevo</button>
+  </div>
+</div>
+<script>
+const quizData = [{"question":"¿Cuál es el propósito principal de la sesión de la semana 10 según el material proporcionado?","hint":"Revisa la sección de 'Logro de sesión' al inicio del texto.","options":[{"label":"A","text":"Configurar redes de comunicación industrial entre múltiples PLCs.","isCorrect":false,"rationale":"Aunque es un tema de PLCs, la sesión se centra en instrucciones básicas como temporizadores y contadores."},{"label":"B","text":"Diseñar exclusivamente circuitos de fuerza para motores trifásicos.","isCorrect":false,"rationale":"El material se enfoca en la lógica de control LADDER y no en el diseño de circuitos de potencia eléctrica."},{"label":"C","text":"Resolver ejercicios de programación LADDER utilizando temporizadores, contadores y comparadores.","isCorrect":true,"rationale":"El logro de la sesión especifica el uso de estas herramientas para resolver problemas de automatización industrial."},{"label":"D","text":"Aprender a instalar físicamente un PLC en un tablero eléctrico.","isCorrect":false,"rationale":"La sesión está orientada al desarrollo de la lógica de programación en un simulador, no a la instalación física."}]},{"question":"En el primer ejercicio, ¿qué sucede inmediatamente después de presionar el pulsador de marcha $PMARCHA \\ I0.1$?","hint":"Observa las primeras dos líneas (rungs) del primer esquema de simulación.","options":[{"label":"A","text":"Empieza a correr el tiempo del $TEMPORIZADOR \\ 2$.","isCorrect":false,"rationale":"El segundo temporizador depende de la activación previa de la segunda memoria, no del pulsador inicial."},{"label":"B","text":"Se activa la $MEMORIA \\ 1$ y se enciende el $MOTOR \\ 1 \\ Q0.1$.","isCorrect":true,"rationale":"La lógica muestra que el pulsador activa la memoria que, a su vez, cierra el contacto para energizar la salida del primer motor."},{"label":"C","text":"Se activan los tres motores de forma simultánea.","isCorrect":false,"rationale":"El ejercicio describe una secuencia temporizada, no un encendido paralelo de todos los motores."},{"label":"D","text":"Se activa la señal de $PPARO \\ I0.2$ para seguridad.","isCorrect":false,"rationale":"El contacto de paro es una condición de entrada normalmente cerrada que permite el flujo, no una acción resultante del arranque."}]},{"question":"En la lógica del segundo ejercicio, ¿cuál es la función del componente $SENSOR \\ 1$ conectado al bloque $CTU$?","hint":"El bloque CTU es un contador ascendente que requiere una señal de entrada para trabajar.","options":[{"label":"A","text":"Activar directamente la salida $MOTOR \\ 1$ por seguridad.","isCorrect":false,"rationale":"El sensor está vinculado a la lógica del contador para detener el sistema, no para el encendido directo del motor."},{"label":"B","text":"Medir el tiempo de funcionamiento del motor principal.","isCorrect":false,"rationale":"El sensor interactúa con un contador para registrar eventos, mientras que el tiempo es gestionado por bloques TON."},{"label":"C","text":"Proporcionar los pulsos necesarios para que el contador incremente su valor actual.","isCorrect":true,"rationale":"En un bloque CTU, la entrada CU recibe señales discretas que aumentan el conteo hasta alcanzar el valor preestablecido."},{"label":"D","text":"Reiniciar el valor del contador a cero cada vez que se activa.","isCorrect":false,"rationale":"La función de reinicio corresponde a la entrada R, no a la entrada de conteo CU."}]},{"question":"¿Qué tipo de temporizador se utiliza en los ejercicios para generar retardos a la conexión?","hint":"Fíjate en las siglas que aparecen en la parte superior de los bloques de tiempo en las capturas.","options":[{"label":"A","text":"TOF (Timer Off Delay).","isCorrect":false,"rationale":"Un TOF mantiene la salida activa tras perder la señal de entrada, lo cual no coincide con la lógica de retardo al arranque mostrada."},{"label":"B","text":"RTC (Real Time Clock).","isCorrect":false,"rationale":"El RTC se usa para horas y fechas reales, no para retardos de pocos segundos en procesos industriales."},{"label":"C","text":"TP (Timer Pulse).","isCorrect":false,"rationale":"El bloque de pulso genera una salida de duración fija, diferente al retardo necesario para secuenciar los motores."},{"label":"D","text":"TON (Timer On Delay).","isCorrect":true,"rationale":"Este bloque inicia la cuenta cuando la entrada recibe señal y activa su salida $Q$ solo tras completar el tiempo programado."}]},{"question":"En el tercer ejercicio, se utiliza un bloque $MUL$. Si las entradas son $5$ y $9$, ¿cuál es el resultado evaluado por el comparador?","hint":"La instrucción MUL realiza una operación matemática básica entre dos números.","options":[{"label":"A","text":"$0.55$","isCorrect":false,"rationale":"Este valor resultaría de una división, lo cual no corresponde a la instrucción de multiplicación ejecutada."},{"label":"B","text":"$14$","isCorrect":false,"rationale":"Este valor sería el resultado de una suma, no de la operación de multiplicación indicada por el bloque MUL."},{"label":"C","text":"$50$","isCorrect":false,"rationale":"El valor $50$ es el límite de comparación establecido en el bloque siguiente, no el resultado de la operación inicial."},{"label":"D","text":"$45$","isCorrect":true,"rationale":"El bloque realiza una multiplicación aritmética simple donde $5 \\times 9 = 45$."}]},{"question":"¿Bajo qué condición se activa el $MOTOR \\ 1$ en el esquema del tercer ejercicio?","hint":"Observa el símbolo matemático ubicado entre el resultado de la multiplicación y el valor comparado.","options":[{"label":"A","text":"Cuando el resultado de la multiplicación es exactamente igual a $50$.","isCorrect":false,"rationale":"Para esto se requeriría un comparador de igualdad ($=$), pero se observa el símbolo de menor que."},{"label":"B","text":"Cuando el resultado de la multiplicación es menor que $50$.","isCorrect":true,"rationale":"El comparador está configurado con el símbolo $<$ (menor que) comparando el resultado $45$ contra la constante $50$."},{"label":"C","text":"Siempre que el bloque $MUL$ reciba energía, sin importar el resultado.","isCorrect":false,"rationale":"La activación del motor depende de que se cumpla la condición lógica del comparador en serie."},{"label":"D","text":"Cuando el valor comparado es mayor que el resultado de la multiplicación.","isCorrect":false,"rationale":"Aunque lógicamente equivalente en este caso, la instrucción específica es evaluar si el 'RESULTADO' es menor que el 'VALOR COMPARADO'."}]},{"question":"En la simulación, ¿para qué sirve el contacto de $MEMORIA \\ 1$ colocado en paralelo debajo del contacto $PMARCHA \\ I0.1$?","hint":"Piensa en qué sucede con el circuito cuando dejas de presionar el botón de inicio.","options":[{"label":"A","text":"Para evitar que el motor sufra un cortocircuito eléctrico.","isCorrect":false,"rationale":"La protección contra cortocircuitos es una función de hardware (fusibles/disyuntores), no de la lógica de contactos en paralelo."},{"label":"B","text":"Para resetear el temporizador automáticamente.","isCorrect":false,"rationale":"El contacto está en el primer escalón para mantener la alimentación de la lógica, no para funciones de reset de tiempo."},{"label":"C","text":"Para realizar un enclavamiento o autorretención de la señal de marcha.","isCorrect":true,"rationale":"Esto permite que la bobina permanezca activa incluso después de soltar el pulsador de marcha físico."},{"label":"D","text":"Para indicar que el pulsador de emergencia ha sido presionado.","isCorrect":false,"rationale":"Esa función la cumple usualmente un contacto normalmente cerrado de paro, no una memoria en paralelo."}]},{"question":"En el ejercicio 2, ¿cuál es el valor de preselección ($PV$) configurado en el $CONTADOR \\ 1$?","hint":"Busca el valor numérico asociado a la etiqueta 'PV' en el bloque del contador.","options":[{"label":"A","text":"$0$","isCorrect":false,"rationale":"$0$ suele ser el valor inicial de la cuenta acumulada (CV), no el límite para la activación."},{"label":"B","text":"$10$","isCorrect":false,"rationale":"Aunque es la semana 10 de clase, el ejercicio especifica explícitamente una cuenta de $5$ veces para el sensor."},{"label":"C","text":"$5000$","isCorrect":false,"rationale":"Este valor corresponde a los milisegundos del temporizador ($5$ segundos), no a la cuenta del sensor."},{"label":"D","text":"$5$","isCorrect":true,"rationale":"El parámetro PV (Preset Value) determina cuántos pulsos debe recibir el contador para activar su salida $Q$."}]},{"question":"¿Qué sucede con los motores en el ejercicio 1 si se presiona el pulsador $PPARO \\ I0.2$?","hint":"Observa que el contacto $PPARO$ está presente en múltiples líneas de código de forma serial.","options":[{"label":"A","text":"Se interrumpe la alimentación de las memorias y todos los motores se apagan.","isCorrect":true,"rationale":"Al abrirse el contacto de paro en los escalones de control, se desactivan las bobinas de memoria que mantienen encendidas las salidas."},{"label":"B","text":"Se activa una alarma sonora pero los motores siguen girando por inercia.","isCorrect":false,"rationale":"La lógica LADDER mostrada corta directamente las señales de salida Q, desactivando los actuadores."},{"label":"C","text":"Solo se apaga el motor que esté funcionando en ese momento.","isCorrect":false,"rationale":"El paro está diseñado para resetear la lógica principal, afectando a toda la cadena de memorias en cascada."},{"label":"D","text":"El sistema entra en un modo de pausa y reanuda cuando se suelta el botón.","isCorrect":false,"rationale":"En PLC, un pulsador de paro normalmente quita la retención, requiriendo una nueva marcha para iniciar."}]},{"question":"En la configuración del temporizador, ¿qué representa el valor '$5000$' en el parámetro $PT$?","hint":"Relaciona el valor numérico con la unidad de medida de tiempo estándar en programación industrial.","options":[{"label":"A","text":"$5$ segundos de tiempo preestablecido.","isCorrect":true,"rationale":"En muchos simuladores de PLC, el tiempo se expresa en milisegundos, por lo que $5000$ $ms$ equivalen a $5$ segundos."},{"label":"B","text":"$5000$ ciclos de escaneo del programa.","isCorrect":false,"rationale":"El parámetro PT se refiere a tiempo (Time), no a ciclos de procesamiento de la CPU."},{"label":"C","text":"La cantidad de corriente máxima permitida en miliamperios.","isCorrect":false,"rationale":"PT significa 'Preset Time' y define la duración del retardo lógico."},{"label":"D","text":"La velocidad de giro del motor en $RPM$.","isCorrect":false,"rationale":"El bloque es un temporizador (TON) y no un variador de frecuencia o controlador de velocidad."}]}];
+const tr = {"correct":"¡Correcto!","incorrect":"Incorrecto","next":"Siguiente pregunta →","seeResults":"Ver resultados","complete":"¡Cuestionario completado!","scoreText":"Obtuviste {correct} de {total} correctas","tryAgain":"Intentar de nuevo","rightAnswer":"Respuesta correcta","notQuite":"No del todo"};
+let currentQ = 0, correctCount = 0, answered = false;
+
+function init() {
+  document.querySelectorAll('.question').forEach((q, i) => q.classList.toggle('active', i === 0));
+  updateProgress();
+  document.querySelectorAll('.option').forEach(opt => opt.addEventListener('click', () => selectOption(opt)));
+  document.querySelectorAll('.next-btn').forEach(btn => btn.addEventListener('click', nextQuestion));
+}
+
+function selectOption(opt) {
+  if (answered) return;
+  answered = true;
+  const q = opt.closest('.question');
+  const options = q.querySelectorAll('.option');
+  const nextBtn = q.querySelector('.next-btn');
+  const isCorrect = opt.dataset.correct === 'true';
+  
+  // Mark all options as disabled
+  options.forEach(o => o.classList.add('disabled'));
+  
+  // Style selected option
+  opt.classList.add('selected', isCorrect ? 'correct' : 'incorrect');
+  
+  // Show correct answer if wrong
+  if (!isCorrect) {
+    const correctOpt = [...options].find(o => o.dataset.correct === 'true');
+    if (correctOpt) correctOpt.classList.add('show-correct');
+  }
+  
+  if (isCorrect) correctCount++;
+  
+  // Show feedback for ALL options that have rationale
+  options.forEach(o => {
+    const wrapper = o.closest('.option-wrapper');
+    const feedback = wrapper.querySelector('.option-feedback');
+    const rationale = o.dataset.rationale;
+    const isThisCorrect = o.dataset.correct === 'true';
+    
+    if (rationale && rationale.trim()) {
+      feedback.classList.remove('hidden');
+      feedback.classList.add(isThisCorrect ? 'correct-feedback' : 'incorrect-feedback');
+      
+      const statusEl = feedback.querySelector('.feedback-status');
+      statusEl.className = 'feedback-status ' + (isThisCorrect ? 'correct' : 'incorrect');
+      statusEl.innerHTML = isThisCorrect 
+        ? '✓ ' + tr.rightAnswer
+        : '✗ ' + tr.notQuite;
+    }
+  });
+  
+  nextBtn.classList.remove('hidden');
+  if (currentQ === quizData.length - 1) nextBtn.textContent = tr.seeResults;
+}
+
+function nextQuestion() {
+  answered = false;
+  currentQ++;
+  if (currentQ >= quizData.length) { showResults(); return; }
+  document.querySelectorAll('.question').forEach((q, i) => q.classList.toggle('active', i === currentQ));
+  updateProgress();
+}
+
+function updateProgress() {
+  document.querySelector('.progress-fill').style.width = (currentQ / quizData.length * 100) + '%';
+}
+
+function showResults() {
+  document.querySelectorAll('.question').forEach(q => q.classList.remove('active'));
+  document.getElementById('results').classList.add('active');
+  const pct = Math.round((correctCount / quizData.length) * 100);
+  document.getElementById('score').textContent = pct + '%';
+  document.getElementById('score-text').textContent = tr.scoreText.replace('{correct}', correctCount).replace('{total}', quizData.length);
+  document.querySelector('.progress-fill').style.width = '100%';
+}
+
+function restart() {
+  currentQ = 0; correctCount = 0; answered = false;
+  document.getElementById('results').classList.remove('active');
+  document.querySelectorAll('.question').forEach((q, i) => {
+    q.classList.toggle('active', i === 0);
+    q.querySelectorAll('.option').forEach(o => o.classList.remove('selected', 'correct', 'incorrect', 'disabled', 'show-correct'));
+    q.querySelectorAll('.option-feedback').forEach(f => {
+      f.classList.add('hidden');
+      f.classList.remove('correct-feedback', 'incorrect-feedback');
+    });
+    const btn = q.querySelector('.next-btn');
+    btn.classList.add('hidden');
+    btn.textContent = tr.next;
+  });
+  updateProgress();
+}
+
+init();
+</script>
+</body>
+</html>
