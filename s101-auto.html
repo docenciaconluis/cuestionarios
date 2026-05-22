@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="es" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>S10.1 Auto</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  min-height: 100vh; padding: 20px; color: #333;
+}
+.container { max-width: 700px; margin: 0 auto; }
+.header { text-align: center; color: #fff; padding: 30px 20px; }
+.header h1 { font-size: 28px; font-weight: 700; margin-bottom: 8px; text-shadow: 0 2px 10px rgba(0,0,0,0.2); }
+.header .meta { font-size: 14px; opacity: 0.9; }
+.progress-bar { background: rgba(255,255,255,0.3); border-radius: 10px; height: 8px; margin: 20px 0; overflow: hidden; }
+.progress-fill { background: #fff; height: 100%; width: 0%; transition: width 0.4s ease; border-radius: 10px; }
+.question { background: #fff; border-radius: 16px; padding: 30px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); display: none; }
+.question.active { display: block; }
+.q-header { display: flex; justify-content: space-between; margin-bottom: 20px; font-size: 13px; color: #888; }
+.q-number { font-weight: 600; color: #667eea; }
+.q-text { font-size: 18px; font-weight: 600; line-height: 1.5; margin-bottom: 25px; color: #222; }
+.options { display: flex; flex-direction: column; gap: 12px; }
+.option-wrapper { display: flex; flex-direction: column; }
+.option {
+  display: flex; align-items: flex-start; gap: 14px; padding: 16px 18px;
+  border: 2px solid #e8e8e8; border-radius: 12px; background: #fafafa;
+  cursor: pointer; transition: all 0.2s; text-align: left; font-size: 15px; width: 100%;
+}
+[dir="rtl"] .option { text-align: right; flex-direction: row-reverse; }
+.option:hover:not(.disabled) { border-color: #667eea; background: #f5f3ff; }
+.option.selected { border-color: #667eea; background: #ede9fe; }
+.option.correct { border-color: #22c55e; background: #dcfce7; }
+.option.incorrect { border-color: #ef4444; background: #fee2e2; }
+.option.disabled { cursor: default; }
+.option.show-correct { border-color: #22c55e; background: #dcfce7; }
+.opt-label {
+  display: flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; border-radius: 50%; background: #e8e8e8;
+  font-weight: 700; font-size: 14px; flex-shrink: 0;
+}
+.option.selected .opt-label { background: #667eea; color: #fff; }
+.option.correct .opt-label { background: #22c55e; color: #fff; }
+.option.incorrect .opt-label { background: #ef4444; color: #fff; }
+.option.show-correct .opt-label { background: #22c55e; color: #fff; }
+.opt-text { padding-top: 5px; line-height: 1.5; }
+
+/* Individual option feedback */
+.option-feedback {
+  margin: 8px 0 4px 46px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+[dir="rtl"] .option-feedback { margin-left: 0; margin-right: 46px; }
+.option-feedback.correct-feedback {
+  background: #dcfce7;
+  border-left: 3px solid #22c55e;
+}
+.option-feedback.incorrect-feedback {
+  background: #fef3f2;
+  border-left: 3px solid #fca5a5;
+}
+[dir="rtl"] .option-feedback.correct-feedback,
+[dir="rtl"] .option-feedback.incorrect-feedback {
+  border-left: none;
+  border-right: 3px solid;
+}
+[dir="rtl"] .option-feedback.correct-feedback { border-right-color: #22c55e; }
+[dir="rtl"] .option-feedback.incorrect-feedback { border-right-color: #fca5a5; }
+.feedback-status {
+  font-weight: 600;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.feedback-status.correct { color: #166534; }
+.feedback-status.incorrect { color: #991b1b; }
+.feedback-rationale { color: #444; }
+
+/* Hint box */
+.hint-box {
+  margin: 12px 0;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+}
+.hint-toggle {
+  width: 100%;
+  padding: 10px 16px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  color: #92400e;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.hint-toggle:hover { background: #fef3c7; }
+.hint-content {
+  padding: 0 16px;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s, padding 0.3s;
+  font-size: 14px;
+  color: #78350f;
+  line-height: 1.5;
+}
+.hint-box.show .hint-content {
+  padding: 0 16px 12px;
+  max-height: 200px;
+}
+
+.next-btn {
+  margin-top: 20px; width: 100%; padding: 14px;
+  background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; border: none;
+  border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.next-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(102,126,234,0.4); }
+.hidden { display: none !important; }
+.results { background: #fff; border-radius: 16px; padding: 40px; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.15); display: none; }
+.results.active { display: block; }
+.results h2 { font-size: 28px; margin-bottom: 10px; color: #333; }
+.results .score { font-size: 64px; font-weight: 700; color: #667eea; margin: 20px 0; }
+.results .score-text { font-size: 18px; color: #666; margin-bottom: 30px; }
+.restart-btn {
+  padding: 14px 40px; background: linear-gradient(135deg, #667eea, #764ba2);
+  color: #fff; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer;
+}
+
+/* Math CSS */
+.math, .math-block { font-family: "Cambria Math", "Times New Roman", Times, serif; font-style: italic; }
+.math-block { display: block; text-align: center; margin: 10px 0; font-size: 110%; }
+.frac { display: inline-flex; flex-direction: column; align-items: center; vertical-align: middle; margin: 0 3px; font-size: 0.9em; }
+.frac-num { border-bottom: 1px solid currentColor; padding: 0 4px 2px; line-height: 1.2; }
+.frac-den { padding: 2px 4px 0; line-height: 1.2; }
+.sqrt { white-space: nowrap; }
+.sqrt-content { border-top: 1px solid currentColor; padding: 0 3px; margin-left: 2px; }
+sup, sub { font-size: 0.75em; }
+sup { vertical-align: super; }
+sub { vertical-align: sub; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>S10.1 Auto</h1>
+    <div class="meta">10 preguntas</div>
+    <div class="progress-bar"><div class="progress-fill"></div></div>
+  </div>
+  <div id="quiz-container">
+        <div class="question" data-index="0">
+          <div class="q-header">
+            <span class="q-number">Pregunta 1</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿Es cierto que un temporizador de tipo TON (Timer On Delay) activa su salida inmediatamente después de que la señal de entrada se vuelve verdadera?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Analiza el significado de las siglas 'On Delay' en el contexto de la automatización.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="La función principal de un temporizador TON es generar un retardo en la conexión desde que recibe la señal de activación.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La función principal de un temporizador TON es generar un retardo en la conexión desde que recibe la señal de activación.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El temporizador TON requiere que transcurra un tiempo predefinido antes de activar su salida, no lo hace de forma instantánea.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El temporizador TON requiere que transcurra un tiempo predefinido antes de activar su salida, no lo hace de forma instantánea.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="1">
+          <div class="q-header">
+            <span class="q-number">Pregunta 2</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">En la programación LADDER, ¿las 'memorias' se utilizan para almacenar estados lógicos internos que no necesariamente activan una salida física directa?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piensa en las memorias como interruptores virtuales dentro del PLC.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Las memorias son fundamentales para el almacenamiento temporal de datos y estados en el flujo del programa LADDER.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Las memorias son fundamentales para el almacenamiento temporal de datos y estados en el flujo del programa LADDER.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Las memorias actúan como variables auxiliares para estructurar la lógica del programa sin comprometer directamente un actuador físico.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Las memorias actúan como variables auxiliares para estructurar la lógica del programa sin comprometer directamente un actuador físico.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="2">
+          <div class="q-header">
+            <span class="q-number">Pregunta 3</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿Un contador de tipo CTU (Count Up) disminuye su valor acumulado cada vez que recibe un pulso en su entrada de conteo?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Recuerda el significado de la letra 'U' en la sigla de este bloque funcional.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Un contador CTU suma una unidad al valor acumulado con cada pulso detectado, según su principio de 'conteo ascendente'.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Un contador CTU suma una unidad al valor acumulado con cada pulso detectado, según su principio de 'conteo ascendente'.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="La función CTU está diseñada específicamente para incrementar el valor, no para reducirlo.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La función CTU está diseñada específicamente para incrementar el valor, no para reducirlo.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="3">
+          <div class="q-header">
+            <span class="q-number">Pregunta 4</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">En un bloque de temporización, ¿el parámetro 'PT' (Preset Time) representa el tiempo total que debe transcurrir para que se active la salida?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Es el valor de consigna que el usuario programa manualmente en el simulador.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="El valor PT establece el objetivo de tiempo que el temporizador debe alcanzar para cambiar su estado lógico.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El valor PT establece el objetivo de tiempo que el temporizador debe alcanzar para cambiar su estado lógico.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Sin el parámetro PT, el temporizador no tendría una referencia de tiempo definida para ejecutar su acción.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Sin el parámetro PT, el temporizador no tendría una referencia de tiempo definida para ejecutar su acción.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="4">
+          <div class="q-header">
+            <span class="q-number">Pregunta 5</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿Es posible utilizar el resultado de una operación aritmética, como una multiplicación (MUL), como una condición para activar una salida mediante un comparador?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considera cómo se relacionan los bloques de cálculo con los bloques de decisión lógica.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="La integración de operaciones matemáticas y comparadores permite crear condiciones de activación complejas y precisas.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La integración de operaciones matemáticas y comparadores permite crear condiciones de activación complejas y precisas.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Los valores calculados pueden compararse con constantes para determinar si una condición lógica se cumple y activar un motor u otro dispositivo.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Los valores calculados pueden compararse con constantes para determinar si una condición lógica se cumple y activar un motor u otro dispositivo.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="5">
+          <div class="q-header">
+            <span class="q-number">Pregunta 6</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">El bloque de comparación 'MENOR QUE' (<span class="math"> &lt; </span>) se activa cuando el primer valor de entrada es igual o superior al segundo valor de referencia.</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Recuerda la dirección del símbolo matemático empleado en el ejercicio de la sesión.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="El comparador 'Menor Que' solo emite una señal de verdadero si el primer operando tiene un valor numéricamente inferior al segundo.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El comparador 'Menor Que' solo emite una señal de verdadero si el primer operando tiene un valor numéricamente inferior al segundo.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Esta lógica describe un comparador de tipo 'Mayor o Igual', no uno de tipo estrictamente menor.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esta lógica describe un comparador de tipo 'Mayor o Igual', no uno de tipo estrictamente menor.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="6">
+          <div class="q-header">
+            <span class="q-number">Pregunta 7</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿Un pulsador de parada (PPARO) en un sistema industrial suele programarse con lógica de contacto normalmente cerrado para garantizar la seguridad del proceso?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piensa en lo que sucedería con el sistema si el cable de un pulsador de emergencia se rompiera.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Utilizar lógica cerrada permite que, ante una falla de conexión o corte de cable, el sistema se detenga automáticamente por seguridad.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Utilizar lógica cerrada permite que, ante una falla de conexión o corte de cable, el sistema se detenga automáticamente por seguridad.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="En la práctica profesional y en el diseño de circuitos LADDER, el contacto de parada interrumpe el flujo eléctrico para asegurar el apagado.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">En la práctica profesional y en el diseño de circuitos LADDER, el contacto de parada interrumpe el flujo eléctrico para asegurar el apagado.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="7">
+          <div class="q-header">
+            <span class="q-number">Pregunta 8</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">En el simulador PLC, ¿el valor 'ET' (Elapsed Time) de un temporizador indica el tiempo que ha pasado desde que se inició el conteo?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Se trata de un valor dinámico que aumenta hasta igualar al tiempo programado.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="ET muestra el valor actual del tiempo transcurrido en milisegundos o segundos mientras la entrada IN esté activa.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">ET muestra el valor actual del tiempo transcurrido en milisegundos o segundos mientras la entrada IN esté activa.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="ET es la variable de salida que monitorea el progreso del tiempo en tiempo real durante la ejecución.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">ET es la variable de salida que monitorea el progreso del tiempo en tiempo real durante la ejecución.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="8">
+          <div class="q-header">
+            <span class="q-number">Pregunta 9</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿La entrada 'R' en un bloque de contador sirve para incrementar el valor de la cuenta actual?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Analiza la abreviatura de la palabra inglesa utilizada para poner algo en cero.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="La entrada 'R' proviene de 'Reset' y su función es reiniciar la cuenta a cero, no aumentarla.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La entrada 'R' proviene de 'Reset' y su función es reiniciar la cuenta a cero, no aumentarla.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="La entrada encargada de aumentar el conteo es generalmente CU, mientras que R se utiliza para volver al estado inicial.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La entrada encargada de aumentar el conteo es generalmente CU, mientras que R se utiliza para volver al estado inicial.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="9">
+          <div class="q-header">
+            <span class="q-number">Pregunta 10</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿Es obligatorio que un sensor esté conectado físicamente a una entrada del PLC para que un contador en el programa LADDER pueda recibir señales?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Recuerda los elementos previos mencionados como conocimientos necesarios para la sesión.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Para captar eventos del mundo real, el programa requiere una interfaz física definida como una dirección de entrada ($I0.1$, por ejemplo).">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Para captar eventos del mundo real, el programa requiere una interfaz física definida como una dirección de entrada (<span class="math">I0.1</span>, por ejemplo).</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Aunque existan simulaciones, en un entorno real el contador depende de la señal eléctrica enviada por un sensor a los terminales del PLC.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aunque existan simulaciones, en un entorno real el contador depende de la señal eléctrica enviada por un sensor a los terminales del PLC.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      </div>
+  <div class="results" id="results">
+    <h2>¡Cuestionario completado!</h2>
+    <div class="score" id="score">0%</div>
+    <div class="score-text" id="score-text"></div>
+    <button class="restart-btn" onclick="restart()">Intentar de nuevo</button>
+  </div>
+</div>
+<script>
+const quizData = [{"question":"¿Es cierto que un temporizador de tipo TON (Timer On Delay) activa su salida inmediatamente después de que la señal de entrada se vuelve verdadera?","hint":"Analiza el significado de las siglas 'On Delay' en el contexto de la automatización.","options":[{"label":"A","text":"Falso","isCorrect":true,"rationale":"La función principal de un temporizador TON es generar un retardo en la conexión desde que recibe la señal de activación."},{"label":"B","text":"Verdadero","isCorrect":false,"rationale":"El temporizador TON requiere que transcurra un tiempo predefinido antes de activar su salida, no lo hace de forma instantánea."}]},{"question":"En la programación LADDER, ¿las 'memorias' se utilizan para almacenar estados lógicos internos que no necesariamente activan una salida física directa?","hint":"Piensa en las memorias como interruptores virtuales dentro del PLC.","options":[{"label":"A","text":"Falso","isCorrect":false,"rationale":"Las memorias son fundamentales para el almacenamiento temporal de datos y estados en el flujo del programa LADDER."},{"label":"B","text":"Verdadero","isCorrect":true,"rationale":"Las memorias actúan como variables auxiliares para estructurar la lógica del programa sin comprometer directamente un actuador físico."}]},{"question":"¿Un contador de tipo CTU (Count Up) disminuye su valor acumulado cada vez que recibe un pulso en su entrada de conteo?","hint":"Recuerda el significado de la letra 'U' en la sigla de este bloque funcional.","options":[{"label":"A","text":"Falso","isCorrect":true,"rationale":"Un contador CTU suma una unidad al valor acumulado con cada pulso detectado, según su principio de 'conteo ascendente'."},{"label":"B","text":"Verdadero","isCorrect":false,"rationale":"La función CTU está diseñada específicamente para incrementar el valor, no para reducirlo."}]},{"question":"En un bloque de temporización, ¿el parámetro 'PT' (Preset Time) representa el tiempo total que debe transcurrir para que se active la salida?","hint":"Es el valor de consigna que el usuario programa manualmente en el simulador.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"El valor PT establece el objetivo de tiempo que el temporizador debe alcanzar para cambiar su estado lógico."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"Sin el parámetro PT, el temporizador no tendría una referencia de tiempo definida para ejecutar su acción."}]},{"question":"¿Es posible utilizar el resultado de una operación aritmética, como una multiplicación (MUL), como una condición para activar una salida mediante un comparador?","hint":"Considera cómo se relacionan los bloques de cálculo con los bloques de decisión lógica.","options":[{"label":"A","text":"Falso","isCorrect":false,"rationale":"La integración de operaciones matemáticas y comparadores permite crear condiciones de activación complejas y precisas."},{"label":"B","text":"Verdadero","isCorrect":true,"rationale":"Los valores calculados pueden compararse con constantes para determinar si una condición lógica se cumple y activar un motor u otro dispositivo."}]},{"question":"El bloque de comparación 'MENOR QUE' ($ < $) se activa cuando el primer valor de entrada es igual o superior al segundo valor de referencia.","hint":"Recuerda la dirección del símbolo matemático empleado en el ejercicio de la sesión.","options":[{"label":"A","text":"Falso","isCorrect":true,"rationale":"El comparador 'Menor Que' solo emite una señal de verdadero si el primer operando tiene un valor numéricamente inferior al segundo."},{"label":"B","text":"Verdadero","isCorrect":false,"rationale":"Esta lógica describe un comparador de tipo 'Mayor o Igual', no uno de tipo estrictamente menor."}]},{"question":"¿Un pulsador de parada (PPARO) en un sistema industrial suele programarse con lógica de contacto normalmente cerrado para garantizar la seguridad del proceso?","hint":"Piensa en lo que sucedería con el sistema si el cable de un pulsador de emergencia se rompiera.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"Utilizar lógica cerrada permite que, ante una falla de conexión o corte de cable, el sistema se detenga automáticamente por seguridad."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"En la práctica profesional y en el diseño de circuitos LADDER, el contacto de parada interrumpe el flujo eléctrico para asegurar el apagado."}]},{"question":"En el simulador PLC, ¿el valor 'ET' (Elapsed Time) de un temporizador indica el tiempo que ha pasado desde que se inició el conteo?","hint":"Se trata de un valor dinámico que aumenta hasta igualar al tiempo programado.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"ET muestra el valor actual del tiempo transcurrido en milisegundos o segundos mientras la entrada IN esté activa."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"ET es la variable de salida que monitorea el progreso del tiempo en tiempo real durante la ejecución."}]},{"question":"¿La entrada 'R' en un bloque de contador sirve para incrementar el valor de la cuenta actual?","hint":"Analiza la abreviatura de la palabra inglesa utilizada para poner algo en cero.","options":[{"label":"A","text":"Verdadero","isCorrect":false,"rationale":"La entrada 'R' proviene de 'Reset' y su función es reiniciar la cuenta a cero, no aumentarla."},{"label":"B","text":"Falso","isCorrect":true,"rationale":"La entrada encargada de aumentar el conteo es generalmente CU, mientras que R se utiliza para volver al estado inicial."}]},{"question":"¿Es obligatorio que un sensor esté conectado físicamente a una entrada del PLC para que un contador en el programa LADDER pueda recibir señales?","hint":"Recuerda los elementos previos mencionados como conocimientos necesarios para la sesión.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"Para captar eventos del mundo real, el programa requiere una interfaz física definida como una dirección de entrada ($I0.1$, por ejemplo)."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"Aunque existan simulaciones, en un entorno real el contador depende de la señal eléctrica enviada por un sensor a los terminales del PLC."}]}];
+const tr = {"correct":"¡Correcto!","incorrect":"Incorrecto","next":"Siguiente pregunta →","seeResults":"Ver resultados","complete":"¡Cuestionario completado!","scoreText":"Obtuviste {correct} de {total} correctas","tryAgain":"Intentar de nuevo","rightAnswer":"Respuesta correcta","notQuite":"No del todo"};
+let currentQ = 0, correctCount = 0, answered = false;
+
+function init() {
+  document.querySelectorAll('.question').forEach((q, i) => q.classList.toggle('active', i === 0));
+  updateProgress();
+  document.querySelectorAll('.option').forEach(opt => opt.addEventListener('click', () => selectOption(opt)));
+  document.querySelectorAll('.next-btn').forEach(btn => btn.addEventListener('click', nextQuestion));
+}
+
+function selectOption(opt) {
+  if (answered) return;
+  answered = true;
+  const q = opt.closest('.question');
+  const options = q.querySelectorAll('.option');
+  const nextBtn = q.querySelector('.next-btn');
+  const isCorrect = opt.dataset.correct === 'true';
+  
+  // Mark all options as disabled
+  options.forEach(o => o.classList.add('disabled'));
+  
+  // Style selected option
+  opt.classList.add('selected', isCorrect ? 'correct' : 'incorrect');
+  
+  // Show correct answer if wrong
+  if (!isCorrect) {
+    const correctOpt = [...options].find(o => o.dataset.correct === 'true');
+    if (correctOpt) correctOpt.classList.add('show-correct');
+  }
+  
+  if (isCorrect) correctCount++;
+  
+  // Show feedback for ALL options that have rationale
+  options.forEach(o => {
+    const wrapper = o.closest('.option-wrapper');
+    const feedback = wrapper.querySelector('.option-feedback');
+    const rationale = o.dataset.rationale;
+    const isThisCorrect = o.dataset.correct === 'true';
+    
+    if (rationale && rationale.trim()) {
+      feedback.classList.remove('hidden');
+      feedback.classList.add(isThisCorrect ? 'correct-feedback' : 'incorrect-feedback');
+      
+      const statusEl = feedback.querySelector('.feedback-status');
+      statusEl.className = 'feedback-status ' + (isThisCorrect ? 'correct' : 'incorrect');
+      statusEl.innerHTML = isThisCorrect 
+        ? '✓ ' + tr.rightAnswer
+        : '✗ ' + tr.notQuite;
+    }
+  });
+  
+  nextBtn.classList.remove('hidden');
+  if (currentQ === quizData.length - 1) nextBtn.textContent = tr.seeResults;
+}
+
+function nextQuestion() {
+  answered = false;
+  currentQ++;
+  if (currentQ >= quizData.length) { showResults(); return; }
+  document.querySelectorAll('.question').forEach((q, i) => q.classList.toggle('active', i === currentQ));
+  updateProgress();
+}
+
+function updateProgress() {
+  document.querySelector('.progress-fill').style.width = (currentQ / quizData.length * 100) + '%';
+}
+
+function showResults() {
+  document.querySelectorAll('.question').forEach(q => q.classList.remove('active'));
+  document.getElementById('results').classList.add('active');
+  const pct = Math.round((correctCount / quizData.length) * 100);
+  document.getElementById('score').textContent = pct + '%';
+  document.getElementById('score-text').textContent = tr.scoreText.replace('{correct}', correctCount).replace('{total}', quizData.length);
+  document.querySelector('.progress-fill').style.width = '100%';
+}
+
+function restart() {
+  currentQ = 0; correctCount = 0; answered = false;
+  document.getElementById('results').classList.remove('active');
+  document.querySelectorAll('.question').forEach((q, i) => {
+    q.classList.toggle('active', i === 0);
+    q.querySelectorAll('.option').forEach(o => o.classList.remove('selected', 'correct', 'incorrect', 'disabled', 'show-correct'));
+    q.querySelectorAll('.option-feedback').forEach(f => {
+      f.classList.add('hidden');
+      f.classList.remove('correct-feedback', 'incorrect-feedback');
+    });
+    const btn = q.querySelector('.next-btn');
+    btn.classList.add('hidden');
+    btn.textContent = tr.next;
+  });
+  updateProgress();
+}
+
+init();
+</script>
+</body>
+</html>
