@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="es" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>S10.1 IOP</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  min-height: 100vh; padding: 20px; color: #333;
+}
+.container { max-width: 700px; margin: 0 auto; }
+.header { text-align: center; color: #fff; padding: 30px 20px; }
+.header h1 { font-size: 28px; font-weight: 700; margin-bottom: 8px; text-shadow: 0 2px 10px rgba(0,0,0,0.2); }
+.header .meta { font-size: 14px; opacity: 0.9; }
+.progress-bar { background: rgba(255,255,255,0.3); border-radius: 10px; height: 8px; margin: 20px 0; overflow: hidden; }
+.progress-fill { background: #fff; height: 100%; width: 0%; transition: width 0.4s ease; border-radius: 10px; }
+.question { background: #fff; border-radius: 16px; padding: 30px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); display: none; }
+.question.active { display: block; }
+.q-header { display: flex; justify-content: space-between; margin-bottom: 20px; font-size: 13px; color: #888; }
+.q-number { font-weight: 600; color: #667eea; }
+.q-text { font-size: 18px; font-weight: 600; line-height: 1.5; margin-bottom: 25px; color: #222; }
+.options { display: flex; flex-direction: column; gap: 12px; }
+.option-wrapper { display: flex; flex-direction: column; }
+.option {
+  display: flex; align-items: flex-start; gap: 14px; padding: 16px 18px;
+  border: 2px solid #e8e8e8; border-radius: 12px; background: #fafafa;
+  cursor: pointer; transition: all 0.2s; text-align: left; font-size: 15px; width: 100%;
+}
+[dir="rtl"] .option { text-align: right; flex-direction: row-reverse; }
+.option:hover:not(.disabled) { border-color: #667eea; background: #f5f3ff; }
+.option.selected { border-color: #667eea; background: #ede9fe; }
+.option.correct { border-color: #22c55e; background: #dcfce7; }
+.option.incorrect { border-color: #ef4444; background: #fee2e2; }
+.option.disabled { cursor: default; }
+.option.show-correct { border-color: #22c55e; background: #dcfce7; }
+.opt-label {
+  display: flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; border-radius: 50%; background: #e8e8e8;
+  font-weight: 700; font-size: 14px; flex-shrink: 0;
+}
+.option.selected .opt-label { background: #667eea; color: #fff; }
+.option.correct .opt-label { background: #22c55e; color: #fff; }
+.option.incorrect .opt-label { background: #ef4444; color: #fff; }
+.option.show-correct .opt-label { background: #22c55e; color: #fff; }
+.opt-text { padding-top: 5px; line-height: 1.5; }
+
+/* Individual option feedback */
+.option-feedback {
+  margin: 8px 0 4px 46px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+[dir="rtl"] .option-feedback { margin-left: 0; margin-right: 46px; }
+.option-feedback.correct-feedback {
+  background: #dcfce7;
+  border-left: 3px solid #22c55e;
+}
+.option-feedback.incorrect-feedback {
+  background: #fef3f2;
+  border-left: 3px solid #fca5a5;
+}
+[dir="rtl"] .option-feedback.correct-feedback,
+[dir="rtl"] .option-feedback.incorrect-feedback {
+  border-left: none;
+  border-right: 3px solid;
+}
+[dir="rtl"] .option-feedback.correct-feedback { border-right-color: #22c55e; }
+[dir="rtl"] .option-feedback.incorrect-feedback { border-right-color: #fca5a5; }
+.feedback-status {
+  font-weight: 600;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.feedback-status.correct { color: #166534; }
+.feedback-status.incorrect { color: #991b1b; }
+.feedback-rationale { color: #444; }
+
+/* Hint box */
+.hint-box {
+  margin: 12px 0;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+}
+.hint-toggle {
+  width: 100%;
+  padding: 10px 16px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  color: #92400e;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.hint-toggle:hover { background: #fef3c7; }
+.hint-content {
+  padding: 0 16px;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s, padding 0.3s;
+  font-size: 14px;
+  color: #78350f;
+  line-height: 1.5;
+}
+.hint-box.show .hint-content {
+  padding: 0 16px 12px;
+  max-height: 200px;
+}
+
+.next-btn {
+  margin-top: 20px; width: 100%; padding: 14px;
+  background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; border: none;
+  border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.next-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(102,126,234,0.4); }
+.hidden { display: none !important; }
+.results { background: #fff; border-radius: 16px; padding: 40px; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.15); display: none; }
+.results.active { display: block; }
+.results h2 { font-size: 28px; margin-bottom: 10px; color: #333; }
+.results .score { font-size: 64px; font-weight: 700; color: #667eea; margin: 20px 0; }
+.results .score-text { font-size: 18px; color: #666; margin-bottom: 30px; }
+.restart-btn {
+  padding: 14px 40px; background: linear-gradient(135deg, #667eea, #764ba2);
+  color: #fff; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer;
+}
+
+/* Math CSS */
+.math, .math-block { font-family: "Cambria Math", "Times New Roman", Times, serif; font-style: italic; }
+.math-block { display: block; text-align: center; margin: 10px 0; font-size: 110%; }
+.frac { display: inline-flex; flex-direction: column; align-items: center; vertical-align: middle; margin: 0 3px; font-size: 0.9em; }
+.frac-num { border-bottom: 1px solid currentColor; padding: 0 4px 2px; line-height: 1.2; }
+.frac-den { padding: 2px 4px 0; line-height: 1.2; }
+.sqrt { white-space: nowrap; }
+.sqrt-content { border-top: 1px solid currentColor; padding: 0 3px; margin-left: 2px; }
+sup, sub { font-size: 0.75em; }
+sup { vertical-align: super; }
+sub { vertical-align: sub; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>S10.1 IOP</h1>
+    <div class="meta">10 preguntas</div>
+    <div class="progress-bar"><div class="progress-fill"></div></div>
+  </div>
+  <div id="quiz-container">
+        <div class="question" data-index="0">
+          <div class="q-header">
+            <span class="q-number">Pregunta 1</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿El modelo de asignación se define técnicamente como un tipo especial del modelo de transporte?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Revisa la conclusión presentada al final del desarrollo de la sesión.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="El material concluye explícitamente que el modelo de asignación es una variante específica de los modelos de transporte aplicada a recursos y tareas.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El material concluye explícitamente que el modelo de asignación es una variante específica de los modelos de transporte aplicada a recursos y tareas.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Ignora la relación jerárquica donde la asignación utiliza la estructura fundamental de la teoría de transporte para resolver problemas de delegación.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Ignora la relación jerárquica donde la asignación utiliza la estructura fundamental de la teoría de transporte para resolver problemas de delegación.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="1">
+          <div class="q-header">
+            <span class="q-number">Pregunta 2</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿El objetivo principal de un modelo de asignación es delegar responsabilidades buscando siempre obtener el mayor costo posible?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piensa en el propósito de cualquier modelo de optimización financiera en una empresa o familia.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Esta afirmación contradice el principio de eficiencia económica que busca la optimización mediante el ahorro.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esta afirmación contradice el principio de eficiencia económica que busca la optimización mediante el ahorro.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="El logro de la sesión especifica que el propósito es delegar responsabilidades teniendo en cuenta el menor costo posible para la entidad.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El logro de la sesión especifica que el propósito es delegar responsabilidades teniendo en cuenta el menor costo posible para la entidad.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="2">
+          <div class="q-header">
+            <span class="q-number">Pregunta 3</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">En el contexto de la sesión, ¿'Asignación' se entiende como el acto de entregar, delegar o responsabilizar a alguien por un proceso?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Recuerda la sección de 'Conocimientos previos' donde se exploran sinónimos del tema central.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Estos términos se presentan como conocimientos previos para definir la esencia de entregar una operación al gestor más apto.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Estos términos se presentan como conocimientos previos para definir la esencia de entregar una operación al gestor más apto.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Negar esto significaría que la asignación no implica la transferencia de tareas entre entidades, lo cual es su concepto base.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Negar esto significaría que la asignación no implica la transferencia de tareas entre entidades, lo cual es su concepto base.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="3">
+          <div class="q-header">
+            <span class="q-number">Pregunta 4</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿La clase pasada se centraba en modelos de transporte representados esquemáticamente como un sistema de <span class="math">2 × 2 × 2</span>?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Observa el esquema numérico mencionado justo antes de la sección de conocimientos previos.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="El texto indica específicamente una configuración de dos unidades para cada nivel de la cadena de suministro mencionada.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El texto indica específicamente una configuración de dos unidades para cada nivel de la cadena de suministro mencionada.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="El repaso de la clase anterior menciona una estructura compuesta por 2 plantas, 2 distribuidores y 2 tiendas.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El repaso de la clase anterior menciona una estructura compuesta por 2 plantas, 2 distribuidores y 2 tiendas.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="4">
+          <div class="q-header">
+            <span class="q-number">Pregunta 5</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿Un modelo de asignación busca entregar la operación al 'mejor postor' con el fin de maximizar beneficios y minimizar costos?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considera qué factores determinarían la elección del 'mejor gestor' para una tarea.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="El modelo no solo se limita a costos, sino que busca la eficiencia global, lo cual incluye la maximización de beneficios cuando sea aplicable.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El modelo no solo se limita a costos, sino que busca la eficiencia global, lo cual incluye la maximización de beneficios cuando sea aplicable.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="La teoría indica que la utilidad de estos modelos radica en entregar decisiones al mejor gestor para optimizar los resultados económicos.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La teoría indica que la utilidad de estos modelos radica en entregar decisiones al mejor gestor para optimizar los resultados económicos.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="5">
+          <div class="q-header">
+            <span class="q-number">Pregunta 6</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿La optimización de recursos es considerada una de las utilidades principales de aplicar modelos de asignación?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Es uno de los puntos clave mencionados bajo el título de 'Utilidad'.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="El modelo permite utilizar los recursos disponibles de la manera más eficiente según las tarifas o capacidades de los involucrados.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El modelo permite utilizar los recursos disponibles de la manera más eficiente según las tarifas o capacidades de los involucrados.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Desestimar la optimización ignoraría el beneficio práctico de asignar tareas según el rendimiento o costo de cada entidad.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Desestimar la optimización ignoraría el beneficio práctico de asignar tareas según el rendimiento o costo de cada entidad.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="6">
+          <div class="q-header">
+            <span class="q-number">Pregunta 7</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿El modelo de asignación se utiliza exclusivamente cuando hay exceso de recursos y no hay tareas pendientes?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Lee cuidadosamente la conclusión final del texto sobre la relación entre recursos y tareas.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="La conclusión del material afirma que estos modelos sirven precisamente para asignar recursos a tareas que están pendientes de realizar.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La conclusión del material afirma que estos modelos sirven precisamente para asignar recursos a tareas que están pendientes de realizar.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Esto no tendría sentido lógico, ya que la asignación requiere necesariamente la existencia de tareas por realizar.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esto no tendría sentido lógico, ya que la asignación requiere necesariamente la existencia de tareas por realizar.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="7">
+          <div class="q-header">
+            <span class="q-number">Pregunta 8</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿El logro de la sesión indica que los estudiantes serán capaces de resolver ejercicios de asignación al finalizar la misma?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Busca la sección inicial que describe los objetivos de aprendizaje de hoy.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="El texto define explícitamente la capacidad de resolución de estos modelos como la meta de aprendizaje de la sesión.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El texto define explícitamente la capacidad de resolución de estos modelos como la meta de aprendizaje de la sesión.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El 'Logro de la sesión' establece claramente el compromiso de aprendizaje esperado para los estudiantes.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El 'Logro de la sesión' establece claramente el compromiso de aprendizaje esperado para los estudiantes.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="8">
+          <div class="q-header">
+            <span class="q-number">Pregunta 9</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿Se afirma en la teoría que los modelos de transporte y los de asignación no tienen ninguna relación entre sí?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Verifica cómo se relacionan el tema de la clase pasada y el de la sesión actual.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Esto contradice la conclusión que posiciona a la asignación como un caso particular del transporte.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esto contradice la conclusión que posiciona a la asignación como un caso particular del transporte.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="El material establece una conexión directa, indicando que el modelo de asignación es una derivación del modelo de transporte.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El material establece una conexión directa, indicando que el modelo de asignación es una derivación del modelo de transporte.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="9">
+          <div class="q-header">
+            <span class="q-number">Pregunta 10</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿La asignación implica necesariamente que el padre (o decisor) debe conocer cuánto cobraría cada entidad por cada tarea de forma independiente?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considera qué información es necesaria para completar la tabla o matriz de decisión.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Para minimizar costos de forma efectiva, se requiere contar con la matriz de información o tarifas de cada recurso frente a cada tarea.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Para minimizar costos de forma efectiva, se requiere contar con la matriz de información o tarifas de cada recurso frente a cada tarea.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Sin el conocimiento de las tarifas o costos individuales, no sería posible aplicar la lógica de optimización del modelo.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Sin el conocimiento de las tarifas o costos individuales, no sería posible aplicar la lógica de optimización del modelo.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      </div>
+  <div class="results" id="results">
+    <h2>¡Cuestionario completado!</h2>
+    <div class="score" id="score">0%</div>
+    <div class="score-text" id="score-text"></div>
+    <button class="restart-btn" onclick="restart()">Intentar de nuevo</button>
+  </div>
+</div>
+<script>
+const quizData = [{"question":"¿El modelo de asignación se define técnicamente como un tipo especial del modelo de transporte?","hint":"Revisa la conclusión presentada al final del desarrollo de la sesión.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"El material concluye explícitamente que el modelo de asignación es una variante específica de los modelos de transporte aplicada a recursos y tareas."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"Ignora la relación jerárquica donde la asignación utiliza la estructura fundamental de la teoría de transporte para resolver problemas de delegación."}]},{"question":"¿El objetivo principal de un modelo de asignación es delegar responsabilidades buscando siempre obtener el mayor costo posible?","hint":"Piensa en el propósito de cualquier modelo de optimización financiera en una empresa o familia.","options":[{"label":"A","text":"Verdadero","isCorrect":false,"rationale":"Esta afirmación contradice el principio de eficiencia económica que busca la optimización mediante el ahorro."},{"label":"B","text":"Falso","isCorrect":true,"rationale":"El logro de la sesión especifica que el propósito es delegar responsabilidades teniendo en cuenta el menor costo posible para la entidad."}]},{"question":"En el contexto de la sesión, ¿'Asignación' se entiende como el acto de entregar, delegar o responsabilizar a alguien por un proceso?","hint":"Recuerda la sección de 'Conocimientos previos' donde se exploran sinónimos del tema central.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"Estos términos se presentan como conocimientos previos para definir la esencia de entregar una operación al gestor más apto."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"Negar esto significaría que la asignación no implica la transferencia de tareas entre entidades, lo cual es su concepto base."}]},{"question":"¿La clase pasada se centraba en modelos de transporte representados esquemáticamente como un sistema de $2 \\times 2 \\times 2$?","hint":"Observa el esquema numérico mencionado justo antes de la sección de conocimientos previos.","options":[{"label":"A","text":"Falso","isCorrect":false,"rationale":"El texto indica específicamente una configuración de dos unidades para cada nivel de la cadena de suministro mencionada."},{"label":"B","text":"Verdadero","isCorrect":true,"rationale":"El repaso de la clase anterior menciona una estructura compuesta por 2 plantas, 2 distribuidores y 2 tiendas."}]},{"question":"¿Un modelo de asignación busca entregar la operación al 'mejor postor' con el fin de maximizar beneficios y minimizar costos?","hint":"Considera qué factores determinarían la elección del 'mejor gestor' para una tarea.","options":[{"label":"A","text":"Falso","isCorrect":false,"rationale":"El modelo no solo se limita a costos, sino que busca la eficiencia global, lo cual incluye la maximización de beneficios cuando sea aplicable."},{"label":"B","text":"Verdadero","isCorrect":true,"rationale":"La teoría indica que la utilidad de estos modelos radica en entregar decisiones al mejor gestor para optimizar los resultados económicos."}]},{"question":"¿La optimización de recursos es considerada una de las utilidades principales de aplicar modelos de asignación?","hint":"Es uno de los puntos clave mencionados bajo el título de 'Utilidad'.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"El modelo permite utilizar los recursos disponibles de la manera más eficiente según las tarifas o capacidades de los involucrados."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"Desestimar la optimización ignoraría el beneficio práctico de asignar tareas según el rendimiento o costo de cada entidad."}]},{"question":"¿El modelo de asignación se utiliza exclusivamente cuando hay exceso de recursos y no hay tareas pendientes?","hint":"Lee cuidadosamente la conclusión final del texto sobre la relación entre recursos y tareas.","options":[{"label":"A","text":"Falso","isCorrect":true,"rationale":"La conclusión del material afirma que estos modelos sirven precisamente para asignar recursos a tareas que están pendientes de realizar."},{"label":"B","text":"Verdadero","isCorrect":false,"rationale":"Esto no tendría sentido lógico, ya que la asignación requiere necesariamente la existencia de tareas por realizar."}]},{"question":"¿El logro de la sesión indica que los estudiantes serán capaces de resolver ejercicios de asignación al finalizar la misma?","hint":"Busca la sección inicial que describe los objetivos de aprendizaje de hoy.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"El texto define explícitamente la capacidad de resolución de estos modelos como la meta de aprendizaje de la sesión."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"El 'Logro de la sesión' establece claramente el compromiso de aprendizaje esperado para los estudiantes."}]},{"question":"¿Se afirma en la teoría que los modelos de transporte y los de asignación no tienen ninguna relación entre sí?","hint":"Verifica cómo se relacionan el tema de la clase pasada y el de la sesión actual.","options":[{"label":"A","text":"Verdadero","isCorrect":false,"rationale":"Esto contradice la conclusión que posiciona a la asignación como un caso particular del transporte."},{"label":"B","text":"Falso","isCorrect":true,"rationale":"El material establece una conexión directa, indicando que el modelo de asignación es una derivación del modelo de transporte."}]},{"question":"¿La asignación implica necesariamente que el padre (o decisor) debe conocer cuánto cobraría cada entidad por cada tarea de forma independiente?","hint":"Considera qué información es necesaria para completar la tabla o matriz de decisión.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"Para minimizar costos de forma efectiva, se requiere contar con la matriz de información o tarifas de cada recurso frente a cada tarea."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"Sin el conocimiento de las tarifas o costos individuales, no sería posible aplicar la lógica de optimización del modelo."}]}];
+const tr = {"correct":"¡Correcto!","incorrect":"Incorrecto","next":"Siguiente pregunta →","seeResults":"Ver resultados","complete":"¡Cuestionario completado!","scoreText":"Obtuviste {correct} de {total} correctas","tryAgain":"Intentar de nuevo","rightAnswer":"Respuesta correcta","notQuite":"No del todo"};
+let currentQ = 0, correctCount = 0, answered = false;
+
+function init() {
+  document.querySelectorAll('.question').forEach((q, i) => q.classList.toggle('active', i === 0));
+  updateProgress();
+  document.querySelectorAll('.option').forEach(opt => opt.addEventListener('click', () => selectOption(opt)));
+  document.querySelectorAll('.next-btn').forEach(btn => btn.addEventListener('click', nextQuestion));
+}
+
+function selectOption(opt) {
+  if (answered) return;
+  answered = true;
+  const q = opt.closest('.question');
+  const options = q.querySelectorAll('.option');
+  const nextBtn = q.querySelector('.next-btn');
+  const isCorrect = opt.dataset.correct === 'true';
+  
+  // Mark all options as disabled
+  options.forEach(o => o.classList.add('disabled'));
+  
+  // Style selected option
+  opt.classList.add('selected', isCorrect ? 'correct' : 'incorrect');
+  
+  // Show correct answer if wrong
+  if (!isCorrect) {
+    const correctOpt = [...options].find(o => o.dataset.correct === 'true');
+    if (correctOpt) correctOpt.classList.add('show-correct');
+  }
+  
+  if (isCorrect) correctCount++;
+  
+  // Show feedback for ALL options that have rationale
+  options.forEach(o => {
+    const wrapper = o.closest('.option-wrapper');
+    const feedback = wrapper.querySelector('.option-feedback');
+    const rationale = o.dataset.rationale;
+    const isThisCorrect = o.dataset.correct === 'true';
+    
+    if (rationale && rationale.trim()) {
+      feedback.classList.remove('hidden');
+      feedback.classList.add(isThisCorrect ? 'correct-feedback' : 'incorrect-feedback');
+      
+      const statusEl = feedback.querySelector('.feedback-status');
+      statusEl.className = 'feedback-status ' + (isThisCorrect ? 'correct' : 'incorrect');
+      statusEl.innerHTML = isThisCorrect 
+        ? '✓ ' + tr.rightAnswer
+        : '✗ ' + tr.notQuite;
+    }
+  });
+  
+  nextBtn.classList.remove('hidden');
+  if (currentQ === quizData.length - 1) nextBtn.textContent = tr.seeResults;
+}
+
+function nextQuestion() {
+  answered = false;
+  currentQ++;
+  if (currentQ >= quizData.length) { showResults(); return; }
+  document.querySelectorAll('.question').forEach((q, i) => q.classList.toggle('active', i === currentQ));
+  updateProgress();
+}
+
+function updateProgress() {
+  document.querySelector('.progress-fill').style.width = (currentQ / quizData.length * 100) + '%';
+}
+
+function showResults() {
+  document.querySelectorAll('.question').forEach(q => q.classList.remove('active'));
+  document.getElementById('results').classList.add('active');
+  const pct = Math.round((correctCount / quizData.length) * 100);
+  document.getElementById('score').textContent = pct + '%';
+  document.getElementById('score-text').textContent = tr.scoreText.replace('{correct}', correctCount).replace('{total}', quizData.length);
+  document.querySelector('.progress-fill').style.width = '100%';
+}
+
+function restart() {
+  currentQ = 0; correctCount = 0; answered = false;
+  document.getElementById('results').classList.remove('active');
+  document.querySelectorAll('.question').forEach((q, i) => {
+    q.classList.toggle('active', i === 0);
+    q.querySelectorAll('.option').forEach(o => o.classList.remove('selected', 'correct', 'incorrect', 'disabled', 'show-correct'));
+    q.querySelectorAll('.option-feedback').forEach(f => {
+      f.classList.add('hidden');
+      f.classList.remove('correct-feedback', 'incorrect-feedback');
+    });
+    const btn = q.querySelector('.next-btn');
+    btn.classList.add('hidden');
+    btn.textContent = tr.next;
+  });
+  updateProgress();
+}
+
+init();
+</script>
+</body>
+</html>
