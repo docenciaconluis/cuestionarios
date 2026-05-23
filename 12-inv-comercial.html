@@ -1,0 +1,886 @@
+<!DOCTYPE html>
+<html lang="es" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>1.2 Inv. Comercial</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  min-height: 100vh; padding: 20px; color: #333;
+}
+.container { max-width: 700px; margin: 0 auto; }
+.header { text-align: center; color: #fff; padding: 30px 20px; }
+.header h1 { font-size: 28px; font-weight: 700; margin-bottom: 8px; text-shadow: 0 2px 10px rgba(0,0,0,0.2); }
+.header .meta { font-size: 14px; opacity: 0.9; }
+.progress-bar { background: rgba(255,255,255,0.3); border-radius: 10px; height: 8px; margin: 20px 0; overflow: hidden; }
+.progress-fill { background: #fff; height: 100%; width: 0%; transition: width 0.4s ease; border-radius: 10px; }
+.question { background: #fff; border-radius: 16px; padding: 30px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); display: none; }
+.question.active { display: block; }
+.q-header { display: flex; justify-content: space-between; margin-bottom: 20px; font-size: 13px; color: #888; }
+.q-number { font-weight: 600; color: #667eea; }
+.q-text { font-size: 18px; font-weight: 600; line-height: 1.5; margin-bottom: 25px; color: #222; }
+.options { display: flex; flex-direction: column; gap: 12px; }
+.option-wrapper { display: flex; flex-direction: column; }
+.option {
+  display: flex; align-items: flex-start; gap: 14px; padding: 16px 18px;
+  border: 2px solid #e8e8e8; border-radius: 12px; background: #fafafa;
+  cursor: pointer; transition: all 0.2s; text-align: left; font-size: 15px; width: 100%;
+}
+[dir="rtl"] .option { text-align: right; flex-direction: row-reverse; }
+.option:hover:not(.disabled) { border-color: #667eea; background: #f5f3ff; }
+.option.selected { border-color: #667eea; background: #ede9fe; }
+.option.correct { border-color: #22c55e; background: #dcfce7; }
+.option.incorrect { border-color: #ef4444; background: #fee2e2; }
+.option.disabled { cursor: default; }
+.option.show-correct { border-color: #22c55e; background: #dcfce7; }
+.opt-label {
+  display: flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; border-radius: 50%; background: #e8e8e8;
+  font-weight: 700; font-size: 14px; flex-shrink: 0;
+}
+.option.selected .opt-label { background: #667eea; color: #fff; }
+.option.correct .opt-label { background: #22c55e; color: #fff; }
+.option.incorrect .opt-label { background: #ef4444; color: #fff; }
+.option.show-correct .opt-label { background: #22c55e; color: #fff; }
+.opt-text { padding-top: 5px; line-height: 1.5; }
+
+/* Individual option feedback */
+.option-feedback {
+  margin: 8px 0 4px 46px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+[dir="rtl"] .option-feedback { margin-left: 0; margin-right: 46px; }
+.option-feedback.correct-feedback {
+  background: #dcfce7;
+  border-left: 3px solid #22c55e;
+}
+.option-feedback.incorrect-feedback {
+  background: #fef3f2;
+  border-left: 3px solid #fca5a5;
+}
+[dir="rtl"] .option-feedback.correct-feedback,
+[dir="rtl"] .option-feedback.incorrect-feedback {
+  border-left: none;
+  border-right: 3px solid;
+}
+[dir="rtl"] .option-feedback.correct-feedback { border-right-color: #22c55e; }
+[dir="rtl"] .option-feedback.incorrect-feedback { border-right-color: #fca5a5; }
+.feedback-status {
+  font-weight: 600;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.feedback-status.correct { color: #166534; }
+.feedback-status.incorrect { color: #991b1b; }
+.feedback-rationale { color: #444; }
+
+/* Hint box */
+.hint-box {
+  margin: 12px 0;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+}
+.hint-toggle {
+  width: 100%;
+  padding: 10px 16px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  color: #92400e;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.hint-toggle:hover { background: #fef3c7; }
+.hint-content {
+  padding: 0 16px;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s, padding 0.3s;
+  font-size: 14px;
+  color: #78350f;
+  line-height: 1.5;
+}
+.hint-box.show .hint-content {
+  padding: 0 16px 12px;
+  max-height: 200px;
+}
+
+.next-btn {
+  margin-top: 20px; width: 100%; padding: 14px;
+  background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; border: none;
+  border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.next-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(102,126,234,0.4); }
+.hidden { display: none !important; }
+.results { background: #fff; border-radius: 16px; padding: 40px; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.15); display: none; }
+.results.active { display: block; }
+.results h2 { font-size: 28px; margin-bottom: 10px; color: #333; }
+.results .score { font-size: 64px; font-weight: 700; color: #667eea; margin: 20px 0; }
+.results .score-text { font-size: 18px; color: #666; margin-bottom: 30px; }
+.restart-btn {
+  padding: 14px 40px; background: linear-gradient(135deg, #667eea, #764ba2);
+  color: #fff; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer;
+}
+
+/* Math CSS */
+.math, .math-block { font-family: "Cambria Math", "Times New Roman", Times, serif; font-style: italic; }
+.math-block { display: block; text-align: center; margin: 10px 0; font-size: 110%; }
+.frac { display: inline-flex; flex-direction: column; align-items: center; vertical-align: middle; margin: 0 3px; font-size: 0.9em; }
+.frac-num { border-bottom: 1px solid currentColor; padding: 0 4px 2px; line-height: 1.2; }
+.frac-den { padding: 2px 4px 0; line-height: 1.2; }
+.sqrt { white-space: nowrap; }
+.sqrt-content { border-top: 1px solid currentColor; padding: 0 3px; margin-left: 2px; }
+sup, sub { font-size: 0.75em; }
+sup { vertical-align: super; }
+sub { vertical-align: sub; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>1.2 Inv. Comercial</h1>
+    <div class="meta">10 preguntas</div>
+    <div class="progress-bar"><div class="progress-fill"></div></div>
+  </div>
+  <div id="quiz-container">
+        <div class="question" data-index="0">
+          <div class="q-header">
+            <span class="q-number">Pregunta 1</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿Cuál es la función principal de la investigación comercial en la toma de decisiones estratégicas?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piense en el papel que juega la información para un navegante que se enfrenta a un mar desconocido.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="La investigación apoya la decisión, pero no reemplaza el criterio humano; sirve como un puente entre el problema y una solución rentable.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Sustituir la intuición del directivo por un proceso puramente automatizado.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La investigación apoya la decisión, pero no reemplaza el criterio humano; sirve como un puente entre el problema y una solución rentable.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="La investigación se centra en la obtención de datos para la propia toma de decisiones, no es un mecanismo de protección de propiedad intelectual.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Garantizar que la competencia no pueda replicar la estrategia de la empresa.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La investigación se centra en la obtención de datos para la propia toma de decisiones, no es un mecanismo de protección de propiedad intelectual.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Aunque la investigación reduce el riesgo, nunca puede eliminarlo totalmente debido a la naturaleza dinámica e impredecible del mercado.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Eliminar por completo la posibilidad de fracaso al lanzar un nuevo producto.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aunque la investigación reduce el riesgo, nunca puede eliminarlo totalmente debido a la naturaleza dinámica e impredecible del mercado.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="true" data-rationale="La investigación comercial actúa como un soporte que transforma la duda en conocimiento basado en evidencia, minimizando las probabilidades de error.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Reducir el riesgo y la incertidumbre al proporcionar información objetiva sobre el mercado.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La investigación comercial actúa como un soporte que transforma la duda en conocimiento basado en evidencia, minimizando las probabilidades de error.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="1">
+          <div class="q-header">
+            <span class="q-number">Pregunta 2</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">Si una empresa necesita entender las motivaciones y percepciones profundas de sus clientes, ¿qué enfoque de investigación es el más adecuado?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considere si el objetivo es medir una cantidad o comprender una razón subyacente.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Este enfoque se centra en el 'por qué' de las conductas, utilizando técnicas como Focus Groups para explorar significados y percepciones.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Investigación Cualitativa.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Este enfoque se centra en el 'por qué' de las conductas, utilizando técnicas como Focus Groups para explorar significados y percepciones.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El enfoque cuantitativo se orienta al 'cuánto', buscando medir y generalizar resultados a través de estadísticas.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Investigación Cuantitativa.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El enfoque cuantitativo se orienta al 'cuánto', buscando medir y generalizar resultados a través de estadísticas.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Aunque útiles, los datos secundarios suelen ser generales y pueden no profundizar en las motivaciones específicas del problema actual.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Análisis de Datos Secundarios.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aunque útiles, los datos secundarios suelen ser generales y pueden no profundizar en las motivaciones específicas del problema actual.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="La investigación causal busca relaciones de causa-efecto entre variables, no necesariamente la comprensión profunda de motivaciones psicológicas.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Investigación Causal.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La investigación causal busca relaciones de causa-efecto entre variables, no necesariamente la comprensión profunda de motivaciones psicológicas.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="2">
+          <div class="q-header">
+            <span class="q-number">Pregunta 3</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿En qué se diferencia la investigación comercial de la investigación científica básica en cuanto a su objetivo?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Reflexione sobre si el fin último es publicar en una academia o decidir si se lanza un producto al mercado.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Toda investigación, para ser válida, debe ser un proceso sistemático y objetivo, independientemente de su aplicación.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">La comercial no requiere de un análisis objetivo de los datos recolectados.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Toda investigación, para ser válida, debe ser un proceso sistemático y objetivo, independientemente de su aplicación.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="La investigación comercial es aplicada y se enfoca en informar decisiones inmediatas para obtener rentabilidad o soluciones específicas.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">La comercial busca resolver problemas prácticos de negocio, mientras que la científica busca generar conocimiento universal.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La investigación comercial es aplicada y se enfoca en informar decisiones inmediatas para obtener rentabilidad o soluciones específicas.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Ambas requieren rigor, pero la científica suele priorizar el rigor académico sobre la velocidad, al contrario de la comercial.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">La comercial es más rigurosa metodológicamente que la investigación científica.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Ambas requieren rigor, pero la científica suele priorizar el rigor académico sobre la velocidad, al contrario de la comercial.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Ambos tipos de investigación pueden utilizar tanto fuentes primarias como secundarias según sus necesidades.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">La científica solo utiliza datos primarios y la comercial solo datos secundarios.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Ambos tipos de investigación pueden utilizar tanto fuentes primarias como secundarias según sus necesidades.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="3">
+          <div class="q-header">
+            <span class="q-number">Pregunta 4</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿Qué tipo de investigación se debe realizar para definir un problema de marketing y sugerir hipótesis iniciales?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Es el tipo de estudio que se hace cuando el terreno de investigación es aún desconocido o poco claro.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Esta es una clasificación por la fuente de los datos, no por el propósito o alcance del estudio.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Investigación de Datos Primarios.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esta es una clasificación por la fuente de los datos, no por el propósito o alcance del estudio.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Se requiere haber definido previamente el problema para poder probar relaciones de causa y efecto entre variables.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Investigación Causal.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Se requiere haber definido previamente el problema para poder probar relaciones de causa y efecto entre variables.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="true" data-rationale="Este tipo de investigación es el punto de partida para clarificar problemas ambiguos y establecer las bases de estudios posteriores.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Investigación Exploratoria.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Este tipo de investigación es el punto de partida para clarificar problemas ambiguos y establecer las bases de estudios posteriores.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="La investigación descriptiva se utiliza para detallar características del mercado o consumidores, no para la fase inicial de definición del problema.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Investigación Descriptiva.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La investigación descriptiva se utiliza para detallar características del mercado o consumidores, no para la fase inicial de definición del problema.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="4">
+          <div class="q-header">
+            <span class="q-number">Pregunta 5</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">Un equipo de marketing utiliza un informe de ventas del año pasado de su propia empresa para analizar una tendencia. ¿Cómo se clasifican estos datos?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considere el origen de la información y si fue creada específicamente para la investigación que se está realizando hoy.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Los datos primarios se recolectan por primera vez para el estudio presente, y en este caso, la información ya existía.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Datos Primarios Externos.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Los datos primarios se recolectan por primera vez para el estudio presente, y en este caso, la información ya existía.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Aunque son secundarios, al ser informes internos de la empresa, no son de acceso público o externo.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Datos Secundarios Públicos.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aunque son secundarios, al ser informes internos de la empresa, no son de acceso público o externo.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="true" data-rationale="Son datos que ya existen dentro de la organización y que fueron recopilados originalmente para un propósito distinto al estudio actual.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Datos Secundarios Internos.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Son datos que ya existen dentro de la organización y que fueron recopilados originalmente para un propósito distinto al estudio actual.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Los informes de ventas suelen ser numéricos (cuantitativos) y no implican trabajo de campo directo como entrevistas.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Investigación Cualitativa de Campo.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Los informes de ventas suelen ser numéricos (cuantitativos) y no implican trabajo de campo directo como entrevistas.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="5">
+          <div class="q-header">
+            <span class="q-number">Pregunta 6</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿Cuál es la característica principal del factor 'Tiempo' en la investigación comercial comparada con la científica?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piense en la frase 'el tiempo es dinero' aplicada al contexto empresarial.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="En los negocios, la información debe llegar a tiempo para ser útil en la toma de decisiones, a veces sacrificando la extensión del estudio.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Es restringido y prioriza la oportunidad para la acción.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">En los negocios, la información debe llegar a tiempo para ser útil en la toma de decisiones, a veces sacrificando la extensión del estudio.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El tiempo está definido por el ciclo de decisión del negocio, no solo por la técnica de recolección elegida.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Depende exclusivamente de la cantidad de encuestas realizadas.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El tiempo está definido por el ciclo de decisión del negocio, no solo por la técnica de recolección elegida.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Esta es una característica típica de la investigación científica, donde los plazos son más flexibles para asegurar la validez universal.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Es extenso y prioriza el rigor académico sobre la velocidad.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esta es una característica típica de la investigación científica, donde los plazos son más flexibles para asegurar la validez universal.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="La oportunidad (llegar a tiempo) es vital en la investigación comercial; un dato perfecto que llega tarde no sirve para decidir.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">No tiene relevancia, ya que la calidad de los datos es el único factor crítico.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La oportunidad (llegar a tiempo) es vital en la investigación comercial; un dato perfecto que llega tarde no sirve para decidir.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="6">
+          <div class="q-header">
+            <span class="q-number">Pregunta 7</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿Qué elemento del Plan de Investigación ayuda a justificar la inversión en el estudio mencionando las posibles pérdidas?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Se refiere a las consecuencias negativas de navegar sin brújula en el mercado.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Describe a quién se dirige el producto, lo cual es un insumo para la investigación pero no su justificación de riesgo.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Público Objetivo Tentativo.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Describe a quién se dirige el producto, lo cual es un insumo para la investigación pero no su justificación de riesgo.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Esta sección solo define qué es el producto, pero no argumenta la necesidad técnica del estudio.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Título y Concepto de Negocio.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esta sección solo define qué es el producto, pero no argumenta la necesidad técnica del estudio.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="La propuesta de valor describe el beneficio del producto, no las consecuencias de no investigar el mercado.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Propuesta de Valor.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La propuesta de valor describe el beneficio del producto, no las consecuencias de no investigar el mercado.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="true" data-rationale="Identificar qué pasaría si se decide por 'corazonada' (falla de producto, precio incorrecto) justifica la necesidad de investigar.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Riesgos sin Investigación.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Identificar qué pasaría si se decide por 'corazonada' (falla de producto, precio incorrecto) justifica la necesidad de investigar.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="7">
+          <div class="q-header">
+            <span class="q-number">Pregunta 8</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">En la investigación comercial, ¿a quién está dirigido principalmente el informe final?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piense en quién necesita la información para decidir el precio o el empaque de un producto.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="El objetivo de la investigación comercial es informar la acción empresarial, por lo que su público son quienes ejecutan estrategias.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Directivos, gerentes y tomadores de decisión.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El objetivo de la investigación comercial es informar la acción empresarial, por lo que su público son quienes ejecutan estrategias.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Este es el público objetivo de la investigación básica o científica, que busca la validación de pares académicos.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">La comunidad académica y científica internacional.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Este es el público objetivo de la investigación básica o científica, que busca la validación de pares académicos.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Salvo casos específicos de cumplimiento legal, la investigación comercial es para uso estratégico privado de la empresa.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">A las entidades gubernamentales de regulación de mercado.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Salvo casos específicos de cumplimiento legal, la investigación comercial es para uso estratégico privado de la empresa.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Aunque los clientes son la fuente de información, el informe es una herramienta interna para la gestión del negocio.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Exclusivamente a los clientes que participaron en las encuestas.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aunque los clientes son la fuente de información, el informe es una herramienta interna para la gestión del negocio.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="8">
+          <div class="q-header">
+            <span class="q-number">Pregunta 9</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">Si una empresa desea determinar exactamente cómo un cambio en el precio afectará el volumen de ventas, ¿qué tipo de investigación debe emplear?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Busque el tipo de investigación que analiza la conexión directa entre una acción y su reacción.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Aunque describe el mercado, no tiene como fin principal probar la relación directa entre el cambio de una variable y otra.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Investigación Descriptiva.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aunque describe el mercado, no tiene como fin principal probar la relación directa entre el cambio de una variable y otra.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Este tipo de estudio permite establecer la relación de causa (precio) y efecto (volumen de ventas) entre variables comerciales.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Investigación Causal.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Este tipo de estudio permite establecer la relación de causa (precio) y efecto (volumen de ventas) entre variables comerciales.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="La exploratoria es demasiado ambigua para determinar relaciones numéricas exactas de causa-efecto.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Investigación Exploratoria.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La exploratoria es demasiado ambigua para determinar relaciones numéricas exactas de causa-efecto.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Los datos externos rara vez reflejan las condiciones experimentales específicas necesarias para probar causalidad en una empresa propia.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Recopilación de Datos Secundarios Externos.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Los datos externos rara vez reflejan las condiciones experimentales específicas necesarias para probar causalidad en una empresa propia.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="9">
+          <div class="q-header">
+            <span class="q-number">Pregunta 10</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">Dentro del desarrollo de un nuevo modelo de negocio, ¿qué componente responde a la pregunta '¿Por qué este negocio debería existir?'?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Se trata de la brecha o dolor que el producto viene a solucionar en el mercado.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Este concepto se refiere al alcance general de la investigación, no a la génesis de una idea de negocio específica.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Tipos de Decisiones Apoyadas.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Este concepto se refiere al alcance general de la investigación, no a la génesis de una idea de negocio específica.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="La justificación explica por qué es necesario investigar, no por qué el producto es necesario para el consumidor.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Justificación de la Investigación.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La justificación explica por qué es necesario investigar, no por qué el producto es necesario para el consumidor.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="El objetivo de investigación es la pregunta que el curso ayudará a responder, no la razón de existencia del negocio en sí.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Objetivo de Investigación Inicial.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El objetivo de investigación es la pregunta que el curso ayudará a responder, no la razón de existencia del negocio en sí.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="true" data-rationale="Identificar el problema no resuelto en el mercado es la base que justifica la creación y existencia de cualquier propuesta comercial.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Problema de Negocio / Oportunidad.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Identificar el problema no resuelto en el mercado es la base que justifica la creación y existencia de cualquier propuesta comercial.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      </div>
+  <div class="results" id="results">
+    <h2>¡Cuestionario completado!</h2>
+    <div class="score" id="score">0%</div>
+    <div class="score-text" id="score-text"></div>
+    <button class="restart-btn" onclick="restart()">Intentar de nuevo</button>
+  </div>
+</div>
+<script>
+const quizData = [{"question":"¿Cuál es la función principal de la investigación comercial en la toma de decisiones estratégicas?","hint":"Piense en el papel que juega la información para un navegante que se enfrenta a un mar desconocido.","options":[{"label":"A","text":"Sustituir la intuición del directivo por un proceso puramente automatizado.","isCorrect":false,"rationale":"La investigación apoya la decisión, pero no reemplaza el criterio humano; sirve como un puente entre el problema y una solución rentable."},{"label":"B","text":"Garantizar que la competencia no pueda replicar la estrategia de la empresa.","isCorrect":false,"rationale":"La investigación se centra en la obtención de datos para la propia toma de decisiones, no es un mecanismo de protección de propiedad intelectual."},{"label":"C","text":"Eliminar por completo la posibilidad de fracaso al lanzar un nuevo producto.","isCorrect":false,"rationale":"Aunque la investigación reduce el riesgo, nunca puede eliminarlo totalmente debido a la naturaleza dinámica e impredecible del mercado."},{"label":"D","text":"Reducir el riesgo y la incertidumbre al proporcionar información objetiva sobre el mercado.","isCorrect":true,"rationale":"La investigación comercial actúa como un soporte que transforma la duda en conocimiento basado en evidencia, minimizando las probabilidades de error."}]},{"question":"Si una empresa necesita entender las motivaciones y percepciones profundas de sus clientes, ¿qué enfoque de investigación es el más adecuado?","hint":"Considere si el objetivo es medir una cantidad o comprender una razón subyacente.","options":[{"label":"A","text":"Investigación Cualitativa.","isCorrect":true,"rationale":"Este enfoque se centra en el 'por qué' de las conductas, utilizando técnicas como Focus Groups para explorar significados y percepciones."},{"label":"B","text":"Investigación Cuantitativa.","isCorrect":false,"rationale":"El enfoque cuantitativo se orienta al 'cuánto', buscando medir y generalizar resultados a través de estadísticas."},{"label":"C","text":"Análisis de Datos Secundarios.","isCorrect":false,"rationale":"Aunque útiles, los datos secundarios suelen ser generales y pueden no profundizar en las motivaciones específicas del problema actual."},{"label":"D","text":"Investigación Causal.","isCorrect":false,"rationale":"La investigación causal busca relaciones de causa-efecto entre variables, no necesariamente la comprensión profunda de motivaciones psicológicas."}]},{"question":"¿En qué se diferencia la investigación comercial de la investigación científica básica en cuanto a su objetivo?","hint":"Reflexione sobre si el fin último es publicar en una academia o decidir si se lanza un producto al mercado.","options":[{"label":"A","text":"La comercial no requiere de un análisis objetivo de los datos recolectados.","isCorrect":false,"rationale":"Toda investigación, para ser válida, debe ser un proceso sistemático y objetivo, independientemente de su aplicación."},{"label":"B","text":"La comercial busca resolver problemas prácticos de negocio, mientras que la científica busca generar conocimiento universal.","isCorrect":true,"rationale":"La investigación comercial es aplicada y se enfoca en informar decisiones inmediatas para obtener rentabilidad o soluciones específicas."},{"label":"C","text":"La comercial es más rigurosa metodológicamente que la investigación científica.","isCorrect":false,"rationale":"Ambas requieren rigor, pero la científica suele priorizar el rigor académico sobre la velocidad, al contrario de la comercial."},{"label":"D","text":"La científica solo utiliza datos primarios y la comercial solo datos secundarios.","isCorrect":false,"rationale":"Ambos tipos de investigación pueden utilizar tanto fuentes primarias como secundarias según sus necesidades."}]},{"question":"¿Qué tipo de investigación se debe realizar para definir un problema de marketing y sugerir hipótesis iniciales?","hint":"Es el tipo de estudio que se hace cuando el terreno de investigación es aún desconocido o poco claro.","options":[{"label":"A","text":"Investigación de Datos Primarios.","isCorrect":false,"rationale":"Esta es una clasificación por la fuente de los datos, no por el propósito o alcance del estudio."},{"label":"B","text":"Investigación Causal.","isCorrect":false,"rationale":"Se requiere haber definido previamente el problema para poder probar relaciones de causa y efecto entre variables."},{"label":"C","text":"Investigación Exploratoria.","isCorrect":true,"rationale":"Este tipo de investigación es el punto de partida para clarificar problemas ambiguos y establecer las bases de estudios posteriores."},{"label":"D","text":"Investigación Descriptiva.","isCorrect":false,"rationale":"La investigación descriptiva se utiliza para detallar características del mercado o consumidores, no para la fase inicial de definición del problema."}]},{"question":"Un equipo de marketing utiliza un informe de ventas del año pasado de su propia empresa para analizar una tendencia. ¿Cómo se clasifican estos datos?","hint":"Considere el origen de la información y si fue creada específicamente para la investigación que se está realizando hoy.","options":[{"label":"A","text":"Datos Primarios Externos.","isCorrect":false,"rationale":"Los datos primarios se recolectan por primera vez para el estudio presente, y en este caso, la información ya existía."},{"label":"B","text":"Datos Secundarios Públicos.","isCorrect":false,"rationale":"Aunque son secundarios, al ser informes internos de la empresa, no son de acceso público o externo."},{"label":"C","text":"Datos Secundarios Internos.","isCorrect":true,"rationale":"Son datos que ya existen dentro de la organización y que fueron recopilados originalmente para un propósito distinto al estudio actual."},{"label":"D","text":"Investigación Cualitativa de Campo.","isCorrect":false,"rationale":"Los informes de ventas suelen ser numéricos (cuantitativos) y no implican trabajo de campo directo como entrevistas."}]},{"question":"¿Cuál es la característica principal del factor 'Tiempo' en la investigación comercial comparada con la científica?","hint":"Piense en la frase 'el tiempo es dinero' aplicada al contexto empresarial.","options":[{"label":"A","text":"Es restringido y prioriza la oportunidad para la acción.","isCorrect":true,"rationale":"En los negocios, la información debe llegar a tiempo para ser útil en la toma de decisiones, a veces sacrificando la extensión del estudio."},{"label":"B","text":"Depende exclusivamente de la cantidad de encuestas realizadas.","isCorrect":false,"rationale":"El tiempo está definido por el ciclo de decisión del negocio, no solo por la técnica de recolección elegida."},{"label":"C","text":"Es extenso y prioriza el rigor académico sobre la velocidad.","isCorrect":false,"rationale":"Esta es una característica típica de la investigación científica, donde los plazos son más flexibles para asegurar la validez universal."},{"label":"D","text":"No tiene relevancia, ya que la calidad de los datos es el único factor crítico.","isCorrect":false,"rationale":"La oportunidad (llegar a tiempo) es vital en la investigación comercial; un dato perfecto que llega tarde no sirve para decidir."}]},{"question":"¿Qué elemento del Plan de Investigación ayuda a justificar la inversión en el estudio mencionando las posibles pérdidas?","hint":"Se refiere a las consecuencias negativas de navegar sin brújula en el mercado.","options":[{"label":"A","text":"Público Objetivo Tentativo.","isCorrect":false,"rationale":"Describe a quién se dirige el producto, lo cual es un insumo para la investigación pero no su justificación de riesgo."},{"label":"B","text":"Título y Concepto de Negocio.","isCorrect":false,"rationale":"Esta sección solo define qué es el producto, pero no argumenta la necesidad técnica del estudio."},{"label":"C","text":"Propuesta de Valor.","isCorrect":false,"rationale":"La propuesta de valor describe el beneficio del producto, no las consecuencias de no investigar el mercado."},{"label":"D","text":"Riesgos sin Investigación.","isCorrect":true,"rationale":"Identificar qué pasaría si se decide por 'corazonada' (falla de producto, precio incorrecto) justifica la necesidad de investigar."}]},{"question":"En la investigación comercial, ¿a quién está dirigido principalmente el informe final?","hint":"Piense en quién necesita la información para decidir el precio o el empaque de un producto.","options":[{"label":"A","text":"Directivos, gerentes y tomadores de decisión.","isCorrect":true,"rationale":"El objetivo de la investigación comercial es informar la acción empresarial, por lo que su público son quienes ejecutan estrategias."},{"label":"B","text":"La comunidad académica y científica internacional.","isCorrect":false,"rationale":"Este es el público objetivo de la investigación básica o científica, que busca la validación de pares académicos."},{"label":"C","text":"A las entidades gubernamentales de regulación de mercado.","isCorrect":false,"rationale":"Salvo casos específicos de cumplimiento legal, la investigación comercial es para uso estratégico privado de la empresa."},{"label":"D","text":"Exclusivamente a los clientes que participaron en las encuestas.","isCorrect":false,"rationale":"Aunque los clientes son la fuente de información, el informe es una herramienta interna para la gestión del negocio."}]},{"question":"Si una empresa desea determinar exactamente cómo un cambio en el precio afectará el volumen de ventas, ¿qué tipo de investigación debe emplear?","hint":"Busque el tipo de investigación que analiza la conexión directa entre una acción y su reacción.","options":[{"label":"A","text":"Investigación Descriptiva.","isCorrect":false,"rationale":"Aunque describe el mercado, no tiene como fin principal probar la relación directa entre el cambio de una variable y otra."},{"label":"B","text":"Investigación Causal.","isCorrect":true,"rationale":"Este tipo de estudio permite establecer la relación de causa (precio) y efecto (volumen de ventas) entre variables comerciales."},{"label":"C","text":"Investigación Exploratoria.","isCorrect":false,"rationale":"La exploratoria es demasiado ambigua para determinar relaciones numéricas exactas de causa-efecto."},{"label":"D","text":"Recopilación de Datos Secundarios Externos.","isCorrect":false,"rationale":"Los datos externos rara vez reflejan las condiciones experimentales específicas necesarias para probar causalidad en una empresa propia."}]},{"question":"Dentro del desarrollo de un nuevo modelo de negocio, ¿qué componente responde a la pregunta '¿Por qué este negocio debería existir?'?","hint":"Se trata de la brecha o dolor que el producto viene a solucionar en el mercado.","options":[{"label":"A","text":"Tipos de Decisiones Apoyadas.","isCorrect":false,"rationale":"Este concepto se refiere al alcance general de la investigación, no a la génesis de una idea de negocio específica."},{"label":"B","text":"Justificación de la Investigación.","isCorrect":false,"rationale":"La justificación explica por qué es necesario investigar, no por qué el producto es necesario para el consumidor."},{"label":"C","text":"Objetivo de Investigación Inicial.","isCorrect":false,"rationale":"El objetivo de investigación es la pregunta que el curso ayudará a responder, no la razón de existencia del negocio en sí."},{"label":"D","text":"Problema de Negocio / Oportunidad.","isCorrect":true,"rationale":"Identificar el problema no resuelto en el mercado es la base que justifica la creación y existencia de cualquier propuesta comercial."}]}];
+const tr = {"correct":"¡Correcto!","incorrect":"Incorrecto","next":"Siguiente pregunta →","seeResults":"Ver resultados","complete":"¡Cuestionario completado!","scoreText":"Obtuviste {correct} de {total} correctas","tryAgain":"Intentar de nuevo","rightAnswer":"Respuesta correcta","notQuite":"No del todo"};
+let currentQ = 0, correctCount = 0, answered = false;
+
+function init() {
+  document.querySelectorAll('.question').forEach((q, i) => q.classList.toggle('active', i === 0));
+  updateProgress();
+  document.querySelectorAll('.option').forEach(opt => opt.addEventListener('click', () => selectOption(opt)));
+  document.querySelectorAll('.next-btn').forEach(btn => btn.addEventListener('click', nextQuestion));
+}
+
+function selectOption(opt) {
+  if (answered) return;
+  answered = true;
+  const q = opt.closest('.question');
+  const options = q.querySelectorAll('.option');
+  const nextBtn = q.querySelector('.next-btn');
+  const isCorrect = opt.dataset.correct === 'true';
+  
+  // Mark all options as disabled
+  options.forEach(o => o.classList.add('disabled'));
+  
+  // Style selected option
+  opt.classList.add('selected', isCorrect ? 'correct' : 'incorrect');
+  
+  // Show correct answer if wrong
+  if (!isCorrect) {
+    const correctOpt = [...options].find(o => o.dataset.correct === 'true');
+    if (correctOpt) correctOpt.classList.add('show-correct');
+  }
+  
+  if (isCorrect) correctCount++;
+  
+  // Show feedback for ALL options that have rationale
+  options.forEach(o => {
+    const wrapper = o.closest('.option-wrapper');
+    const feedback = wrapper.querySelector('.option-feedback');
+    const rationale = o.dataset.rationale;
+    const isThisCorrect = o.dataset.correct === 'true';
+    
+    if (rationale && rationale.trim()) {
+      feedback.classList.remove('hidden');
+      feedback.classList.add(isThisCorrect ? 'correct-feedback' : 'incorrect-feedback');
+      
+      const statusEl = feedback.querySelector('.feedback-status');
+      statusEl.className = 'feedback-status ' + (isThisCorrect ? 'correct' : 'incorrect');
+      statusEl.innerHTML = isThisCorrect 
+        ? '✓ ' + tr.rightAnswer
+        : '✗ ' + tr.notQuite;
+    }
+  });
+  
+  nextBtn.classList.remove('hidden');
+  if (currentQ === quizData.length - 1) nextBtn.textContent = tr.seeResults;
+}
+
+function nextQuestion() {
+  answered = false;
+  currentQ++;
+  if (currentQ >= quizData.length) { showResults(); return; }
+  document.querySelectorAll('.question').forEach((q, i) => q.classList.toggle('active', i === currentQ));
+  updateProgress();
+}
+
+function updateProgress() {
+  document.querySelector('.progress-fill').style.width = (currentQ / quizData.length * 100) + '%';
+}
+
+function showResults() {
+  document.querySelectorAll('.question').forEach(q => q.classList.remove('active'));
+  document.getElementById('results').classList.add('active');
+  const pct = Math.round((correctCount / quizData.length) * 100);
+  document.getElementById('score').textContent = pct + '%';
+  document.getElementById('score-text').textContent = tr.scoreText.replace('{correct}', correctCount).replace('{total}', quizData.length);
+  document.querySelector('.progress-fill').style.width = '100%';
+}
+
+function restart() {
+  currentQ = 0; correctCount = 0; answered = false;
+  document.getElementById('results').classList.remove('active');
+  document.querySelectorAll('.question').forEach((q, i) => {
+    q.classList.toggle('active', i === 0);
+    q.querySelectorAll('.option').forEach(o => o.classList.remove('selected', 'correct', 'incorrect', 'disabled', 'show-correct'));
+    q.querySelectorAll('.option-feedback').forEach(f => {
+      f.classList.add('hidden');
+      f.classList.remove('correct-feedback', 'incorrect-feedback');
+    });
+    const btn = q.querySelector('.next-btn');
+    btn.classList.add('hidden');
+    btn.textContent = tr.next;
+  });
+  updateProgress();
+}
+
+init();
+</script>
+</body>
+</html>
