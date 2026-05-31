@@ -1,0 +1,886 @@
+<!DOCTYPE html>
+<html lang="es" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>S8 DP ZEGEL</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  min-height: 100vh; padding: 20px; color: #333;
+}
+.container { max-width: 700px; margin: 0 auto; }
+.header { text-align: center; color: #fff; padding: 30px 20px; }
+.header h1 { font-size: 28px; font-weight: 700; margin-bottom: 8px; text-shadow: 0 2px 10px rgba(0,0,0,0.2); }
+.header .meta { font-size: 14px; opacity: 0.9; }
+.progress-bar { background: rgba(255,255,255,0.3); border-radius: 10px; height: 8px; margin: 20px 0; overflow: hidden; }
+.progress-fill { background: #fff; height: 100%; width: 0%; transition: width 0.4s ease; border-radius: 10px; }
+.question { background: #fff; border-radius: 16px; padding: 30px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); display: none; }
+.question.active { display: block; }
+.q-header { display: flex; justify-content: space-between; margin-bottom: 20px; font-size: 13px; color: #888; }
+.q-number { font-weight: 600; color: #667eea; }
+.q-text { font-size: 18px; font-weight: 600; line-height: 1.5; margin-bottom: 25px; color: #222; }
+.options { display: flex; flex-direction: column; gap: 12px; }
+.option-wrapper { display: flex; flex-direction: column; }
+.option {
+  display: flex; align-items: flex-start; gap: 14px; padding: 16px 18px;
+  border: 2px solid #e8e8e8; border-radius: 12px; background: #fafafa;
+  cursor: pointer; transition: all 0.2s; text-align: left; font-size: 15px; width: 100%;
+}
+[dir="rtl"] .option { text-align: right; flex-direction: row-reverse; }
+.option:hover:not(.disabled) { border-color: #667eea; background: #f5f3ff; }
+.option.selected { border-color: #667eea; background: #ede9fe; }
+.option.correct { border-color: #22c55e; background: #dcfce7; }
+.option.incorrect { border-color: #ef4444; background: #fee2e2; }
+.option.disabled { cursor: default; }
+.option.show-correct { border-color: #22c55e; background: #dcfce7; }
+.opt-label {
+  display: flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; border-radius: 50%; background: #e8e8e8;
+  font-weight: 700; font-size: 14px; flex-shrink: 0;
+}
+.option.selected .opt-label { background: #667eea; color: #fff; }
+.option.correct .opt-label { background: #22c55e; color: #fff; }
+.option.incorrect .opt-label { background: #ef4444; color: #fff; }
+.option.show-correct .opt-label { background: #22c55e; color: #fff; }
+.opt-text { padding-top: 5px; line-height: 1.5; }
+
+/* Individual option feedback */
+.option-feedback {
+  margin: 8px 0 4px 46px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+[dir="rtl"] .option-feedback { margin-left: 0; margin-right: 46px; }
+.option-feedback.correct-feedback {
+  background: #dcfce7;
+  border-left: 3px solid #22c55e;
+}
+.option-feedback.incorrect-feedback {
+  background: #fef3f2;
+  border-left: 3px solid #fca5a5;
+}
+[dir="rtl"] .option-feedback.correct-feedback,
+[dir="rtl"] .option-feedback.incorrect-feedback {
+  border-left: none;
+  border-right: 3px solid;
+}
+[dir="rtl"] .option-feedback.correct-feedback { border-right-color: #22c55e; }
+[dir="rtl"] .option-feedback.incorrect-feedback { border-right-color: #fca5a5; }
+.feedback-status {
+  font-weight: 600;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.feedback-status.correct { color: #166534; }
+.feedback-status.incorrect { color: #991b1b; }
+.feedback-rationale { color: #444; }
+
+/* Hint box */
+.hint-box {
+  margin: 12px 0;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+}
+.hint-toggle {
+  width: 100%;
+  padding: 10px 16px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  color: #92400e;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.hint-toggle:hover { background: #fef3c7; }
+.hint-content {
+  padding: 0 16px;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s, padding 0.3s;
+  font-size: 14px;
+  color: #78350f;
+  line-height: 1.5;
+}
+.hint-box.show .hint-content {
+  padding: 0 16px 12px;
+  max-height: 200px;
+}
+
+.next-btn {
+  margin-top: 20px; width: 100%; padding: 14px;
+  background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; border: none;
+  border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.next-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(102,126,234,0.4); }
+.hidden { display: none !important; }
+.results { background: #fff; border-radius: 16px; padding: 40px; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.15); display: none; }
+.results.active { display: block; }
+.results h2 { font-size: 28px; margin-bottom: 10px; color: #333; }
+.results .score { font-size: 64px; font-weight: 700; color: #667eea; margin: 20px 0; }
+.results .score-text { font-size: 18px; color: #666; margin-bottom: 30px; }
+.restart-btn {
+  padding: 14px 40px; background: linear-gradient(135deg, #667eea, #764ba2);
+  color: #fff; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer;
+}
+
+/* Math CSS */
+.math, .math-block { font-family: "Cambria Math", "Times New Roman", Times, serif; font-style: italic; }
+.math-block { display: block; text-align: center; margin: 10px 0; font-size: 110%; }
+.frac { display: inline-flex; flex-direction: column; align-items: center; vertical-align: middle; margin: 0 3px; font-size: 0.9em; }
+.frac-num { border-bottom: 1px solid currentColor; padding: 0 4px 2px; line-height: 1.2; }
+.frac-den { padding: 2px 4px 0; line-height: 1.2; }
+.sqrt { white-space: nowrap; }
+.sqrt-content { border-top: 1px solid currentColor; padding: 0 3px; margin-left: 2px; }
+sup, sub { font-size: 0.75em; }
+sup { vertical-align: super; }
+sub { vertical-align: sub; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>S8 DP ZEGEL</h1>
+    <div class="meta">10 preguntas</div>
+    <div class="progress-bar"><div class="progress-fill"></div></div>
+  </div>
+  <div id="quiz-container">
+        <div class="question" data-index="0">
+          <div class="q-header">
+            <span class="q-number">Pregunta 1</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿Qué variables evalúa un líder estratégico para diagnosticar el nivel de madurez de un colaborador según el modelo de Hersey y Blanchard?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Analiza los factores que combinan la aptitud técnica con la disposición psicológica hacia la tarea.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="El liderazgo situacional se fundamenta en la intersección entre la habilidad técnica para ejecutar una tarea y la motivación o confianza del individuo.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Competencia (saber hacer) y Compromiso (querer hacer).</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El liderazgo situacional se fundamenta en la intersección entre la habilidad técnica para ejecutar una tarea y la motivación o confianza del individuo.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Aunque son habilidades valiosas, el modelo contingencial se enfoca en la capacidad operativa frente a una tarea puntual.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Inteligencia emocional y capacidad de negociación externa.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aunque son habilidades valiosas, el modelo contingencial se enfoca en la capacidad operativa frente a una tarea puntual.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Los títulos académicos no determinan necesariamente el compromiso o la madurez orgánica en el flujo de trabajo diario.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Grado de estudios académicos y especialización técnica.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Los títulos académicos no determinan necesariamente el compromiso o la madurez orgánica en el flujo de trabajo diario.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="La antigüedad no siempre garantiza la capacidad técnica o la disposición emocional para una tarea específica.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Antigüedad en la empresa y nivel jerárquico del puesto.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La antigüedad no siempre garantiza la capacidad técnica o la disposición emocional para una tarea específica.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="1">
+          <div class="q-header">
+            <span class="q-number">Pregunta 2</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">Un practicante en su primer día de trabajo suele ser clasificado en el nivel de madurez <span class="math">M1</span>. ¿Cuál es el estilo de liderazgo adecuado para este caso?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Recuerda qué estilo se enfoca en estructurar el proceso y dar instrucciones claras sin necesidad de consulta previa.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Este estilo es más efectivo cuando el colaborador ya tiene una base de conocimientos pero ha perdido la motivación inicial.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">E2 - Guiar (Alta Tarea / Alta Relación).</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Este estilo es más efectivo cuando el colaborador ya tiene una base de conocimientos pero ha perdido la motivación inicial.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="En esta etapa inicial, el colaborador requiere instrucciones precisas sobre el qué, cómo y cuándo de sus funciones para reducir la incertidumbre.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">E1 - Dirigir (Alta Tarea / Baja Relación).</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">En esta etapa inicial, el colaborador requiere instrucciones precisas sobre el qué, cómo y cuándo de sus funciones para reducir la incertidumbre.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Otorgar autonomía total a alguien que aún no conoce los procesos puede derivar en errores críticos y frustración.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">E4 - Delegar (Baja Tarea / Baja Relación).</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Otorgar autonomía total a alguien que aún no conoce los procesos puede derivar en errores críticos y frustración.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Un colaborador sin experiencia previa requiere estructura técnica antes que un enfoque netamente emocional o de co-diseño.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">E3 - Participar (Baja Tarea / Alta Relación).</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Un colaborador sin experiencia previa requiere estructura técnica antes que un enfoque netamente emocional o de co-diseño.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="2">
+          <div class="q-header">
+            <span class="q-number">Pregunta 3</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿Cuál es la característica principal del Liderazgo Transaccional en el marco de la Dualidad Operativa?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piensa en un modelo de gestión orientado a mantener la 'máquina operando' mediante incentivos tangibles.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="El enfoque transaccional prioriza el cumplimiento de estándares establecidos sobre el cuestionamiento de los mismos.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Fomenta la estimulación intelectual para desafiar procesos arcaicos.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El enfoque transaccional prioriza el cumplimiento de estándares establecidos sobre el cuestionamiento de los mismos.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Este sistema de gobernanza utiliza incentivos de mercado para mantener la estabilidad y eficiencia de la operación actual.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Se basa en un intercambio de rendimiento por recompensas extrínsecas como bonos o KPIs.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Este sistema de gobernanza utiliza incentivos de mercado para mantener la estabilidad y eficiencia de la operación actual.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Este modelo utiliza precisamente la arquitectura de poder formal y contratos para asegurar los resultados esperados.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Se centra exclusivamente en la autoridad moral del líder sin usar el poder formal.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Este modelo utiliza precisamente la arquitectura de poder formal y contratos para asegurar los resultados esperados.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Esa descripción corresponde al enfoque transformacional, orientado a la evolución y la innovación a largo plazo.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Busca transformar la cultura organizacional mediante el propósito trascendental.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esa descripción corresponde al enfoque transformacional, orientado a la evolución y la innovación a largo plazo.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="3">
+          <div class="q-header">
+            <span class="q-number">Pregunta 4</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">Cuando un colaborador es experto en su tarea (Alta Competencia) pero muestra desgano o miedo a asumir nuevas responsabilidades, ¿qué acción debe tomar el líder según el estilo E3?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considera qué tipo de apoyo necesita un experto que atraviesa una fase de compromiso variable.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="El colaborador ya domina el proceso técnico; su barrera es de carácter actitudinal o de confianza, no de conocimiento.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Explicar el 'porqué' de las decisiones técnicas para que aprenda el proceso de nuevo.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El colaborador ya domina el proceso técnico; su barrera es de carácter actitudinal o de confianza, no de conocimiento.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Aumentar el control sobre un experto puede ser contraproducente y aumentar su resistencia o desinterés.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Incrementar la supervisión operativa y definir nuevos cronogramas rígidos.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aumentar el control sobre un experto puede ser contraproducente y aumentar su resistencia o desinterés.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="La delegación total (E4) requiere no solo competencia, sino también un alto compromiso que el nivel $M3$ no posee en ese momento.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Delegar la responsabilidad total de la métrica final sin intervención alguna.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La delegación total (E4) requiere no solo competencia, sino también un alto compromiso que el nivel <span class="math">M3</span> no posee en ese momento.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="true" data-rationale="El estilo E3 busca que el colaborador recupere la confianza mediante el respaldo del líder en un ambiente de co-diseño.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Reducir el control operativo y enfocarse en el soporte emocional y la escucha asertiva.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El estilo E3 busca que el colaborador recupere la confianza mediante el respaldo del líder en un ambiente de co-diseño.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="4">
+          <div class="q-header">
+            <span class="q-number">Pregunta 5</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿Qué consecuencia negativa se menciona al aplicar un estilo de liderazgo E1 (Micromanagement) con un colaborador en nivel M4?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Evalúa el impacto emocional y operativo de supervisar excesivamente a un analista senior autónomo.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="El nivel $M4$ valora la autonomía; el acompañamiento asfixiante se percibe como falta de confianza.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Aumento del compromiso del colaborador al sentirse acompañado por su jefe.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El nivel <span class="math">M4</span> valora la autonomía; el acompañamiento asfixiante se percibe como falta de confianza.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El micromanagement es una forma de liderazgo transaccional rígido que bloquea la innovación y la evolución cultural.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Facilita la transición hacia el liderazgo transformacional del equipo.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El micromanagement es una forma de liderazgo transaccional rígido que bloquea la innovación y la evolución cultural.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="El control excesivo sobre alguien autónomo genera cuellos de botella y ralentiza la ejecución.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Mejora acelerada de la productividad por el control estricto de calidad.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El control excesivo sobre alguien autónomo genera cuellos de botella y ralentiza la ejecución.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="true" data-rationale="Tratar a un experto autónomo como a un principiante invalida su trayectoria y anula su capacidad de autogestión.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Destrucción de la motivación intrínseca y posible renuncia del talento.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Tratar a un experto autónomo como a un principiante invalida su trayectoria y anula su capacidad de autogestión.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="5">
+          <div class="q-header">
+            <span class="q-number">Pregunta 6</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">En la estructura de la 'Carta a mi Yo Líder', ¿qué se busca definir en la sección de 'Filosofía de Influencia'?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Enfócate en la diferencia entre el poder que otorga el puesto y la autoridad que emana de la competencia y los valores.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="La carta de gobernanza es un ejercicio de identidad y estrategia de carrera, no un plan financiero operativo.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">El presupuesto detallado para la contratación de un equipo de analistas.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La carta de gobernanza es un ejercicio de identidad y estrategia de carrera, no un plan financiero operativo.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El enfoque de la carta es el autoliderazgo y la influencia, no el diseño de reglamentos disciplinarios.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Un listado de sanciones para colaboradores que no cumplan los KPIs.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El enfoque de la carta es el autoliderazgo y la influencia, no el diseño de reglamentos disciplinarios.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="true" data-rationale="Esta sección busca que el estudiante identifique su modelo de identidad y principios transformacionales para guiar a otros.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Cómo se ganará autoridad moral en el sector sin depender del título jerárquico.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esta sección busca que el estudiante identifique su modelo de identidad y principios transformacionales para guiar a otros.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="La filosofía de influencia se centra en principios de liderazgo humano y profesional, no en herramientas informáticas.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Los pasos técnicos para configurar un software de gestión de proyectos.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La filosofía de influencia se centra en principios de liderazgo humano y profesional, no en herramientas informáticas.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="6">
+          <div class="q-header">
+            <span class="q-number">Pregunta 7</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿Cuál es la diferencia fundamental entre el comportamiento de 'Tarea' y el de 'Relación' en el Liderazgo Situacional?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Diferencia entre dar instrucciones operativas y brindar acompañamiento socioemocional.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="El comportamiento de tarea es directivo y operativo, mientras que el de relación es comunicativo y emocional.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">La tarea implica definir el 'qué' y 'cómo', mientras que la relación implica escucha y soporte.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El comportamiento de tarea es directivo y operativo, mientras que el de relación es comunicativo y emocional.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Ambos tipos de líderes utilizan tanto la tarea como la relación, pero en diferentes proporciones según el contexto.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">La tarea es propia de líderes transformacionales y la relación de líderes transaccionales.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Ambos tipos de líderes utilizan tanto la tarea como la relación, pero en diferentes proporciones según el contexto.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Esta es una visión métrica, pero no describe el comportamiento del líder durante la supervisión.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">La tarea se mide en horas hombre y la relación en encuestas de clima laboral.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esta es una visión métrica, pero no describe el comportamiento del líder durante la supervisión.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="El modelo de Hersey y Blanchard se enfoca en la madurez actual del colaborador frente a una tarea específica en el presente.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">La tarea se enfoca en el pasado del colaborador y la relación en su futuro profesional.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El modelo de Hersey y Blanchard se enfoca en la madurez actual del colaborador frente a una tarea específica en el presente.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="7">
+          <div class="q-header">
+            <span class="q-number">Pregunta 8</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">Según el material, ¿cuál es el propósito final de un buen líder respecto a sus colaboradores <span class="math">M1</span>?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Reflexiona sobre la metáfora del líder como un 'ingeniero organizacional' que diseña procesos de desarrollo.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="El objetivo del liderazgo no es el control perpetuo, sino el desarrollo del potencial del equipo.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Mantenerlos en el cuadrante E1 para asegurar que nunca cometan errores.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El objetivo del liderazgo no es el control perpetuo, sino el desarrollo del potencial del equipo.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El material destaca que el líder debe fomentar la capacidad de los colaboradores para desafiar procesos y evolucionar.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Asegurar que sigan las instrucciones sin cuestionar la autoridad moral.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El material destaca que el líder debe fomentar la capacidad de los colaboradores para desafiar procesos y evolucionar.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Un objetivo clave es mover al colaborador hacia la motivación intrínseca y el propósito (liderazgo transformacional).">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Lograr que realicen su trabajo utilizando únicamente motivación extrínseca.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Un objetivo clave es mover al colaborador hacia la motivación intrínseca y el propósito (liderazgo transformacional).</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="true" data-rationale="El liderazgo es visto como una responsabilidad de servicio que busca la autonomía y el crecimiento del colaborador.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Transformarlos sistemáticamente en los líderes <span class="math">M4</span> del futuro.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El liderazgo es visto como una responsabilidad de servicio que busca la autonomía y el crecimiento del colaborador.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="8">
+          <div class="q-header">
+            <span class="q-number">Pregunta 9</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">Un colaborador que ya aprendió lo básico pero se siente frustrado por errores recientes se encuentra en el nivel <span class="math">M2</span>. ¿Qué acción es crítica para el líder en el estilo E2?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Busca el equilibrio entre seguir supervisando la tarea y empezar a fortalecer el vínculo relacional.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="El nivel $M2$ se caracteriza por un bajo compromiso; ignorar este factor impide que el colaborador avance hacia la madurez superior.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Ignorar la parte emocional y centrarse exclusivamente en la corrección técnica de los fallos.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El nivel <span class="math">M2</span> se caracteriza por un bajo compromiso; ignorar este factor impide que el colaborador avance hacia la madurez superior.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="El estilo E2 combina la supervisión operativa con el apoyo emocional para restablecer la motivación y el compromiso.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Abrir espacio a la retroalimentación y explicar el 'porqué' de las decisiones.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El estilo E2 combina la supervisión operativa con el apoyo emocional para restablecer la motivación y el compromiso.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="En el nivel $M2$, la frustración es alta; la falta de apoyo podría llevar al colaborador a la renuncia o al desánimo total.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Delegar la toma de decisiones para que aprenda de sus propios errores sin guía.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">En el nivel <span class="math">M2</span>, la frustración es alta; la falta de apoyo podría llevar al colaborador a la renuncia o al desánimo total.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Reemplazar al colaborador en lugar de guiarlo anula el aprendizaje y no resuelve el problema de competencia a largo plazo.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Asumir la tarea personalmente para evitar que el proceso se detenga.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Reemplazar al colaborador en lugar de guiarlo anula el aprendizaje y no resuelve el problema de competencia a largo plazo.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="9">
+          <div class="q-header">
+            <span class="q-number">Pregunta 10</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿Qué implica el 'Compromiso de Sostenibilidad' en el planeamiento estratégico de carrera de un líder?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Relaciona este concepto con el equilibrio entre los motores económicos y el desarrollo humano bajo presión.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Consiste en mantener un equilibrio entre las recompensas materiales (salario, jerarquía) y el impacto positivo en el entorno y el equipo.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Gestionar el autoliderazgo alineando objetivos extrínsecos con motores trascendentales.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Consiste en mantener un equilibrio entre las recompensas materiales (salario, jerarquía) y el impacto positivo en el entorno y el equipo.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Aunque el término 'sostenibilidad' es común en el medio ambiente, aquí se refiere al equilibrio personal y profesional del líder.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Asegurar que la empresa tenga políticas de reciclaje y cuidado ambiental.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aunque el término 'sostenibilidad' es común en el medio ambiente, aquí se refiere al equilibrio personal y profesional del líder.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="La sostenibilidad del líder se vincula con su capacidad de resistir la presión corporativa manteniendo su visión y ética.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Establecer contratos a largo plazo para evitar la rotación de personal.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La sostenibilidad del líder se vincula con su capacidad de resistir la presión corporativa manteniendo su visión y ética.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="La sostenibilidad mencionada en el texto se enfoca en el bienestar y propósito del líder, no en la explotación de recursos.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Garantizar que el equipo trabaje horas extra sin afectar el presupuesto del rubro.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La sostenibilidad mencionada en el texto se enfoca en el bienestar y propósito del líder, no en la explotación de recursos.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      </div>
+  <div class="results" id="results">
+    <h2>¡Cuestionario completado!</h2>
+    <div class="score" id="score">0%</div>
+    <div class="score-text" id="score-text"></div>
+    <button class="restart-btn" onclick="restart()">Intentar de nuevo</button>
+  </div>
+</div>
+<script>
+const quizData = [{"question":"¿Qué variables evalúa un líder estratégico para diagnosticar el nivel de madurez de un colaborador según el modelo de Hersey y Blanchard?","hint":"Analiza los factores que combinan la aptitud técnica con la disposición psicológica hacia la tarea.","options":[{"label":"A","text":"Competencia (saber hacer) y Compromiso (querer hacer).","isCorrect":true,"rationale":"El liderazgo situacional se fundamenta en la intersección entre la habilidad técnica para ejecutar una tarea y la motivación o confianza del individuo."},{"label":"B","text":"Inteligencia emocional y capacidad de negociación externa.","isCorrect":false,"rationale":"Aunque son habilidades valiosas, el modelo contingencial se enfoca en la capacidad operativa frente a una tarea puntual."},{"label":"C","text":"Grado de estudios académicos y especialización técnica.","isCorrect":false,"rationale":"Los títulos académicos no determinan necesariamente el compromiso o la madurez orgánica en el flujo de trabajo diario."},{"label":"D","text":"Antigüedad en la empresa y nivel jerárquico del puesto.","isCorrect":false,"rationale":"La antigüedad no siempre garantiza la capacidad técnica o la disposición emocional para una tarea específica."}]},{"question":"Un practicante en su primer día de trabajo suele ser clasificado en el nivel de madurez $M1$. ¿Cuál es el estilo de liderazgo adecuado para este caso?","hint":"Recuerda qué estilo se enfoca en estructurar el proceso y dar instrucciones claras sin necesidad de consulta previa.","options":[{"label":"A","text":"E2 - Guiar (Alta Tarea / Alta Relación).","isCorrect":false,"rationale":"Este estilo es más efectivo cuando el colaborador ya tiene una base de conocimientos pero ha perdido la motivación inicial."},{"label":"B","text":"E1 - Dirigir (Alta Tarea / Baja Relación).","isCorrect":true,"rationale":"En esta etapa inicial, el colaborador requiere instrucciones precisas sobre el qué, cómo y cuándo de sus funciones para reducir la incertidumbre."},{"label":"C","text":"E4 - Delegar (Baja Tarea / Baja Relación).","isCorrect":false,"rationale":"Otorgar autonomía total a alguien que aún no conoce los procesos puede derivar en errores críticos y frustración."},{"label":"D","text":"E3 - Participar (Baja Tarea / Alta Relación).","isCorrect":false,"rationale":"Un colaborador sin experiencia previa requiere estructura técnica antes que un enfoque netamente emocional o de co-diseño."}]},{"question":"¿Cuál es la característica principal del Liderazgo Transaccional en el marco de la Dualidad Operativa?","hint":"Piensa en un modelo de gestión orientado a mantener la 'máquina operando' mediante incentivos tangibles.","options":[{"label":"A","text":"Fomenta la estimulación intelectual para desafiar procesos arcaicos.","isCorrect":false,"rationale":"El enfoque transaccional prioriza el cumplimiento de estándares establecidos sobre el cuestionamiento de los mismos."},{"label":"B","text":"Se basa en un intercambio de rendimiento por recompensas extrínsecas como bonos o KPIs.","isCorrect":true,"rationale":"Este sistema de gobernanza utiliza incentivos de mercado para mantener la estabilidad y eficiencia de la operación actual."},{"label":"C","text":"Se centra exclusivamente en la autoridad moral del líder sin usar el poder formal.","isCorrect":false,"rationale":"Este modelo utiliza precisamente la arquitectura de poder formal y contratos para asegurar los resultados esperados."},{"label":"D","text":"Busca transformar la cultura organizacional mediante el propósito trascendental.","isCorrect":false,"rationale":"Esa descripción corresponde al enfoque transformacional, orientado a la evolución y la innovación a largo plazo."}]},{"question":"Cuando un colaborador es experto en su tarea (Alta Competencia) pero muestra desgano o miedo a asumir nuevas responsabilidades, ¿qué acción debe tomar el líder según el estilo E3?","hint":"Considera qué tipo de apoyo necesita un experto que atraviesa una fase de compromiso variable.","options":[{"label":"A","text":"Explicar el 'porqué' de las decisiones técnicas para que aprenda el proceso de nuevo.","isCorrect":false,"rationale":"El colaborador ya domina el proceso técnico; su barrera es de carácter actitudinal o de confianza, no de conocimiento."},{"label":"B","text":"Incrementar la supervisión operativa y definir nuevos cronogramas rígidos.","isCorrect":false,"rationale":"Aumentar el control sobre un experto puede ser contraproducente y aumentar su resistencia o desinterés."},{"label":"C","text":"Delegar la responsabilidad total de la métrica final sin intervención alguna.","isCorrect":false,"rationale":"La delegación total (E4) requiere no solo competencia, sino también un alto compromiso que el nivel $M3$ no posee en ese momento."},{"label":"D","text":"Reducir el control operativo y enfocarse en el soporte emocional y la escucha asertiva.","isCorrect":true,"rationale":"El estilo E3 busca que el colaborador recupere la confianza mediante el respaldo del líder en un ambiente de co-diseño."}]},{"question":"¿Qué consecuencia negativa se menciona al aplicar un estilo de liderazgo E1 (Micromanagement) con un colaborador en nivel M4?","hint":"Evalúa el impacto emocional y operativo de supervisar excesivamente a un analista senior autónomo.","options":[{"label":"A","text":"Aumento del compromiso del colaborador al sentirse acompañado por su jefe.","isCorrect":false,"rationale":"El nivel $M4$ valora la autonomía; el acompañamiento asfixiante se percibe como falta de confianza."},{"label":"B","text":"Facilita la transición hacia el liderazgo transformacional del equipo.","isCorrect":false,"rationale":"El micromanagement es una forma de liderazgo transaccional rígido que bloquea la innovación y la evolución cultural."},{"label":"C","text":"Mejora acelerada de la productividad por el control estricto de calidad.","isCorrect":false,"rationale":"El control excesivo sobre alguien autónomo genera cuellos de botella y ralentiza la ejecución."},{"label":"D","text":"Destrucción de la motivación intrínseca y posible renuncia del talento.","isCorrect":true,"rationale":"Tratar a un experto autónomo como a un principiante invalida su trayectoria y anula su capacidad de autogestión."}]},{"question":"En la estructura de la 'Carta a mi Yo Líder', ¿qué se busca definir en la sección de 'Filosofía de Influencia'?","hint":"Enfócate en la diferencia entre el poder que otorga el puesto y la autoridad que emana de la competencia y los valores.","options":[{"label":"A","text":"El presupuesto detallado para la contratación de un equipo de analistas.","isCorrect":false,"rationale":"La carta de gobernanza es un ejercicio de identidad y estrategia de carrera, no un plan financiero operativo."},{"label":"B","text":"Un listado de sanciones para colaboradores que no cumplan los KPIs.","isCorrect":false,"rationale":"El enfoque de la carta es el autoliderazgo y la influencia, no el diseño de reglamentos disciplinarios."},{"label":"C","text":"Cómo se ganará autoridad moral en el sector sin depender del título jerárquico.","isCorrect":true,"rationale":"Esta sección busca que el estudiante identifique su modelo de identidad y principios transformacionales para guiar a otros."},{"label":"D","text":"Los pasos técnicos para configurar un software de gestión de proyectos.","isCorrect":false,"rationale":"La filosofía de influencia se centra en principios de liderazgo humano y profesional, no en herramientas informáticas."}]},{"question":"¿Cuál es la diferencia fundamental entre el comportamiento de 'Tarea' y el de 'Relación' en el Liderazgo Situacional?","hint":"Diferencia entre dar instrucciones operativas y brindar acompañamiento socioemocional.","options":[{"label":"A","text":"La tarea implica definir el 'qué' y 'cómo', mientras que la relación implica escucha y soporte.","isCorrect":true,"rationale":"El comportamiento de tarea es directivo y operativo, mientras que el de relación es comunicativo y emocional."},{"label":"B","text":"La tarea es propia de líderes transformacionales y la relación de líderes transaccionales.","isCorrect":false,"rationale":"Ambos tipos de líderes utilizan tanto la tarea como la relación, pero en diferentes proporciones según el contexto."},{"label":"C","text":"La tarea se mide en horas hombre y la relación en encuestas de clima laboral.","isCorrect":false,"rationale":"Esta es una visión métrica, pero no describe el comportamiento del líder durante la supervisión."},{"label":"D","text":"La tarea se enfoca en el pasado del colaborador y la relación en su futuro profesional.","isCorrect":false,"rationale":"El modelo de Hersey y Blanchard se enfoca en la madurez actual del colaborador frente a una tarea específica en el presente."}]},{"question":"Según el material, ¿cuál es el propósito final de un buen líder respecto a sus colaboradores $M1$?","hint":"Reflexiona sobre la metáfora del líder como un 'ingeniero organizacional' que diseña procesos de desarrollo.","options":[{"label":"A","text":"Mantenerlos en el cuadrante E1 para asegurar que nunca cometan errores.","isCorrect":false,"rationale":"El objetivo del liderazgo no es el control perpetuo, sino el desarrollo del potencial del equipo."},{"label":"B","text":"Asegurar que sigan las instrucciones sin cuestionar la autoridad moral.","isCorrect":false,"rationale":"El material destaca que el líder debe fomentar la capacidad de los colaboradores para desafiar procesos y evolucionar."},{"label":"C","text":"Lograr que realicen su trabajo utilizando únicamente motivación extrínseca.","isCorrect":false,"rationale":"Un objetivo clave es mover al colaborador hacia la motivación intrínseca y el propósito (liderazgo transformacional)."},{"label":"D","text":"Transformarlos sistemáticamente en los líderes $M4$ del futuro.","isCorrect":true,"rationale":"El liderazgo es visto como una responsabilidad de servicio que busca la autonomía y el crecimiento del colaborador."}]},{"question":"Un colaborador que ya aprendió lo básico pero se siente frustrado por errores recientes se encuentra en el nivel $M2$. ¿Qué acción es crítica para el líder en el estilo E2?","hint":"Busca el equilibrio entre seguir supervisando la tarea y empezar a fortalecer el vínculo relacional.","options":[{"label":"A","text":"Ignorar la parte emocional y centrarse exclusivamente en la corrección técnica de los fallos.","isCorrect":false,"rationale":"El nivel $M2$ se caracteriza por un bajo compromiso; ignorar este factor impide que el colaborador avance hacia la madurez superior."},{"label":"B","text":"Abrir espacio a la retroalimentación y explicar el 'porqué' de las decisiones.","isCorrect":true,"rationale":"El estilo E2 combina la supervisión operativa con el apoyo emocional para restablecer la motivación y el compromiso."},{"label":"C","text":"Delegar la toma de decisiones para que aprenda de sus propios errores sin guía.","isCorrect":false,"rationale":"En el nivel $M2$, la frustración es alta; la falta de apoyo podría llevar al colaborador a la renuncia o al desánimo total."},{"label":"D","text":"Asumir la tarea personalmente para evitar que el proceso se detenga.","isCorrect":false,"rationale":"Reemplazar al colaborador en lugar de guiarlo anula el aprendizaje y no resuelve el problema de competencia a largo plazo."}]},{"question":"¿Qué implica el 'Compromiso de Sostenibilidad' en el planeamiento estratégico de carrera de un líder?","hint":"Relaciona este concepto con el equilibrio entre los motores económicos y el desarrollo humano bajo presión.","options":[{"label":"A","text":"Gestionar el autoliderazgo alineando objetivos extrínsecos con motores trascendentales.","isCorrect":true,"rationale":"Consiste en mantener un equilibrio entre las recompensas materiales (salario, jerarquía) y el impacto positivo en el entorno y el equipo."},{"label":"B","text":"Asegurar que la empresa tenga políticas de reciclaje y cuidado ambiental.","isCorrect":false,"rationale":"Aunque el término 'sostenibilidad' es común en el medio ambiente, aquí se refiere al equilibrio personal y profesional del líder."},{"label":"C","text":"Establecer contratos a largo plazo para evitar la rotación de personal.","isCorrect":false,"rationale":"La sostenibilidad del líder se vincula con su capacidad de resistir la presión corporativa manteniendo su visión y ética."},{"label":"D","text":"Garantizar que el equipo trabaje horas extra sin afectar el presupuesto del rubro.","isCorrect":false,"rationale":"La sostenibilidad mencionada en el texto se enfoca en el bienestar y propósito del líder, no en la explotación de recursos."}]}];
+const tr = {"correct":"¡Correcto!","incorrect":"Incorrecto","next":"Siguiente pregunta →","seeResults":"Ver resultados","complete":"¡Cuestionario completado!","scoreText":"Obtuviste {correct} de {total} correctas","tryAgain":"Intentar de nuevo","rightAnswer":"Respuesta correcta","notQuite":"No del todo"};
+let currentQ = 0, correctCount = 0, answered = false;
+
+function init() {
+  document.querySelectorAll('.question').forEach((q, i) => q.classList.toggle('active', i === 0));
+  updateProgress();
+  document.querySelectorAll('.option').forEach(opt => opt.addEventListener('click', () => selectOption(opt)));
+  document.querySelectorAll('.next-btn').forEach(btn => btn.addEventListener('click', nextQuestion));
+}
+
+function selectOption(opt) {
+  if (answered) return;
+  answered = true;
+  const q = opt.closest('.question');
+  const options = q.querySelectorAll('.option');
+  const nextBtn = q.querySelector('.next-btn');
+  const isCorrect = opt.dataset.correct === 'true';
+  
+  // Mark all options as disabled
+  options.forEach(o => o.classList.add('disabled'));
+  
+  // Style selected option
+  opt.classList.add('selected', isCorrect ? 'correct' : 'incorrect');
+  
+  // Show correct answer if wrong
+  if (!isCorrect) {
+    const correctOpt = [...options].find(o => o.dataset.correct === 'true');
+    if (correctOpt) correctOpt.classList.add('show-correct');
+  }
+  
+  if (isCorrect) correctCount++;
+  
+  // Show feedback for ALL options that have rationale
+  options.forEach(o => {
+    const wrapper = o.closest('.option-wrapper');
+    const feedback = wrapper.querySelector('.option-feedback');
+    const rationale = o.dataset.rationale;
+    const isThisCorrect = o.dataset.correct === 'true';
+    
+    if (rationale && rationale.trim()) {
+      feedback.classList.remove('hidden');
+      feedback.classList.add(isThisCorrect ? 'correct-feedback' : 'incorrect-feedback');
+      
+      const statusEl = feedback.querySelector('.feedback-status');
+      statusEl.className = 'feedback-status ' + (isThisCorrect ? 'correct' : 'incorrect');
+      statusEl.innerHTML = isThisCorrect 
+        ? '✓ ' + tr.rightAnswer
+        : '✗ ' + tr.notQuite;
+    }
+  });
+  
+  nextBtn.classList.remove('hidden');
+  if (currentQ === quizData.length - 1) nextBtn.textContent = tr.seeResults;
+}
+
+function nextQuestion() {
+  answered = false;
+  currentQ++;
+  if (currentQ >= quizData.length) { showResults(); return; }
+  document.querySelectorAll('.question').forEach((q, i) => q.classList.toggle('active', i === currentQ));
+  updateProgress();
+}
+
+function updateProgress() {
+  document.querySelector('.progress-fill').style.width = (currentQ / quizData.length * 100) + '%';
+}
+
+function showResults() {
+  document.querySelectorAll('.question').forEach(q => q.classList.remove('active'));
+  document.getElementById('results').classList.add('active');
+  const pct = Math.round((correctCount / quizData.length) * 100);
+  document.getElementById('score').textContent = pct + '%';
+  document.getElementById('score-text').textContent = tr.scoreText.replace('{correct}', correctCount).replace('{total}', quizData.length);
+  document.querySelector('.progress-fill').style.width = '100%';
+}
+
+function restart() {
+  currentQ = 0; correctCount = 0; answered = false;
+  document.getElementById('results').classList.remove('active');
+  document.querySelectorAll('.question').forEach((q, i) => {
+    q.classList.toggle('active', i === 0);
+    q.querySelectorAll('.option').forEach(o => o.classList.remove('selected', 'correct', 'incorrect', 'disabled', 'show-correct'));
+    q.querySelectorAll('.option-feedback').forEach(f => {
+      f.classList.add('hidden');
+      f.classList.remove('correct-feedback', 'incorrect-feedback');
+    });
+    const btn = q.querySelector('.next-btn');
+    btn.classList.add('hidden');
+    btn.textContent = tr.next;
+  });
+  updateProgress();
+}
+
+init();
+</script>
+</body>
+</html>
