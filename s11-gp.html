@@ -1,0 +1,886 @@
+<!DOCTYPE html>
+<html lang="es" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>S11 GP</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  min-height: 100vh; padding: 20px; color: #333;
+}
+.container { max-width: 700px; margin: 0 auto; }
+.header { text-align: center; color: #fff; padding: 30px 20px; }
+.header h1 { font-size: 28px; font-weight: 700; margin-bottom: 8px; text-shadow: 0 2px 10px rgba(0,0,0,0.2); }
+.header .meta { font-size: 14px; opacity: 0.9; }
+.progress-bar { background: rgba(255,255,255,0.3); border-radius: 10px; height: 8px; margin: 20px 0; overflow: hidden; }
+.progress-fill { background: #fff; height: 100%; width: 0%; transition: width 0.4s ease; border-radius: 10px; }
+.question { background: #fff; border-radius: 16px; padding: 30px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); display: none; }
+.question.active { display: block; }
+.q-header { display: flex; justify-content: space-between; margin-bottom: 20px; font-size: 13px; color: #888; }
+.q-number { font-weight: 600; color: #667eea; }
+.q-text { font-size: 18px; font-weight: 600; line-height: 1.5; margin-bottom: 25px; color: #222; }
+.options { display: flex; flex-direction: column; gap: 12px; }
+.option-wrapper { display: flex; flex-direction: column; }
+.option {
+  display: flex; align-items: flex-start; gap: 14px; padding: 16px 18px;
+  border: 2px solid #e8e8e8; border-radius: 12px; background: #fafafa;
+  cursor: pointer; transition: all 0.2s; text-align: left; font-size: 15px; width: 100%;
+}
+[dir="rtl"] .option { text-align: right; flex-direction: row-reverse; }
+.option:hover:not(.disabled) { border-color: #667eea; background: #f5f3ff; }
+.option.selected { border-color: #667eea; background: #ede9fe; }
+.option.correct { border-color: #22c55e; background: #dcfce7; }
+.option.incorrect { border-color: #ef4444; background: #fee2e2; }
+.option.disabled { cursor: default; }
+.option.show-correct { border-color: #22c55e; background: #dcfce7; }
+.opt-label {
+  display: flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; border-radius: 50%; background: #e8e8e8;
+  font-weight: 700; font-size: 14px; flex-shrink: 0;
+}
+.option.selected .opt-label { background: #667eea; color: #fff; }
+.option.correct .opt-label { background: #22c55e; color: #fff; }
+.option.incorrect .opt-label { background: #ef4444; color: #fff; }
+.option.show-correct .opt-label { background: #22c55e; color: #fff; }
+.opt-text { padding-top: 5px; line-height: 1.5; }
+
+/* Individual option feedback */
+.option-feedback {
+  margin: 8px 0 4px 46px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+[dir="rtl"] .option-feedback { margin-left: 0; margin-right: 46px; }
+.option-feedback.correct-feedback {
+  background: #dcfce7;
+  border-left: 3px solid #22c55e;
+}
+.option-feedback.incorrect-feedback {
+  background: #fef3f2;
+  border-left: 3px solid #fca5a5;
+}
+[dir="rtl"] .option-feedback.correct-feedback,
+[dir="rtl"] .option-feedback.incorrect-feedback {
+  border-left: none;
+  border-right: 3px solid;
+}
+[dir="rtl"] .option-feedback.correct-feedback { border-right-color: #22c55e; }
+[dir="rtl"] .option-feedback.incorrect-feedback { border-right-color: #fca5a5; }
+.feedback-status {
+  font-weight: 600;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.feedback-status.correct { color: #166534; }
+.feedback-status.incorrect { color: #991b1b; }
+.feedback-rationale { color: #444; }
+
+/* Hint box */
+.hint-box {
+  margin: 12px 0;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+}
+.hint-toggle {
+  width: 100%;
+  padding: 10px 16px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  color: #92400e;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.hint-toggle:hover { background: #fef3c7; }
+.hint-content {
+  padding: 0 16px;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s, padding 0.3s;
+  font-size: 14px;
+  color: #78350f;
+  line-height: 1.5;
+}
+.hint-box.show .hint-content {
+  padding: 0 16px 12px;
+  max-height: 200px;
+}
+
+.next-btn {
+  margin-top: 20px; width: 100%; padding: 14px;
+  background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; border: none;
+  border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.next-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(102,126,234,0.4); }
+.hidden { display: none !important; }
+.results { background: #fff; border-radius: 16px; padding: 40px; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.15); display: none; }
+.results.active { display: block; }
+.results h2 { font-size: 28px; margin-bottom: 10px; color: #333; }
+.results .score { font-size: 64px; font-weight: 700; color: #667eea; margin: 20px 0; }
+.results .score-text { font-size: 18px; color: #666; margin-bottom: 30px; }
+.restart-btn {
+  padding: 14px 40px; background: linear-gradient(135deg, #667eea, #764ba2);
+  color: #fff; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer;
+}
+
+/* Math CSS */
+.math, .math-block { font-family: "Cambria Math", "Times New Roman", Times, serif; font-style: italic; }
+.math-block { display: block; text-align: center; margin: 10px 0; font-size: 110%; }
+.frac { display: inline-flex; flex-direction: column; align-items: center; vertical-align: middle; margin: 0 3px; font-size: 0.9em; }
+.frac-num { border-bottom: 1px solid currentColor; padding: 0 4px 2px; line-height: 1.2; }
+.frac-den { padding: 2px 4px 0; line-height: 1.2; }
+.sqrt { white-space: nowrap; }
+.sqrt-content { border-top: 1px solid currentColor; padding: 0 3px; margin-left: 2px; }
+sup, sub { font-size: 0.75em; }
+sup { vertical-align: super; }
+sub { vertical-align: sub; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>S11 GP</h1>
+    <div class="meta">10 preguntas</div>
+    <div class="progress-bar"><div class="progress-fill"></div></div>
+  </div>
+  <div id="quiz-container">
+        <div class="question" data-index="0">
+          <div class="q-header">
+            <span class="q-number">Pregunta 1</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿Cuál es la definición de un Interesado (Stakeholder) según el material de la Sesión 11?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considera que el impacto de un proyecto puede ser bidireccional y subjetivo.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Esta opción solo contempla la esfera interna y organizacional, dejando fuera a la esfera externa que es crítica.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Exclusivamente los miembros del equipo de trabajo y los gerentes funcionales de la empresa.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esta opción solo contempla la esfera interna y organizacional, dejando fuera a la esfera externa que es crítica.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="El estándar define a los interesados por su capacidad de influir o ser impactados por los resultados o decisiones de la iniciativa.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Personas u organizaciones que pueden afectar, verse afectados o percibirse como afectados por el proyecto.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El estándar define a los interesados por su capacidad de influir o ser impactados por los resultados o decisiones de la iniciativa.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Esta definición se limita únicamente al rol del patrocinador, ignorando a otros actores que pueden verse afectados.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Individuos o grupos que solo financian el proyecto y toman las decisiones finales.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esta definición se limita únicamente al rol del patrocinador, ignorando a otros actores que pueden verse afectados.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Aunque son interesados importantes, representan solo una parte de la esfera externa y no a la totalidad de los stakeholders.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Entidades gubernamentales que otorgan permisos y regulan la actividad industrial.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aunque son interesados importantes, representan solo una parte de la esfera externa y no a la totalidad de los stakeholders.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="1">
+          <div class="q-header">
+            <span class="q-number">Pregunta 2</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿Cuál de las esferas de interesados se menciona como la que suele representar el error más letal si es ignorada por el gerente?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piensa en los grupos que están fuera de los límites físicos y administrativos de la empresa.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="El patrocinador es parte de la esfera interna y su apoyo es clave, pero no es el grupo que más se suele omitir por error.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Esfera del patrocinador</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El patrocinador es parte de la esfera interna y su apoyo es clave, pero no es el grupo que más se suele omitir por error.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Los departamentos internos son importantes para la logística, pero rara vez detienen un proyecto por completo como lo haría un actor externo.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Esfera organizacional</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Los departamentos internos son importantes para la logística, pero rara vez detienen un proyecto por completo como lo haría un actor externo.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Aunque el equipo es vital, el material destaca que los mayores fracasos provienen de no mirar fuera de la organización.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Esfera interna</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aunque el equipo es vital, el material destaca que los mayores fracasos provienen de no mirar fuera de la organización.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="true" data-rationale="Ignorar a clientes, comunidades y reguladores suele ser la causa principal de bloqueos legales o sociales insuperables.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Esfera externa</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Ignorar a clientes, comunidades y reguladores suele ser la causa principal de bloqueos legales o sociales insuperables.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="2">
+          <div class="q-header">
+            <span class="q-number">Pregunta 3</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">En la Matriz Poder vs. Interés, ¿qué estrategia se debe aplicar para un interesado con 'Alto Poder' y 'Bajo Interés'?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Imagina la relación que tendrías con un ente regulador que solo interviene para verificar el cumplimiento de una ley.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="El monitoreo con esfuerzo mínimo solo aplica para interesados que tienen bajo nivel en ambas categorías.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Monitorear</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El monitoreo con esfuerzo mínimo solo aplica para interesados que tienen bajo nivel en ambas categorías.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Esta acción es más adecuada para grupos con alto interés pero poco poder, como las comunidades locales sin organización.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Mantener informados</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esta acción es más adecuada para grupos con alto interés pero poco poder, como las comunidades locales sin organización.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="true" data-rationale="Al tener autoridad pero poca inquietud, se debe cumplir con sus normas para evitar que usen su poder en contra del proyecto.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Mantener satisfechos</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Al tener autoridad pero poca inquietud, se debe cumplir con sus normas para evitar que usen su poder en contra del proyecto.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Esta estrategia se reserva para quienes tienen alto poder y también un alto interés en los resultados.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Gestionar de cerca</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esta estrategia se reserva para quienes tienen alto poder y también un alto interés en los resultados.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="3">
+          <div class="q-header">
+            <span class="q-number">Pregunta 4</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿Cuál es el objetivo principal de la Matriz de Evaluación del Involucramiento de los Interesados?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piensa en el diagnóstico del 'estado mental' frente al cambio.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Eso corresponde al Registro de Interesados, una herramienta de recolección de datos, no de análisis de actitud.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Registrar los datos de contacto y correos electrónicos de todos los proveedores externos.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Eso corresponde al Registro de Interesados, una herramienta de recolección de datos, no de análisis de actitud.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Esta herramienta permite diagnosticar en qué estado mental está el interesado y diseñar acciones para moverlo a una posición más favorable.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Visualizar las brechas entre el estado de participación actual y el nivel deseado para el éxito del proyecto.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esta herramienta permite diagnosticar en qué estado mental está el interesado y diseñar acciones para moverlo a una posición más favorable.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="La matriz es una herramienta de diagnóstico psicológico y estratégico, no una herramienta contable o financiera.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Calcular el presupuesto necesario para las campañas de marketing del proyecto.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La matriz es una herramienta de diagnóstico psicológico y estratégico, no una herramienta contable o financiera.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Determinar la autoridad es función de la Matriz Poder vs. Interés, no de la matriz de involucramiento.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Identificar si el interesado tiene más autoridad que el Gerente de Proyectos.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Determinar la autoridad es función de la Matriz Poder vs. Interés, no de la matriz de involucramiento.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="4">
+          <div class="q-header">
+            <span class="q-number">Pregunta 5</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">Si un interesado conoce el proyecto pero se opone a los cambios que este generará, ¿en qué estado de involucramiento se encuentra?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Esta persona es un obstáculo consciente para la iniciativa.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Este estado describe a quien tiene conocimiento del proyecto pero manifiesta una actitud contraria a su ejecución.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Reticente/Resistente</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Este estado describe a quien tiene conocimiento del proyecto pero manifiesta una actitud contraria a su ejecución.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El partidario es aquel que ya apoya el trabajo y desea que los resultados se concreten.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Partidario</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El partidario es aquel que ya apoya el trabajo y desea que los resultados se concreten.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Un desconocido ni siquiera sabe que el proyecto existe; el interesado de la pregunta sí lo conoce.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Desconocedor</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Un desconocido ni siquiera sabe que el proyecto existe; el interesado de la pregunta sí lo conoce.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Un interesado neutral conoce el proyecto pero no muestra apoyo ni oposición.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Neutral</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Un interesado neutral conoce el proyecto pero no muestra apoyo ni oposición.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="5">
+          <div class="q-header">
+            <span class="q-number">Pregunta 6</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">En la secuencia de 6 pasos para un involucramiento efectivo, ¿qué se busca realizar en el paso de 'Priorizar'?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Se trata de decidir a quién dedicarle más tiempo y esfuerzo.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="La priorización permite enfocar la energía del gerente en los actores más críticos según su poder e interés.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Clasificar a los interesados para no desperdiciar recursos gestionando a todos por igual.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La priorización permite enfocar la energía del gerente en los actores más críticos según su poder e interés.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Esto se realiza en el primer paso: Identificar.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Registrar los nombres y cargos de todas las personas involucradas.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esto se realiza en el primer paso: Identificar.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Este es el segundo paso: Comprender.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Entender los sentimientos y necesidades específicas de cada grupo.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Este es el segundo paso: Comprender.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Esto corresponde al quinto paso: Involucrar.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Ejecutar reuniones y talleres para ganar el apoyo de los opositores.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esto corresponde al quinto paso: Involucrar.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="6">
+          <div class="q-header">
+            <span class="q-number">Pregunta 7</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿Qué representa la letra 'D' en una Matriz de Evaluación del Involucramiento?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Representa el objetivo que el Gerente de Proyectos quiere alcanzar con esa persona.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="La matriz evalúa actitud y apoyo al proyecto, no rendimiento laboral individual.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">El nivel de Desempeño técnico del interesado en sus tareas diarias.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La matriz evalúa actitud y apoyo al proyecto, no rendimiento laboral individual.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="La ubicación departamental es un dato descriptivo, no un objetivo de gestión estratégica de involucramiento.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">El Departamento al que pertenece el stakeholder dentro de la organización.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La ubicación departamental es un dato descriptivo, no un objetivo de gestión estratégica de involucramiento.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="true" data-rationale="La 'D' marca dónde necesita el gerente que se ubique el interesado para que no bloquee la iniciativa.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">El estado Deseado de participación del interesado para asegurar el éxito del proyecto.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La 'D' marca dónde necesita el gerente que se ubique el interesado para que no bloquee la iniciativa.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Los recursos financieros no se grafican en esta matriz de estados psicológicos.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">La cantidad de Dinero que el interesado ha invertido en la iniciativa.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Los recursos financieros no se grafican en esta matriz de estados psicológicos.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="7">
+          <div class="q-header">
+            <span class="q-number">Pregunta 8</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">Según el ejemplo del proyecto de minería, ¿por qué la comunidad rural se convirtió en un interesado de prioridad crítica?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considera cómo la organización social y los medios de comunicación afectan la autoridad de un grupo.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="El ejemplo se enfoca en la dinámica de poder y ruido social, no en una transferencia de propiedad legal.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Porque el gobierno les otorgó la propiedad legal de toda la infraestructura del proyecto.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El ejemplo se enfoca en la dinámica de poder y ruido social, no en una transferencia de propiedad legal.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Los interesados pueden cambiar de cuadrante; un grupo con bajo poder puede ganar influencia social y mediática rápidamente.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Porque al organizarse y usar la prensa, su nivel de poder aumentó abruptamente.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Los interesados pueden cambiar de cuadrante; un grupo con bajo poder puede ganar influencia social y mediática rápidamente.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="El texto indica que el interés siempre fue alto, lo que cambió fue su capacidad de influencia.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Porque inicialmente tenían alto poder pero no estaban interesados en el agua.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El texto indica que el interés siempre fue alto, lo que cambió fue su capacidad de influencia.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Si el interés disminuye, la prioridad generalmente baja, no sube.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Porque su nivel de interés disminuyó al recibir compensaciones económicas.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Si el interés disminuye, la prioridad generalmente baja, no sube.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="8">
+          <div class="q-header">
+            <span class="q-number">Pregunta 9</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">En el caso de la automatización con robots (COBOTS), ¿cuál era la causa raíz de la resistencia del Gerente de Operaciones?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Busca un factor relacionado con el impacto en el recurso humano de su área.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="La resistencia suele nacer de preocupaciones sobre la seguridad laboral o el impacto en las personas a cargo.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">El temor a que la automatización causara el despido de su personal.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La resistencia suele nacer de preocupaciones sobre la seguridad laboral o el impacto en las personas a cargo.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Si fuera desconocedor, no sería reticente; la reticencia implica conocer el proyecto y oponerse a él.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Su desconocimiento total de la existencia del proyecto de automatización.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Si fuera desconocedor, no sería reticente; la reticencia implica conocer el proyecto y oponerse a él.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Aunque es posible, el material se enfoca en el caso de negocio y la percepción de estabilidad laboral del equipo.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Una mala relación personal previa con el Gerente de Proyectos.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aunque es posible, el material se enfoca en el caso de negocio y la percepción de estabilidad laboral del equipo.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="El problema no era financiero, sino el temor a las consecuencias sociales de la tecnología.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">La falta de presupuesto para comprar las máquinas.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El problema no era financiero, sino el temor a las consecuencias sociales de la tecnología.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="9">
+          <div class="q-header">
+            <span class="q-number">Pregunta 10</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">Un interesado que se involucra activamente para asegurar que el proyecto tenga éxito se define como:</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Es el estado máximo donde el interesado se convierte en un motor del proyecto.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="El partidario apoya el proyecto, pero el 'Líder' va un paso más allá al involucrarse activamente en asegurar el éxito.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Partidario</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El partidario apoya el proyecto, pero el 'Líder' va un paso más allá al involucrarse activamente en asegurar el éxito.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El patrocinador es un rol específico que otorga recursos, mientras que 'Líder' es un estado de involucramiento actitudinal.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Patrocinador</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El patrocinador es un rol específico que otorga recursos, mientras que 'Líder' es un estado de involucramiento actitudinal.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Aunque es un término común, no es una de las categorías oficiales de la Matriz de Evaluación del Involucramiento del PMI mencionadas.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Socio</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aunque es un término común, no es una de las categorías oficiales de la Matriz de Evaluación del Involucramiento del PMI mencionadas.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="true" data-rationale="El estado de 'Líder' es el nivel más alto de involucramiento, donde la persona toma acciones proactivas por el proyecto.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Líder</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El estado de 'Líder' es el nivel más alto de involucramiento, donde la persona toma acciones proactivas por el proyecto.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      </div>
+  <div class="results" id="results">
+    <h2>¡Cuestionario completado!</h2>
+    <div class="score" id="score">0%</div>
+    <div class="score-text" id="score-text"></div>
+    <button class="restart-btn" onclick="restart()">Intentar de nuevo</button>
+  </div>
+</div>
+<script>
+const quizData = [{"question":"¿Cuál es la definición de un Interesado (Stakeholder) según el material de la Sesión 11?","hint":"Considera que el impacto de un proyecto puede ser bidireccional y subjetivo.","options":[{"label":"A","text":"Exclusivamente los miembros del equipo de trabajo y los gerentes funcionales de la empresa.","isCorrect":false,"rationale":"Esta opción solo contempla la esfera interna y organizacional, dejando fuera a la esfera externa que es crítica."},{"label":"B","text":"Personas u organizaciones que pueden afectar, verse afectados o percibirse como afectados por el proyecto.","isCorrect":true,"rationale":"El estándar define a los interesados por su capacidad de influir o ser impactados por los resultados o decisiones de la iniciativa."},{"label":"C","text":"Individuos o grupos que solo financian el proyecto y toman las decisiones finales.","isCorrect":false,"rationale":"Esta definición se limita únicamente al rol del patrocinador, ignorando a otros actores que pueden verse afectados."},{"label":"D","text":"Entidades gubernamentales que otorgan permisos y regulan la actividad industrial.","isCorrect":false,"rationale":"Aunque son interesados importantes, representan solo una parte de la esfera externa y no a la totalidad de los stakeholders."}]},{"question":"¿Cuál de las esferas de interesados se menciona como la que suele representar el error más letal si es ignorada por el gerente?","hint":"Piensa en los grupos que están fuera de los límites físicos y administrativos de la empresa.","options":[{"label":"A","text":"Esfera del patrocinador","isCorrect":false,"rationale":"El patrocinador es parte de la esfera interna y su apoyo es clave, pero no es el grupo que más se suele omitir por error."},{"label":"B","text":"Esfera organizacional","isCorrect":false,"rationale":"Los departamentos internos son importantes para la logística, pero rara vez detienen un proyecto por completo como lo haría un actor externo."},{"label":"C","text":"Esfera interna","isCorrect":false,"rationale":"Aunque el equipo es vital, el material destaca que los mayores fracasos provienen de no mirar fuera de la organización."},{"label":"D","text":"Esfera externa","isCorrect":true,"rationale":"Ignorar a clientes, comunidades y reguladores suele ser la causa principal de bloqueos legales o sociales insuperables."}]},{"question":"En la Matriz Poder vs. Interés, ¿qué estrategia se debe aplicar para un interesado con 'Alto Poder' y 'Bajo Interés'?","hint":"Imagina la relación que tendrías con un ente regulador que solo interviene para verificar el cumplimiento de una ley.","options":[{"label":"A","text":"Monitorear","isCorrect":false,"rationale":"El monitoreo con esfuerzo mínimo solo aplica para interesados que tienen bajo nivel en ambas categorías."},{"label":"B","text":"Mantener informados","isCorrect":false,"rationale":"Esta acción es más adecuada para grupos con alto interés pero poco poder, como las comunidades locales sin organización."},{"label":"C","text":"Mantener satisfechos","isCorrect":true,"rationale":"Al tener autoridad pero poca inquietud, se debe cumplir con sus normas para evitar que usen su poder en contra del proyecto."},{"label":"D","text":"Gestionar de cerca","isCorrect":false,"rationale":"Esta estrategia se reserva para quienes tienen alto poder y también un alto interés en los resultados."}]},{"question":"¿Cuál es el objetivo principal de la Matriz de Evaluación del Involucramiento de los Interesados?","hint":"Piensa en el diagnóstico del 'estado mental' frente al cambio.","options":[{"label":"A","text":"Registrar los datos de contacto y correos electrónicos de todos los proveedores externos.","isCorrect":false,"rationale":"Eso corresponde al Registro de Interesados, una herramienta de recolección de datos, no de análisis de actitud."},{"label":"B","text":"Visualizar las brechas entre el estado de participación actual y el nivel deseado para el éxito del proyecto.","isCorrect":true,"rationale":"Esta herramienta permite diagnosticar en qué estado mental está el interesado y diseñar acciones para moverlo a una posición más favorable."},{"label":"C","text":"Calcular el presupuesto necesario para las campañas de marketing del proyecto.","isCorrect":false,"rationale":"La matriz es una herramienta de diagnóstico psicológico y estratégico, no una herramienta contable o financiera."},{"label":"D","text":"Identificar si el interesado tiene más autoridad que el Gerente de Proyectos.","isCorrect":false,"rationale":"Determinar la autoridad es función de la Matriz Poder vs. Interés, no de la matriz de involucramiento."}]},{"question":"Si un interesado conoce el proyecto pero se opone a los cambios que este generará, ¿en qué estado de involucramiento se encuentra?","hint":"Esta persona es un obstáculo consciente para la iniciativa.","options":[{"label":"A","text":"Reticente/Resistente","isCorrect":true,"rationale":"Este estado describe a quien tiene conocimiento del proyecto pero manifiesta una actitud contraria a su ejecución."},{"label":"B","text":"Partidario","isCorrect":false,"rationale":"El partidario es aquel que ya apoya el trabajo y desea que los resultados se concreten."},{"label":"C","text":"Desconocedor","isCorrect":false,"rationale":"Un desconocido ni siquiera sabe que el proyecto existe; el interesado de la pregunta sí lo conoce."},{"label":"D","text":"Neutral","isCorrect":false,"rationale":"Un interesado neutral conoce el proyecto pero no muestra apoyo ni oposición."}]},{"question":"En la secuencia de 6 pasos para un involucramiento efectivo, ¿qué se busca realizar en el paso de 'Priorizar'?","hint":"Se trata de decidir a quién dedicarle más tiempo y esfuerzo.","options":[{"label":"A","text":"Clasificar a los interesados para no desperdiciar recursos gestionando a todos por igual.","isCorrect":true,"rationale":"La priorización permite enfocar la energía del gerente en los actores más críticos según su poder e interés."},{"label":"B","text":"Registrar los nombres y cargos de todas las personas involucradas.","isCorrect":false,"rationale":"Esto se realiza en el primer paso: Identificar."},{"label":"C","text":"Entender los sentimientos y necesidades específicas de cada grupo.","isCorrect":false,"rationale":"Este es el segundo paso: Comprender."},{"label":"D","text":"Ejecutar reuniones y talleres para ganar el apoyo de los opositores.","isCorrect":false,"rationale":"Esto corresponde al quinto paso: Involucrar."}]},{"question":"¿Qué representa la letra 'D' en una Matriz de Evaluación del Involucramiento?","hint":"Representa el objetivo que el Gerente de Proyectos quiere alcanzar con esa persona.","options":[{"label":"A","text":"El nivel de Desempeño técnico del interesado en sus tareas diarias.","isCorrect":false,"rationale":"La matriz evalúa actitud y apoyo al proyecto, no rendimiento laboral individual."},{"label":"B","text":"El Departamento al que pertenece el stakeholder dentro de la organización.","isCorrect":false,"rationale":"La ubicación departamental es un dato descriptivo, no un objetivo de gestión estratégica de involucramiento."},{"label":"C","text":"El estado Deseado de participación del interesado para asegurar el éxito del proyecto.","isCorrect":true,"rationale":"La 'D' marca dónde necesita el gerente que se ubique el interesado para que no bloquee la iniciativa."},{"label":"D","text":"La cantidad de Dinero que el interesado ha invertido en la iniciativa.","isCorrect":false,"rationale":"Los recursos financieros no se grafican en esta matriz de estados psicológicos."}]},{"question":"Según el ejemplo del proyecto de minería, ¿por qué la comunidad rural se convirtió en un interesado de prioridad crítica?","hint":"Considera cómo la organización social y los medios de comunicación afectan la autoridad de un grupo.","options":[{"label":"A","text":"Porque el gobierno les otorgó la propiedad legal de toda la infraestructura del proyecto.","isCorrect":false,"rationale":"El ejemplo se enfoca en la dinámica de poder y ruido social, no en una transferencia de propiedad legal."},{"label":"B","text":"Porque al organizarse y usar la prensa, su nivel de poder aumentó abruptamente.","isCorrect":true,"rationale":"Los interesados pueden cambiar de cuadrante; un grupo con bajo poder puede ganar influencia social y mediática rápidamente."},{"label":"C","text":"Porque inicialmente tenían alto poder pero no estaban interesados en el agua.","isCorrect":false,"rationale":"El texto indica que el interés siempre fue alto, lo que cambió fue su capacidad de influencia."},{"label":"D","text":"Porque su nivel de interés disminuyó al recibir compensaciones económicas.","isCorrect":false,"rationale":"Si el interés disminuye, la prioridad generalmente baja, no sube."}]},{"question":"En el caso de la automatización con robots (COBOTS), ¿cuál era la causa raíz de la resistencia del Gerente de Operaciones?","hint":"Busca un factor relacionado con el impacto en el recurso humano de su área.","options":[{"label":"A","text":"El temor a que la automatización causara el despido de su personal.","isCorrect":true,"rationale":"La resistencia suele nacer de preocupaciones sobre la seguridad laboral o el impacto en las personas a cargo."},{"label":"B","text":"Su desconocimiento total de la existencia del proyecto de automatización.","isCorrect":false,"rationale":"Si fuera desconocedor, no sería reticente; la reticencia implica conocer el proyecto y oponerse a él."},{"label":"C","text":"Una mala relación personal previa con el Gerente de Proyectos.","isCorrect":false,"rationale":"Aunque es posible, el material se enfoca en el caso de negocio y la percepción de estabilidad laboral del equipo."},{"label":"D","text":"La falta de presupuesto para comprar las máquinas.","isCorrect":false,"rationale":"El problema no era financiero, sino el temor a las consecuencias sociales de la tecnología."}]},{"question":"Un interesado que se involucra activamente para asegurar que el proyecto tenga éxito se define como:","hint":"Es el estado máximo donde el interesado se convierte en un motor del proyecto.","options":[{"label":"A","text":"Partidario","isCorrect":false,"rationale":"El partidario apoya el proyecto, pero el 'Líder' va un paso más allá al involucrarse activamente en asegurar el éxito."},{"label":"B","text":"Patrocinador","isCorrect":false,"rationale":"El patrocinador es un rol específico que otorga recursos, mientras que 'Líder' es un estado de involucramiento actitudinal."},{"label":"C","text":"Socio","isCorrect":false,"rationale":"Aunque es un término común, no es una de las categorías oficiales de la Matriz de Evaluación del Involucramiento del PMI mencionadas."},{"label":"D","text":"Líder","isCorrect":true,"rationale":"El estado de 'Líder' es el nivel más alto de involucramiento, donde la persona toma acciones proactivas por el proyecto."}]}];
+const tr = {"correct":"¡Correcto!","incorrect":"Incorrecto","next":"Siguiente pregunta →","seeResults":"Ver resultados","complete":"¡Cuestionario completado!","scoreText":"Obtuviste {correct} de {total} correctas","tryAgain":"Intentar de nuevo","rightAnswer":"Respuesta correcta","notQuite":"No del todo"};
+let currentQ = 0, correctCount = 0, answered = false;
+
+function init() {
+  document.querySelectorAll('.question').forEach((q, i) => q.classList.toggle('active', i === 0));
+  updateProgress();
+  document.querySelectorAll('.option').forEach(opt => opt.addEventListener('click', () => selectOption(opt)));
+  document.querySelectorAll('.next-btn').forEach(btn => btn.addEventListener('click', nextQuestion));
+}
+
+function selectOption(opt) {
+  if (answered) return;
+  answered = true;
+  const q = opt.closest('.question');
+  const options = q.querySelectorAll('.option');
+  const nextBtn = q.querySelector('.next-btn');
+  const isCorrect = opt.dataset.correct === 'true';
+  
+  // Mark all options as disabled
+  options.forEach(o => o.classList.add('disabled'));
+  
+  // Style selected option
+  opt.classList.add('selected', isCorrect ? 'correct' : 'incorrect');
+  
+  // Show correct answer if wrong
+  if (!isCorrect) {
+    const correctOpt = [...options].find(o => o.dataset.correct === 'true');
+    if (correctOpt) correctOpt.classList.add('show-correct');
+  }
+  
+  if (isCorrect) correctCount++;
+  
+  // Show feedback for ALL options that have rationale
+  options.forEach(o => {
+    const wrapper = o.closest('.option-wrapper');
+    const feedback = wrapper.querySelector('.option-feedback');
+    const rationale = o.dataset.rationale;
+    const isThisCorrect = o.dataset.correct === 'true';
+    
+    if (rationale && rationale.trim()) {
+      feedback.classList.remove('hidden');
+      feedback.classList.add(isThisCorrect ? 'correct-feedback' : 'incorrect-feedback');
+      
+      const statusEl = feedback.querySelector('.feedback-status');
+      statusEl.className = 'feedback-status ' + (isThisCorrect ? 'correct' : 'incorrect');
+      statusEl.innerHTML = isThisCorrect 
+        ? '✓ ' + tr.rightAnswer
+        : '✗ ' + tr.notQuite;
+    }
+  });
+  
+  nextBtn.classList.remove('hidden');
+  if (currentQ === quizData.length - 1) nextBtn.textContent = tr.seeResults;
+}
+
+function nextQuestion() {
+  answered = false;
+  currentQ++;
+  if (currentQ >= quizData.length) { showResults(); return; }
+  document.querySelectorAll('.question').forEach((q, i) => q.classList.toggle('active', i === currentQ));
+  updateProgress();
+}
+
+function updateProgress() {
+  document.querySelector('.progress-fill').style.width = (currentQ / quizData.length * 100) + '%';
+}
+
+function showResults() {
+  document.querySelectorAll('.question').forEach(q => q.classList.remove('active'));
+  document.getElementById('results').classList.add('active');
+  const pct = Math.round((correctCount / quizData.length) * 100);
+  document.getElementById('score').textContent = pct + '%';
+  document.getElementById('score-text').textContent = tr.scoreText.replace('{correct}', correctCount).replace('{total}', quizData.length);
+  document.querySelector('.progress-fill').style.width = '100%';
+}
+
+function restart() {
+  currentQ = 0; correctCount = 0; answered = false;
+  document.getElementById('results').classList.remove('active');
+  document.querySelectorAll('.question').forEach((q, i) => {
+    q.classList.toggle('active', i === 0);
+    q.querySelectorAll('.option').forEach(o => o.classList.remove('selected', 'correct', 'incorrect', 'disabled', 'show-correct'));
+    q.querySelectorAll('.option-feedback').forEach(f => {
+      f.classList.add('hidden');
+      f.classList.remove('correct-feedback', 'incorrect-feedback');
+    });
+    const btn = q.querySelector('.next-btn');
+    btn.classList.add('hidden');
+    btn.textContent = tr.next;
+  });
+  updateProgress();
+}
+
+init();
+</script>
+</body>
+</html>
