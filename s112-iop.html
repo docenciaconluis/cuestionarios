@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+<html lang="es" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>S11.2 Cuestionario IOP</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  min-height: 100vh; padding: 20px; color: #333;
+}
+.container { max-width: 700px; margin: 0 auto; }
+.header { text-align: center; color: #fff; padding: 30px 20px; }
+.header h1 { font-size: 28px; font-weight: 700; margin-bottom: 8px; text-shadow: 0 2px 10px rgba(0,0,0,0.2); }
+.header .meta { font-size: 14px; opacity: 0.9; }
+.progress-bar { background: rgba(255,255,255,0.3); border-radius: 10px; height: 8px; margin: 20px 0; overflow: hidden; }
+.progress-fill { background: #fff; height: 100%; width: 0%; transition: width 0.4s ease; border-radius: 10px; }
+.question { background: #fff; border-radius: 16px; padding: 30px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); display: none; }
+.question.active { display: block; }
+.q-header { display: flex; justify-content: space-between; margin-bottom: 20px; font-size: 13px; color: #888; }
+.q-number { font-weight: 600; color: #667eea; }
+.q-text { font-size: 18px; font-weight: 600; line-height: 1.5; margin-bottom: 25px; color: #222; }
+.options { display: flex; flex-direction: column; gap: 12px; }
+.option-wrapper { display: flex; flex-direction: column; }
+.option {
+  display: flex; align-items: flex-start; gap: 14px; padding: 16px 18px;
+  border: 2px solid #e8e8e8; border-radius: 12px; background: #fafafa;
+  cursor: pointer; transition: all 0.2s; text-align: left; font-size: 15px; width: 100%;
+}
+[dir="rtl"] .option { text-align: right; flex-direction: row-reverse; }
+.option:hover:not(.disabled) { border-color: #667eea; background: #f5f3ff; }
+.option.selected { border-color: #667eea; background: #ede9fe; }
+.option.correct { border-color: #22c55e; background: #dcfce7; }
+.option.incorrect { border-color: #ef4444; background: #fee2e2; }
+.option.disabled { cursor: default; }
+.option.show-correct { border-color: #22c55e; background: #dcfce7; }
+.opt-label {
+  display: flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; border-radius: 50%; background: #e8e8e8;
+  font-weight: 700; font-size: 14px; flex-shrink: 0;
+}
+.option.selected .opt-label { background: #667eea; color: #fff; }
+.option.correct .opt-label { background: #22c55e; color: #fff; }
+.option.incorrect .opt-label { background: #ef4444; color: #fff; }
+.option.show-correct .opt-label { background: #22c55e; color: #fff; }
+.opt-text { padding-top: 5px; line-height: 1.5; }
+
+/* Individual option feedback */
+.option-feedback {
+  margin: 8px 0 4px 46px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+[dir="rtl"] .option-feedback { margin-left: 0; margin-right: 46px; }
+.option-feedback.correct-feedback {
+  background: #dcfce7;
+  border-left: 3px solid #22c55e;
+}
+.option-feedback.incorrect-feedback {
+  background: #fef3f2;
+  border-left: 3px solid #fca5a5;
+}
+[dir="rtl"] .option-feedback.correct-feedback,
+[dir="rtl"] .option-feedback.incorrect-feedback {
+  border-left: none;
+  border-right: 3px solid;
+}
+[dir="rtl"] .option-feedback.correct-feedback { border-right-color: #22c55e; }
+[dir="rtl"] .option-feedback.incorrect-feedback { border-right-color: #fca5a5; }
+.feedback-status {
+  font-weight: 600;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.feedback-status.correct { color: #166534; }
+.feedback-status.incorrect { color: #991b1b; }
+.feedback-rationale { color: #444; }
+
+/* Hint box */
+.hint-box {
+  margin: 12px 0;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+}
+.hint-toggle {
+  width: 100%;
+  padding: 10px 16px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  color: #92400e;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.hint-toggle:hover { background: #fef3c7; }
+.hint-content {
+  padding: 0 16px;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s, padding 0.3s;
+  font-size: 14px;
+  color: #78350f;
+  line-height: 1.5;
+}
+.hint-box.show .hint-content {
+  padding: 0 16px 12px;
+  max-height: 200px;
+}
+
+.next-btn {
+  margin-top: 20px; width: 100%; padding: 14px;
+  background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; border: none;
+  border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.next-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(102,126,234,0.4); }
+.hidden { display: none !important; }
+.results { background: #fff; border-radius: 16px; padding: 40px; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.15); display: none; }
+.results.active { display: block; }
+.results h2 { font-size: 28px; margin-bottom: 10px; color: #333; }
+.results .score { font-size: 64px; font-weight: 700; color: #667eea; margin: 20px 0; }
+.results .score-text { font-size: 18px; color: #666; margin-bottom: 30px; }
+.restart-btn {
+  padding: 14px 40px; background: linear-gradient(135deg, #667eea, #764ba2);
+  color: #fff; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer;
+}
+
+/* Math CSS */
+.math, .math-block { font-family: "Cambria Math", "Times New Roman", Times, serif; font-style: italic; }
+.math-block { display: block; text-align: center; margin: 10px 0; font-size: 110%; }
+.frac { display: inline-flex; flex-direction: column; align-items: center; vertical-align: middle; margin: 0 3px; font-size: 0.9em; }
+.frac-num { border-bottom: 1px solid currentColor; padding: 0 4px 2px; line-height: 1.2; }
+.frac-den { padding: 2px 4px 0; line-height: 1.2; }
+.sqrt { white-space: nowrap; }
+.sqrt-content { border-top: 1px solid currentColor; padding: 0 3px; margin-left: 2px; }
+sup, sub { font-size: 0.75em; }
+sup { vertical-align: super; }
+sub { vertical-align: sub; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>S11.2 Cuestionario IOP</h1>
+    <div class="meta">8 preguntas</div>
+    <div class="progress-bar"><div class="progress-fill"></div></div>
+  </div>
+  <div id="quiz-container">
+        <div class="question" data-index="0">
+          <div class="q-header">
+            <span class="q-number">Pregunta 1</span>
+            <span class="q-of">/ 8</span>
+          </div>
+          <div class="q-text">¿Cuál es el objetivo principal de un modelo de asignación según el material de la Semana 11?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Revisa el logro de la sesión mencionado al inicio del documento.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="La equidad no es el criterio de optimización; el modelo se basa en las valoraciones de costo para tomar la decisión.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Distribuir equitativamente las tareas entre todos los empleados sin importar el perfil de costo.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La equidad no es el criterio de optimización; el modelo se basa en las valoraciones de costo para tomar la decisión.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El modelo busca optimizar recursos y costos, no necesariamente sobrecargar a un solo individuo sin considerar el costo total.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Maximizar la cantidad de tareas asignadas a un solo empleado para reducir la supervisión.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El modelo busca optimizar recursos y costos, no necesariamente sobrecargar a un solo individuo sin considerar el costo total.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Aunque la rapidez puede influir, el material se enfoca específicamente en minimizar el 'costo de ejecución'.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Asignar tareas basándose exclusivamente en la rapidez de ejecución, ignorando el costo monetario.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aunque la rapidez puede influir, el material se enfoca específicamente en minimizar el 'costo de ejecución'.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="true" data-rationale="El logro de la sesión define explícitamente que la capacidad buscada es resolver ejercicios delegando responsabilidades con el menor costo.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Delegar responsabilidades a ciertas entidades buscando el menor costo posible.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El logro de la sesión define explícitamente que la capacidad buscada es resolver ejercicios delegando responsabilidades con el menor costo.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="1">
+          <div class="q-header">
+            <span class="q-number">Pregunta 2</span>
+            <span class="q-of">/ 8</span>
+          </div>
+          <div class="q-text">En el modelo planteado en Lingo, ¿qué representa la variable de decisión <span class="math">x(i,j)</span>?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piensa en el propósito de una variable de decisión en un problema de 'todo o nada'.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Las condiciones del problema establecen explícitamente que las tareas no se pueden compartir.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">El número de empleados que pueden compartir la tarea <span class="math">j</span>.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Las condiciones del problema establecen explícitamente que las tareas no se pueden compartir.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El costo se representa con la matriz 'costo', no con la variable de decisión $x$.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">El costo total acumulado por el empleado <span class="math">i</span> al realizar la tarea <span class="math">j</span>.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El costo se representa con la matriz 'costo', no con la variable de decisión <span class="math">x</span>.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="El problema se centra en costos y asignación binaria, no se especifica una variable de tiempo continuo para $x$.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">La cantidad de tiempo que le toma al empleado <span class="math">i</span> finalizar la tarea <span class="math">j</span>.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El problema se centra en costos y asignación binaria, no se especifica una variable de tiempo continuo para <span class="math">x</span>.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="true" data-rationale="En modelos de asignación, las variables de decisión suelen ser binarias para indicar si una relación específica de tarea-empleado ocurre.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Si el empleado <span class="math">i</span> realiza la tarea <span class="math">j</span>, tomando un valor de <span class="math">1</span> si se asigna y <span class="math">0</span> si no.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">En modelos de asignación, las variables de decisión suelen ser binarias para indicar si una relación específica de tarea-empleado ocurre.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="2">
+          <div class="q-header">
+            <span class="q-number">Pregunta 3</span>
+            <span class="q-of">/ 8</span>
+          </div>
+          <div class="q-text">En el ejercicio propuesto, hay <span class="math">4</span> empleados y <span class="math">5</span> tareas. ¿Qué restricción lógica se aplica a los empleados según el código Lingo mostrado?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Observa el operador matemático utilizado en las 'Restricciones Empleados' del código Lingo.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="El código utiliza el operador '$\ge 1$' en las restricciones de empleados para asegurar que ninguno se quede sin tarea.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Cada empleado debe realizar al menos una tarea (<span class="math">≥ 1</span>).</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El código utiliza el operador '<span class="math">≥ 1</span>' en las restricciones de empleados para asegurar que ninguno se quede sin tarea.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El modelo permite que cualquier empleado tome más de una tarea para cubrir las $5$ existentes, siempre que se minimice el costo.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Solo un empleado tiene permitido realizar múltiples tareas.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El modelo permite que cualquier empleado tome más de una tarea para cubrir las <span class="math">5</span> existentes, siempre que se minimice el costo.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Esto sería matemáticamente imposible con $4$ empleados y $5$ tareas si se busca asignar todas las tareas.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Cada empleado debe realizar exactamente dos tareas (<span class="math">= 2</span>).</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esto sería matemáticamente imposible con <span class="math">4</span> empleados y <span class="math">5</span> tareas si se busca asignar todas las tareas.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Dado que hay más tareas que empleados y todas deben cumplirse, algunos empleados deberán realizar más de una.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Cada empleado puede realizar como máximo una tarea (<span class="math">≤ 1</span>).</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Dado que hay más tareas que empleados y todas deben cumplirse, algunos empleados deberán realizar más de una.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="3">
+          <div class="q-header">
+            <span class="q-number">Pregunta 4</span>
+            <span class="q-of">/ 8</span>
+          </div>
+          <div class="q-text">En el reporte de solución de Lingo, se observa que el costo de la combinación <span class="math">(2, 3)</span> y <span class="math">(2, 5)</span> es <span class="math">999.0000</span>. ¿A qué se debe esto?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Relaciona los datos del reporte de solución con las condiciones especiales mencionadas para el Empleado 2.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="No es un error; coincide con la condición del enunciado que dice que el empleado $2$ 'no puede realizar la tarea 3 y la tarea 5'.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Es un error de digitación en la matriz de costos que debe ser corregido para obtener la solución.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">No es un error; coincide con la condición del enunciado que dice que el empleado <span class="math">2</span> 'no puede realizar la tarea 3 y la tarea 5'.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Si fueran obligatorias, el modelo buscaría minimizarlas o se usaría una restricción de igualdad, no un costo penalizado.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Significa que esas tareas son obligatorias para el empleado <span class="math">2</span> sin importar el costo.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Si fueran obligatorias, el modelo buscaría minimizarlas o se usaría una restricción de igualdad, no un costo penalizado.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="El valor $999$ es un valor arbitrariamente alto usado comúnmente en optimización para penalizar rutas no deseadas.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Representa el costo máximo real de mercado para esas tareas específicas.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El valor <span class="math">999</span> es un valor arbitrariamente alto usado comúnmente en optimización para penalizar rutas no deseadas.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="true" data-rationale="Al asignar un costo muy alto (M grande), el algoritmo de minimización evitará elegir esas opciones a menos que no haya otra alternativa.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Es una técnica para modelar restricciones de imposibilidad, indicando que el empleado <span class="math">2</span> no puede realizar esas tareas.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Al asignar un costo muy alto (M grande), el algoritmo de minimización evitará elegir esas opciones a menos que no haya otra alternativa.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="4">
+          <div class="q-header">
+            <span class="q-number">Pregunta 5</span>
+            <span class="q-of">/ 8</span>
+          </div>
+          <div class="q-text">Según la conclusión del material, ¿cómo se clasifica técnicamente el modelo de asignación?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Busca la frase final del documento bajo el título 'Conclusión'.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Aunque se puede representar gráficamente, el texto lo vincula directamente con el modelo de transporte.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Como un modelo de redes de flujo máximo.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aunque se puede representar gráficamente, el texto lo vincula directamente con el modelo de transporte.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="La conclusión del documento indica explícitamente que es un caso especial del modelo de transporte para asignar recursos.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Como un tipo especial del modelo de transporte.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La conclusión del documento indica explícitamente que es un caso especial del modelo de transporte para asignar recursos.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="La estructura de sumatorias de costos por variables binarias es una forma clásica de programación lineal entera.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Como un modelo de programación no lineal compleja.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La estructura de sumatorias de costos por variables binarias es una forma clásica de programación lineal entera.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="El modelo de inventarios gestiona stocks y pedidos, mientras que aquí se gestionan tareas y responsables.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Como un modelo de inventarios de costo mínimo.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El modelo de inventarios gestiona stocks y pedidos, mientras que aquí se gestionan tareas y responsables.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="5">
+          <div class="q-header">
+            <span class="q-number">Pregunta 6</span>
+            <span class="q-of">/ 8</span>
+          </div>
+          <div class="q-text">¿Cuál es la función del comando `@SUM(tarea(j):x(i,j)) = 1` en las restricciones de tareas del código Lingo?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">En optimización, ¿qué significa que una suma de variables binarias sea igual a 1?</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="El comando suma variables de decisión $x$, no los valores de la matriz de costos.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Asegurar que todas las tareas tengan un costo de ejecución igual a <span class="math">1</span>.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El comando suma variables de decisión <span class="math">x</span>, no los valores de la matriz de costos.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="La igualdad a $1$ asegura que la suma de las asignaciones de todos los empleados para esa tarea específica sea exactamente una.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Garantizar que cada tarea sea realizada por exactamente un empleado.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La igualdad a <span class="math">1</span> asegura que la suma de las asignaciones de todos los empleados para esa tarea específica sea exactamente una.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Esta sintaxis en particular, dentro del bucle de tareas, se refiere a la cobertura de la demanda de cada tarea por los empleados.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Sumar el costo total de todas las tareas asignadas al empleado <span class="math">i</span>.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esta sintaxis en particular, dentro del bucle de tareas, se refiere a la cobertura de la demanda de cada tarea por los empleados.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Si se compartieran, la sumatoria podría ser mayor a $1$ o usarse otras restricciones; el $=1$ lo impide.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Permitir que las tareas se compartan entre varios empleados simultáneamente.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Si se compartieran, la sumatoria podría ser mayor a <span class="math">1</span> o usarse otras restricciones; el <span class="math">=1</span> lo impide.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="6">
+          <div class="q-header">
+            <span class="q-number">Pregunta 7</span>
+            <span class="q-of">/ 8</span>
+          </div>
+          <div class="q-text">En el contexto de 'Conocimientos previos', ¿qué significa optimizar recursos?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Revisa la sección de 'Conocimientos previos' y su relación con el 'mejor postor'.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Optimizar no es simplemente recortar personal, sino asignar las tareas a quienes lo hagan de forma más económica y efectiva.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Reducir el número de empleados hasta que solo quede uno para todas las tareas.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Optimizar no es simplemente recortar personal, sino asignar las tareas a quienes lo hagan de forma más económica y efectiva.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="La asignación aleatoria no garantiza el menor costo ni la optimización, que requiere un análisis matemático.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Asignar las tareas de forma aleatoria para evitar sesgos personales en la gerencia.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La asignación aleatoria no garantiza el menor costo ni la optimización, que requiere un análisis matemático.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="La optimización busca eficiencia y ahorro (minimizar costos), no el gasto injustificado de recursos.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Gastar todo el presupuesto disponible para asegurar que no se reduzca el próximo año.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La optimización busca eficiencia y ahorro (minimizar costos), no el gasto injustificado de recursos.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="true" data-rationale="El material define la optimización de recursos como la entrega de decisiones al mejor gestor para lograr eficiencia económica.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Entregar la operación al mejor gestor que maximice beneficios y minimice costos.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El material define la optimización de recursos como la entrega de decisiones al mejor gestor para lograr eficiencia económica.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="7">
+          <div class="q-header">
+            <span class="q-number">Pregunta 8</span>
+            <span class="q-of">/ 8</span>
+          </div>
+          <div class="q-text">¿Qué indica el comando `MIN = @SUM(ET(i,j): costo(i,j) * x(i,j));` en la estructura de Lingo?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Identifica la diferencia entre una 'restricción' y una 'función objetivo' en programación lineal.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="La palabra clave 'MIN' establece que el objetivo es encontrar el valor mínimo de la sumatoria producto de costos y variables.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Define la función objetivo para minimizar la suma de los costos de las tareas asignadas.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La palabra clave 'MIN' establece que el objetivo es encontrar el valor mínimo de la sumatoria producto de costos y variables.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="No es una restricción (constraint), es la función objetivo (objective function) que dirige la búsqueda de la solución.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Es una restricción que impide que el costo supere un valor determinado.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">No es una restricción (constraint), es la función objetivo (objective function) que dirige la búsqueda de la solución.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="La sumatoria abarca el conjunto 'ET' (empleado, tarea), por lo tanto, es el costo total del sistema, no de un individuo.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Calcula el costo mínimo que un solo empleado puede alcanzar.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La sumatoria abarca el conjunto 'ET' (empleado, tarea), por lo tanto, es el costo total del sistema, no de un individuo.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="El número de empleados es fijo ($4$); lo que se minimiza es el costo económico asociado a las asignaciones.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Busca minimizar el número total de empleados requeridos para las tareas.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El número de empleados es fijo (<span class="math">4</span>); lo que se minimiza es el costo económico asociado a las asignaciones.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      </div>
+  <div class="results" id="results">
+    <h2>¡Cuestionario completado!</h2>
+    <div class="score" id="score">0%</div>
+    <div class="score-text" id="score-text"></div>
+    <button class="restart-btn" onclick="restart()">Intentar de nuevo</button>
+  </div>
+</div>
+<script>
+const quizData = [{"question":"¿Cuál es el objetivo principal de un modelo de asignación según el material de la Semana 11?","hint":"Revisa el logro de la sesión mencionado al inicio del documento.","options":[{"label":"A","text":"Distribuir equitativamente las tareas entre todos los empleados sin importar el perfil de costo.","isCorrect":false,"rationale":"La equidad no es el criterio de optimización; el modelo se basa en las valoraciones de costo para tomar la decisión."},{"label":"B","text":"Maximizar la cantidad de tareas asignadas a un solo empleado para reducir la supervisión.","isCorrect":false,"rationale":"El modelo busca optimizar recursos y costos, no necesariamente sobrecargar a un solo individuo sin considerar el costo total."},{"label":"C","text":"Asignar tareas basándose exclusivamente en la rapidez de ejecución, ignorando el costo monetario.","isCorrect":false,"rationale":"Aunque la rapidez puede influir, el material se enfoca específicamente en minimizar el 'costo de ejecución'."},{"label":"D","text":"Delegar responsabilidades a ciertas entidades buscando el menor costo posible.","isCorrect":true,"rationale":"El logro de la sesión define explícitamente que la capacidad buscada es resolver ejercicios delegando responsabilidades con el menor costo."}]},{"question":"En el modelo planteado en Lingo, ¿qué representa la variable de decisión $x(i,j)$?","hint":"Piensa en el propósito de una variable de decisión en un problema de 'todo o nada'.","options":[{"label":"A","text":"El número de empleados que pueden compartir la tarea $j$.","isCorrect":false,"rationale":"Las condiciones del problema establecen explícitamente que las tareas no se pueden compartir."},{"label":"B","text":"El costo total acumulado por el empleado $i$ al realizar la tarea $j$.","isCorrect":false,"rationale":"El costo se representa con la matriz 'costo', no con la variable de decisión $x$."},{"label":"C","text":"La cantidad de tiempo que le toma al empleado $i$ finalizar la tarea $j$.","isCorrect":false,"rationale":"El problema se centra en costos y asignación binaria, no se especifica una variable de tiempo continuo para $x$."},{"label":"D","text":"Si el empleado $i$ realiza la tarea $j$, tomando un valor de $1$ si se asigna y $0$ si no.","isCorrect":true,"rationale":"En modelos de asignación, las variables de decisión suelen ser binarias para indicar si una relación específica de tarea-empleado ocurre."}]},{"question":"En el ejercicio propuesto, hay $4$ empleados y $5$ tareas. ¿Qué restricción lógica se aplica a los empleados según el código Lingo mostrado?","hint":"Observa el operador matemático utilizado en las 'Restricciones Empleados' del código Lingo.","options":[{"label":"A","text":"Cada empleado debe realizar al menos una tarea ($\\ge 1$).","isCorrect":true,"rationale":"El código utiliza el operador '$\\ge 1$' en las restricciones de empleados para asegurar que ninguno se quede sin tarea."},{"label":"B","text":"Solo un empleado tiene permitido realizar múltiples tareas.","isCorrect":false,"rationale":"El modelo permite que cualquier empleado tome más de una tarea para cubrir las $5$ existentes, siempre que se minimice el costo."},{"label":"C","text":"Cada empleado debe realizar exactamente dos tareas ($= 2$).","isCorrect":false,"rationale":"Esto sería matemáticamente imposible con $4$ empleados y $5$ tareas si se busca asignar todas las tareas."},{"label":"D","text":"Cada empleado puede realizar como máximo una tarea ($\\le 1$).","isCorrect":false,"rationale":"Dado que hay más tareas que empleados y todas deben cumplirse, algunos empleados deberán realizar más de una."}]},{"question":"En el reporte de solución de Lingo, se observa que el costo de la combinación $(2, 3)$ y $(2, 5)$ es $999.0000$. ¿A qué se debe esto?","hint":"Relaciona los datos del reporte de solución con las condiciones especiales mencionadas para el Empleado 2.","options":[{"label":"A","text":"Es un error de digitación en la matriz de costos que debe ser corregido para obtener la solución.","isCorrect":false,"rationale":"No es un error; coincide con la condición del enunciado que dice que el empleado $2$ 'no puede realizar la tarea 3 y la tarea 5'."},{"label":"B","text":"Significa que esas tareas son obligatorias para el empleado $2$ sin importar el costo.","isCorrect":false,"rationale":"Si fueran obligatorias, el modelo buscaría minimizarlas o se usaría una restricción de igualdad, no un costo penalizado."},{"label":"C","text":"Representa el costo máximo real de mercado para esas tareas específicas.","isCorrect":false,"rationale":"El valor $999$ es un valor arbitrariamente alto usado comúnmente en optimización para penalizar rutas no deseadas."},{"label":"D","text":"Es una técnica para modelar restricciones de imposibilidad, indicando que el empleado $2$ no puede realizar esas tareas.","isCorrect":true,"rationale":"Al asignar un costo muy alto (M grande), el algoritmo de minimización evitará elegir esas opciones a menos que no haya otra alternativa."}]},{"question":"Según la conclusión del material, ¿cómo se clasifica técnicamente el modelo de asignación?","hint":"Busca la frase final del documento bajo el título 'Conclusión'.","options":[{"label":"A","text":"Como un modelo de redes de flujo máximo.","isCorrect":false,"rationale":"Aunque se puede representar gráficamente, el texto lo vincula directamente con el modelo de transporte."},{"label":"B","text":"Como un tipo especial del modelo de transporte.","isCorrect":true,"rationale":"La conclusión del documento indica explícitamente que es un caso especial del modelo de transporte para asignar recursos."},{"label":"C","text":"Como un modelo de programación no lineal compleja.","isCorrect":false,"rationale":"La estructura de sumatorias de costos por variables binarias es una forma clásica de programación lineal entera."},{"label":"D","text":"Como un modelo de inventarios de costo mínimo.","isCorrect":false,"rationale":"El modelo de inventarios gestiona stocks y pedidos, mientras que aquí se gestionan tareas y responsables."}]},{"question":"¿Cuál es la función del comando `@SUM(tarea(j):x(i,j)) = 1` en las restricciones de tareas del código Lingo?","hint":"En optimización, ¿qué significa que una suma de variables binarias sea igual a 1?","options":[{"label":"A","text":"Asegurar que todas las tareas tengan un costo de ejecución igual a $1$.","isCorrect":false,"rationale":"El comando suma variables de decisión $x$, no los valores de la matriz de costos."},{"label":"B","text":"Garantizar que cada tarea sea realizada por exactamente un empleado.","isCorrect":true,"rationale":"La igualdad a $1$ asegura que la suma de las asignaciones de todos los empleados para esa tarea específica sea exactamente una."},{"label":"C","text":"Sumar el costo total de todas las tareas asignadas al empleado $i$.","isCorrect":false,"rationale":"Esta sintaxis en particular, dentro del bucle de tareas, se refiere a la cobertura de la demanda de cada tarea por los empleados."},{"label":"D","text":"Permitir que las tareas se compartan entre varios empleados simultáneamente.","isCorrect":false,"rationale":"Si se compartieran, la sumatoria podría ser mayor a $1$ o usarse otras restricciones; el $=1$ lo impide."}]},{"question":"En el contexto de 'Conocimientos previos', ¿qué significa optimizar recursos?","hint":"Revisa la sección de 'Conocimientos previos' y su relación con el 'mejor postor'.","options":[{"label":"A","text":"Reducir el número de empleados hasta que solo quede uno para todas las tareas.","isCorrect":false,"rationale":"Optimizar no es simplemente recortar personal, sino asignar las tareas a quienes lo hagan de forma más económica y efectiva."},{"label":"B","text":"Asignar las tareas de forma aleatoria para evitar sesgos personales en la gerencia.","isCorrect":false,"rationale":"La asignación aleatoria no garantiza el menor costo ni la optimización, que requiere un análisis matemático."},{"label":"C","text":"Gastar todo el presupuesto disponible para asegurar que no se reduzca el próximo año.","isCorrect":false,"rationale":"La optimización busca eficiencia y ahorro (minimizar costos), no el gasto injustificado de recursos."},{"label":"D","text":"Entregar la operación al mejor gestor que maximice beneficios y minimice costos.","isCorrect":true,"rationale":"El material define la optimización de recursos como la entrega de decisiones al mejor gestor para lograr eficiencia económica."}]},{"question":"¿Qué indica el comando `MIN = @SUM(ET(i,j): costo(i,j) * x(i,j));` en la estructura de Lingo?","hint":"Identifica la diferencia entre una 'restricción' y una 'función objetivo' en programación lineal.","options":[{"label":"A","text":"Define la función objetivo para minimizar la suma de los costos de las tareas asignadas.","isCorrect":true,"rationale":"La palabra clave 'MIN' establece que el objetivo es encontrar el valor mínimo de la sumatoria producto de costos y variables."},{"label":"B","text":"Es una restricción que impide que el costo supere un valor determinado.","isCorrect":false,"rationale":"No es una restricción (constraint), es la función objetivo (objective function) que dirige la búsqueda de la solución."},{"label":"C","text":"Calcula el costo mínimo que un solo empleado puede alcanzar.","isCorrect":false,"rationale":"La sumatoria abarca el conjunto 'ET' (empleado, tarea), por lo tanto, es el costo total del sistema, no de un individuo."},{"label":"D","text":"Busca minimizar el número total de empleados requeridos para las tareas.","isCorrect":false,"rationale":"El número de empleados es fijo ($4$); lo que se minimiza es el costo económico asociado a las asignaciones."}]}];
+const tr = {"correct":"¡Correcto!","incorrect":"Incorrecto","next":"Siguiente pregunta →","seeResults":"Ver resultados","complete":"¡Cuestionario completado!","scoreText":"Obtuviste {correct} de {total} correctas","tryAgain":"Intentar de nuevo","rightAnswer":"Respuesta correcta","notQuite":"No del todo"};
+let currentQ = 0, correctCount = 0, answered = false;
+
+function init() {
+  document.querySelectorAll('.question').forEach((q, i) => q.classList.toggle('active', i === 0));
+  updateProgress();
+  document.querySelectorAll('.option').forEach(opt => opt.addEventListener('click', () => selectOption(opt)));
+  document.querySelectorAll('.next-btn').forEach(btn => btn.addEventListener('click', nextQuestion));
+}
+
+function selectOption(opt) {
+  if (answered) return;
+  answered = true;
+  const q = opt.closest('.question');
+  const options = q.querySelectorAll('.option');
+  const nextBtn = q.querySelector('.next-btn');
+  const isCorrect = opt.dataset.correct === 'true';
+  
+  // Mark all options as disabled
+  options.forEach(o => o.classList.add('disabled'));
+  
+  // Style selected option
+  opt.classList.add('selected', isCorrect ? 'correct' : 'incorrect');
+  
+  // Show correct answer if wrong
+  if (!isCorrect) {
+    const correctOpt = [...options].find(o => o.dataset.correct === 'true');
+    if (correctOpt) correctOpt.classList.add('show-correct');
+  }
+  
+  if (isCorrect) correctCount++;
+  
+  // Show feedback for ALL options that have rationale
+  options.forEach(o => {
+    const wrapper = o.closest('.option-wrapper');
+    const feedback = wrapper.querySelector('.option-feedback');
+    const rationale = o.dataset.rationale;
+    const isThisCorrect = o.dataset.correct === 'true';
+    
+    if (rationale && rationale.trim()) {
+      feedback.classList.remove('hidden');
+      feedback.classList.add(isThisCorrect ? 'correct-feedback' : 'incorrect-feedback');
+      
+      const statusEl = feedback.querySelector('.feedback-status');
+      statusEl.className = 'feedback-status ' + (isThisCorrect ? 'correct' : 'incorrect');
+      statusEl.innerHTML = isThisCorrect 
+        ? '✓ ' + tr.rightAnswer
+        : '✗ ' + tr.notQuite;
+    }
+  });
+  
+  nextBtn.classList.remove('hidden');
+  if (currentQ === quizData.length - 1) nextBtn.textContent = tr.seeResults;
+}
+
+function nextQuestion() {
+  answered = false;
+  currentQ++;
+  if (currentQ >= quizData.length) { showResults(); return; }
+  document.querySelectorAll('.question').forEach((q, i) => q.classList.toggle('active', i === currentQ));
+  updateProgress();
+}
+
+function updateProgress() {
+  document.querySelector('.progress-fill').style.width = (currentQ / quizData.length * 100) + '%';
+}
+
+function showResults() {
+  document.querySelectorAll('.question').forEach(q => q.classList.remove('active'));
+  document.getElementById('results').classList.add('active');
+  const pct = Math.round((correctCount / quizData.length) * 100);
+  document.getElementById('score').textContent = pct + '%';
+  document.getElementById('score-text').textContent = tr.scoreText.replace('{correct}', correctCount).replace('{total}', quizData.length);
+  document.querySelector('.progress-fill').style.width = '100%';
+}
+
+function restart() {
+  currentQ = 0; correctCount = 0; answered = false;
+  document.getElementById('results').classList.remove('active');
+  document.querySelectorAll('.question').forEach((q, i) => {
+    q.classList.toggle('active', i === 0);
+    q.querySelectorAll('.option').forEach(o => o.classList.remove('selected', 'correct', 'incorrect', 'disabled', 'show-correct'));
+    q.querySelectorAll('.option-feedback').forEach(f => {
+      f.classList.add('hidden');
+      f.classList.remove('correct-feedback', 'incorrect-feedback');
+    });
+    const btn = q.querySelector('.next-btn');
+    btn.classList.add('hidden');
+    btn.textContent = tr.next;
+  });
+  updateProgress();
+}
+
+init();
+</script>
+</body>
+</html>
