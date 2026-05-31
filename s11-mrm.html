@@ -1,0 +1,886 @@
+<!DOCTYPE html>
+<html lang="es" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>S11 MRM</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  min-height: 100vh; padding: 20px; color: #333;
+}
+.container { max-width: 700px; margin: 0 auto; }
+.header { text-align: center; color: #fff; padding: 30px 20px; }
+.header h1 { font-size: 28px; font-weight: 700; margin-bottom: 8px; text-shadow: 0 2px 10px rgba(0,0,0,0.2); }
+.header .meta { font-size: 14px; opacity: 0.9; }
+.progress-bar { background: rgba(255,255,255,0.3); border-radius: 10px; height: 8px; margin: 20px 0; overflow: hidden; }
+.progress-fill { background: #fff; height: 100%; width: 0%; transition: width 0.4s ease; border-radius: 10px; }
+.question { background: #fff; border-radius: 16px; padding: 30px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); display: none; }
+.question.active { display: block; }
+.q-header { display: flex; justify-content: space-between; margin-bottom: 20px; font-size: 13px; color: #888; }
+.q-number { font-weight: 600; color: #667eea; }
+.q-text { font-size: 18px; font-weight: 600; line-height: 1.5; margin-bottom: 25px; color: #222; }
+.options { display: flex; flex-direction: column; gap: 12px; }
+.option-wrapper { display: flex; flex-direction: column; }
+.option {
+  display: flex; align-items: flex-start; gap: 14px; padding: 16px 18px;
+  border: 2px solid #e8e8e8; border-radius: 12px; background: #fafafa;
+  cursor: pointer; transition: all 0.2s; text-align: left; font-size: 15px; width: 100%;
+}
+[dir="rtl"] .option { text-align: right; flex-direction: row-reverse; }
+.option:hover:not(.disabled) { border-color: #667eea; background: #f5f3ff; }
+.option.selected { border-color: #667eea; background: #ede9fe; }
+.option.correct { border-color: #22c55e; background: #dcfce7; }
+.option.incorrect { border-color: #ef4444; background: #fee2e2; }
+.option.disabled { cursor: default; }
+.option.show-correct { border-color: #22c55e; background: #dcfce7; }
+.opt-label {
+  display: flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; border-radius: 50%; background: #e8e8e8;
+  font-weight: 700; font-size: 14px; flex-shrink: 0;
+}
+.option.selected .opt-label { background: #667eea; color: #fff; }
+.option.correct .opt-label { background: #22c55e; color: #fff; }
+.option.incorrect .opt-label { background: #ef4444; color: #fff; }
+.option.show-correct .opt-label { background: #22c55e; color: #fff; }
+.opt-text { padding-top: 5px; line-height: 1.5; }
+
+/* Individual option feedback */
+.option-feedback {
+  margin: 8px 0 4px 46px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+[dir="rtl"] .option-feedback { margin-left: 0; margin-right: 46px; }
+.option-feedback.correct-feedback {
+  background: #dcfce7;
+  border-left: 3px solid #22c55e;
+}
+.option-feedback.incorrect-feedback {
+  background: #fef3f2;
+  border-left: 3px solid #fca5a5;
+}
+[dir="rtl"] .option-feedback.correct-feedback,
+[dir="rtl"] .option-feedback.incorrect-feedback {
+  border-left: none;
+  border-right: 3px solid;
+}
+[dir="rtl"] .option-feedback.correct-feedback { border-right-color: #22c55e; }
+[dir="rtl"] .option-feedback.incorrect-feedback { border-right-color: #fca5a5; }
+.feedback-status {
+  font-weight: 600;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.feedback-status.correct { color: #166534; }
+.feedback-status.incorrect { color: #991b1b; }
+.feedback-rationale { color: #444; }
+
+/* Hint box */
+.hint-box {
+  margin: 12px 0;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+}
+.hint-toggle {
+  width: 100%;
+  padding: 10px 16px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  color: #92400e;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.hint-toggle:hover { background: #fef3c7; }
+.hint-content {
+  padding: 0 16px;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s, padding 0.3s;
+  font-size: 14px;
+  color: #78350f;
+  line-height: 1.5;
+}
+.hint-box.show .hint-content {
+  padding: 0 16px 12px;
+  max-height: 200px;
+}
+
+.next-btn {
+  margin-top: 20px; width: 100%; padding: 14px;
+  background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; border: none;
+  border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.next-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(102,126,234,0.4); }
+.hidden { display: none !important; }
+.results { background: #fff; border-radius: 16px; padding: 40px; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.15); display: none; }
+.results.active { display: block; }
+.results h2 { font-size: 28px; margin-bottom: 10px; color: #333; }
+.results .score { font-size: 64px; font-weight: 700; color: #667eea; margin: 20px 0; }
+.results .score-text { font-size: 18px; color: #666; margin-bottom: 30px; }
+.restart-btn {
+  padding: 14px 40px; background: linear-gradient(135deg, #667eea, #764ba2);
+  color: #fff; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer;
+}
+
+/* Math CSS */
+.math, .math-block { font-family: "Cambria Math", "Times New Roman", Times, serif; font-style: italic; }
+.math-block { display: block; text-align: center; margin: 10px 0; font-size: 110%; }
+.frac { display: inline-flex; flex-direction: column; align-items: center; vertical-align: middle; margin: 0 3px; font-size: 0.9em; }
+.frac-num { border-bottom: 1px solid currentColor; padding: 0 4px 2px; line-height: 1.2; }
+.frac-den { padding: 2px 4px 0; line-height: 1.2; }
+.sqrt { white-space: nowrap; }
+.sqrt-content { border-top: 1px solid currentColor; padding: 0 3px; margin-left: 2px; }
+sup, sub { font-size: 0.75em; }
+sup { vertical-align: super; }
+sub { vertical-align: sub; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>S11 MRM</h1>
+    <div class="meta">10 preguntas</div>
+    <div class="progress-bar"><div class="progress-fill"></div></div>
+  </div>
+  <div id="quiz-container">
+        <div class="question" data-index="0">
+          <div class="q-header">
+            <span class="q-number">Pregunta 1</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿Cuál es la principal diferencia entre la deformación unitaria normal (<span class="math">ε</span>) y la deformación cortante (<span class="math">γ</span>)?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piense en qué propiedad geométrica cambia: ¿es la longitud de las aristas o el ángulo entre ellas?</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="La deformación normal se refiere al estiramiento o acortamiento longitudinal, mientras que la cortante describe cómo cambian los ángulos internos de un elemento.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">La deformación normal mide cambios en el tamaño o longitud, mientras que la cortante mide cambios en la forma o distorsión angular.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La deformación normal se refiere al estiramiento o acortamiento longitudinal, mientras que la cortante describe cómo cambian los ángulos internos de un elemento.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Ambos tipos de deformación pueden ocurrir en cualquier material dependiendo del tipo de carga aplicada (axial o tangencial).">
+            <span class="opt-label">B</span>
+            <span class="opt-text">La deformación normal ocurre solo en materiales frágiles y la cortante en materiales dúctiles.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Ambos tipos de deformación pueden ocurrir en cualquier material dependiendo del tipo de carga aplicada (axial o tangencial).</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="En realidad, la deformación normal es adimensional y la cortante suele expresarse en radianes para medir el cambio angular.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">La deformación normal se mide en radianes y la cortante es adimensional.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">En realidad, la deformación normal es adimensional y la cortante suele expresarse en radianes para medir el cambio angular.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Ambas deformaciones dependen de las propiedades de rigidez del material, aunque utilizan módulos diferentes (Young vs. Rigidez).">
+            <span class="opt-label">D</span>
+            <span class="opt-text">La deformación normal depende del Módulo de Elasticidad, pero la cortante no depende de ninguna propiedad del material.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Ambas deformaciones dependen de las propiedades de rigidez del material, aunque utilizan módulos diferentes (Young vs. Rigidez).</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="1">
+          <div class="q-header">
+            <span class="q-number">Pregunta 2</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">En el diagrama esfuerzo-deformación, ¿qué sucede una vez que el material cruza el &quot;límite de fluencia&quot;?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Recuerde qué región del diagrama se considera como el &quot;punto de no retorno&quot; en ingeniería.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Esta es la característica de la zona elástica, no de la zona que sigue al límite de fluencia.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">El material recupera su forma original si se retira la carga.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esta es la característica de la zona elástica, no de la zona que sigue al límite de fluencia.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Al contrario, el material fluye o se deforma con mayor facilidad, indicando una pérdida de la resistencia elástica original.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">El material se vuelve instantáneamente más rígido (incrementa su valor de <span class="math">E</span>).</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Al contrario, el material fluye o se deforma con mayor facilidad, indicando una pérdida de la resistencia elástica original.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="true" data-rationale="El límite de fluencia marca el punto de no retorno donde el material se deforma significativamente sin necesidad de aumentar mucho la carga.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">El material entra en la región plástica y sufre una deformación permanente.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El límite de fluencia marca el punto de no retorno donde el material se deforma significativamente sin necesidad de aumentar mucho la carga.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="La relación lineal (Ley de Hooke) termina precisamente al alcanzar el límite de proporcionalidad, cercano al de fluencia.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">El esfuerzo y la deformación mantienen una relación lineal constante.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La relación lineal (Ley de Hooke) termina precisamente al alcanzar el límite de proporcionalidad, cercano al de fluencia.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="2">
+          <div class="q-header">
+            <span class="q-number">Pregunta 3</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">Según la Ley de Hooke, ¿cuál es la relación matemática correcta entre el esfuerzo normal (<span class="math">σ</span>) y la deformación unitaria (<span class="math">ε</span>)?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considere qué variable representa la 'rigidez' del material y cómo actúa como factor multiplicador.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Esta es la definición de deformación unitaria normal, no la Ley de Hooke que relaciona esfuerzo con deformación.">
+            <span class="opt-label">A</span>
+            <span class="opt-text"><span class="math">σ = Δ L / L<sub>0</sub></span></span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esta es la definición de deformación unitaria normal, no la Ley de Hooke que relaciona esfuerzo con deformación.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Esta fórmula implicaría que a mayor deformación, menor es el esfuerzo, lo cual contradice el comportamiento elástico lineal.">
+            <span class="opt-label">B</span>
+            <span class="opt-text"><span class="math">σ = E / ε</span></span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esta fórmula implicaría que a mayor deformación, menor es el esfuerzo, lo cual contradice el comportamiento elástico lineal.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="true" data-rationale="El esfuerzo es directamente proporcional a la deformación unitaria, siendo el Módulo de Young ($E$) la constante de proporcionalidad.">
+            <span class="opt-label">C</span>
+            <span class="opt-text"><span class="math">σ = E · ε</span></span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El esfuerzo es directamente proporcional a la deformación unitaria, siendo el Módulo de Young (<span class="math">E</span>) la constante de proporcionalidad.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Esta expresión es incorrecta; la deformación unitaria es el esfuerzo dividido por el módulo de elasticidad.">
+            <span class="opt-label">D</span>
+            <span class="opt-text"><span class="math">ε = σ · E</span></span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esta expresión es incorrecta; la deformación unitaria es el esfuerzo dividido por el módulo de elasticidad.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="3">
+          <div class="q-header">
+            <span class="q-number">Pregunta 4</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">Un material que se rompe súbitamente con muy poca deformación previa se clasifica como:</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piense en materiales que no 'avisan' antes de quebrarse, como el vidrio.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="En ingeniería, 'rígido' se refiere a un elemento ideal que no se deforma, no a una categoría de fractura.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Rígido</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">En ingeniería, 'rígido' se refiere a un elemento ideal que no se deforma, no a una categoría de fractura.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Materiales como el vidrio o la tiza fallan de forma repentina sin mostrar señales de deformación plástica previa.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Frágil</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Materiales como el vidrio o la tiza fallan de forma repentina sin mostrar señales de deformación plástica previa.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Este término describe una capacidad de recuperación de forma, no un modo de fractura sin deformación.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Elástico perfecto</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Este término describe una capacidad de recuperación de forma, no un modo de fractura sin deformación.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Los materiales dúctiles, como el acero, presentan grandes deformaciones plásticas antes de fallar.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Dúctil</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Los materiales dúctiles, como el acero, presentan grandes deformaciones plásticas antes de fallar.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="4">
+          <div class="q-header">
+            <span class="q-number">Pregunta 5</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿Cuál es la unidad de medida de la deformación unitaria normal (<span class="math">ε</span>) en el Sistema Internacional?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Recuerde la fórmula <span class="math">ε = Δ L / L<sub>0</sub></span> y analice qué sucede con las unidades de longitud.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Al ser un cociente de dos longitudes ($\Delta L / L_0$), las unidades se cancelan, resultando en un valor puro o porcentaje.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Es adimensional (sin unidades)</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Al ser un cociente de dos longitudes (<span class="math">Δ L / L<sub>0</sub></span>), las unidades se cancelan, resultando en un valor puro o porcentaje.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El Pascal es la unidad del esfuerzo y la presión, no de la deformación unitaria.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Pascales (<span class="math">Pa</span>)</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El Pascal es la unidad del esfuerzo y la presión, no de la deformación unitaria.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="El Newton es la unidad de fuerza, una carga aplicada que genera el esfuerzo.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Newtons (<span class="math">N</span>)</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El Newton es la unidad de fuerza, una carga aplicada que genera el esfuerzo.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="El milímetro mide el desplazamiento o cambio de longitud ($\Delta L$), pero no la deformación unitaria.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Milímetros (<span class="math">mm</span>)</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El milímetro mide el desplazamiento o cambio de longitud (<span class="math">Δ L</span>), pero no la deformación unitaria.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="5">
+          <div class="q-header">
+            <span class="q-number">Pregunta 6</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">En la fórmula de desplazamiento axial <span class="math">δ = <span class="frac"><span class="frac-num">P · L</span><span class="frac-den">E · A</span></span></span>, ¿qué representa la variable <span class="math">E</span>?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Esta propiedad es específica de cada material, como el acero o el aluminio, y mide su resistencia a ser estirado.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="La elongación o desplazamiento total se representa con el símbolo $\delta$.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Elongación total del elemento.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La elongación o desplazamiento total se representa con el símbolo <span class="math">δ</span>.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El esfuerzo se representa con la letra griega $\sigma$.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">El esfuerzo interno de tracción.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El esfuerzo se representa con la letra griega <span class="math">σ</span>.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Aunque está relacionada, la energía de deformación no se representa con $E$ en esta fórmula de desplazamiento.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">La energía acumulada en la deformación.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aunque está relacionada, la energía de deformación no se representa con <span class="math">E</span> en esta fórmula de desplazamiento.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="true" data-rationale="La variable $E$ cuantifica la rigidez del material; a mayor $E$, menor será la deformación bajo la misma carga.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">El Módulo de Elasticidad o Módulo de Young.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La variable <span class="math">E</span> cuantifica la rigidez del material; a mayor <span class="math">E</span>, menor será la deformación bajo la misma carga.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="6">
+          <div class="q-header">
+            <span class="q-number">Pregunta 7</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">Si una barra está compuesta por dos tramos de distinto material y sección, ¿cómo se calcula el desplazamiento total del extremo libre?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piense en cómo se comportaría una cadena: si cada eslabón se estira un poco, ¿qué pasa con la longitud total?</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="El desplazamiento total es la acumulación de los estiramientos o acortamientos individuales de cada segmento.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Realizando la sumatoria algebraica de los desplazamientos de cada tramo: <span class="math">δ<sub>total</sub> = ∑ <span class="frac"><span class="frac-num">P · L</span><span class="frac-den">E · A</span></span></span>.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El desplazamiento total es la acumulación de los estiramientos o acortamientos individuales de cada segmento.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="La deformación es una magnitud lineal que se suma, no una relación multiplicativa.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Multiplicando los desplazamientos de cada tramo.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La deformación es una magnitud lineal que se suma, no una relación multiplicativa.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Promediar ignoraría el efecto acumulativo de cada tramo en el desplazamiento total.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Calculando el promedio de los desplazamientos de cada tramo.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Promediar ignoraría el efecto acumulativo de cada tramo en el desplazamiento total.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Todos los tramos sometidos a carga contribuyen a la deformación total de la estructura.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Tomando únicamente el desplazamiento del tramo más largo.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Todos los tramos sometidos a carga contribuyen a la deformación total de la estructura.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="7">
+          <div class="q-header">
+            <span class="q-number">Pregunta 8</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">Al analizar un pilar a compresión, se obtiene un esfuerzo real de <span class="math">100 text MPa</span>. Si el material tiene un esfuerzo de falla de <span class="math">300 text MPa</span>, ¿cuál es su Factor de Seguridad (<span class="math">FS</span>)?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Divida la capacidad máxima del material entre la carga que realmente está soportando.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Un $FS$ menor a 1 indicaría que la estructura ya ha fallado; el cálculo correcto es falla sobre real, no al revés.">
+            <span class="opt-label">A</span>
+            <span class="opt-text"><span class="math">0.33</span></span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Un <span class="math">FS</span> menor a 1 indicaría que la estructura ya ha fallado; el cálculo correcto es falla sobre real, no al revés.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="El Factor de Seguridad se calcula como la relación entre la resistencia del material y el esfuerzo actuante ($300 / 100 = 3$).">
+            <span class="opt-label">B</span>
+            <span class="opt-text"><span class="math">3.0</span></span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El Factor de Seguridad se calcula como la relación entre la resistencia del material y el esfuerzo actuante (<span class="math">300 / 100 = 3</span>).</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Este valor representa el margen de seguridad en unidades de esfuerzo, pero el $FS$ es un índice adimensional.">
+            <span class="opt-label">C</span>
+            <span class="opt-text"><span class="math">200 text MPa</span></span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Este valor representa el margen de seguridad en unidades de esfuerzo, pero el <span class="math">FS</span> es un índice adimensional.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Sumar los esfuerzos no proporciona ninguna métrica estándar de seguridad de diseño.">
+            <span class="opt-label">D</span>
+            <span class="opt-text"><span class="math">400 text MPa</span></span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Sumar los esfuerzos no proporciona ninguna métrica estándar de seguridad de diseño.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="8">
+          <div class="q-header">
+            <span class="q-number">Pregunta 9</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">En el caso de una barra rígida que rota debido al estiramiento de un cable, ¿cómo se relaciona el desplazamiento vertical (<span class="math">δ</span>) con el ángulo de inclinación (<span class="math">θ</span>)?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Utilice la aproximación de la tangente para ángulos pequeños: <span class="math">tan(θ) ≈ θ</span>.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="El Módulo de Young relaciona esfuerzo y deformación unitaria, no desplazamientos con ángulos de rotación.">
+            <span class="opt-label">A</span>
+            <span class="opt-text"><span class="math">θ = E · δ</span></span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El Módulo de Young relaciona esfuerzo y deformación unitaria, no desplazamientos con ángulos de rotación.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Multiplicar el desplazamiento por la longitud no da como resultado una medida angular adimensional.">
+            <span class="opt-label">B</span>
+            <span class="opt-text"><span class="math">θ ≈ δ · L</span></span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Multiplicar el desplazamiento por la longitud no da como resultado una medida angular adimensional.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="true" data-rationale="Para ángulos muy pequeños, el ángulo en radianes es aproximadamente igual al arco (desplazamiento) dividido por el radio (longitud de la barra).">
+            <span class="opt-label">C</span>
+            <span class="opt-text"><span class="math">θ ≈ δ / L</span></span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Para ángulos muy pequeños, el ángulo en radianes es aproximadamente igual al arco (desplazamiento) dividido por el radio (longitud de la barra).</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Esta relación no tiene fundamento trigonométrico para el cálculo de pequeñas rotaciones en barras rígidas.">
+            <span class="opt-label">D</span>
+            <span class="opt-text"><span class="math">θ = 90^° - δ</span></span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esta relación no tiene fundamento trigonométrico para el cálculo de pequeñas rotaciones en barras rígidas.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="9">
+          <div class="q-header">
+            <span class="q-number">Pregunta 10</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿Por qué un ingeniero debe garantizar que el diseño estructural se mantenga en la &quot;zona elástica&quot;?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piense en qué sucede con una liga si se estira demasiado y ya no regresa a su tamaño original.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Maximizar el estiramiento suele acercar al material a la zona plástica, lo cual es peligroso para la integridad estructural.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Para maximizar el estiramiento del material y ahorrar peso.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Maximizar el estiramiento suele acercar al material a la zona plástica, lo cual es peligroso para la integridad estructural.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Mantenerse en la zona elástica asegura que los componentes recuperen su geometría original, preservando la funcionalidad de la máquina o edificio.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Para evitar que la estructura sufra deformaciones permanentes o fallas catastróficas tras retirar las cargas de servicio.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Mantenerse en la zona elástica asegura que los componentes recuperen su geometría original, preservando la funcionalidad de la máquina o edificio.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="El costo del material no depende de la zona de carga en la que se utilice.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Porque en esa zona el material es más barato.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El costo del material no depende de la zona de carga en la que se utilice.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="La Ley de Hooke describe el comportamiento elástico y deja de ser válida precisamente cuando el material empieza a fallar.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Porque la Ley de Hooke solo es válida cuando el material se ha roto.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La Ley de Hooke describe el comportamiento elástico y deja de ser válida precisamente cuando el material empieza a fallar.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      </div>
+  <div class="results" id="results">
+    <h2>¡Cuestionario completado!</h2>
+    <div class="score" id="score">0%</div>
+    <div class="score-text" id="score-text"></div>
+    <button class="restart-btn" onclick="restart()">Intentar de nuevo</button>
+  </div>
+</div>
+<script>
+const quizData = [{"question":"¿Cuál es la principal diferencia entre la deformación unitaria normal ($\\epsilon$) y la deformación cortante ($\\gamma$)?","hint":"Piense en qué propiedad geométrica cambia: ¿es la longitud de las aristas o el ángulo entre ellas?","options":[{"label":"A","text":"La deformación normal mide cambios en el tamaño o longitud, mientras que la cortante mide cambios en la forma o distorsión angular.","isCorrect":true,"rationale":"La deformación normal se refiere al estiramiento o acortamiento longitudinal, mientras que la cortante describe cómo cambian los ángulos internos de un elemento."},{"label":"B","text":"La deformación normal ocurre solo en materiales frágiles y la cortante en materiales dúctiles.","isCorrect":false,"rationale":"Ambos tipos de deformación pueden ocurrir en cualquier material dependiendo del tipo de carga aplicada (axial o tangencial)."},{"label":"C","text":"La deformación normal se mide en radianes y la cortante es adimensional.","isCorrect":false,"rationale":"En realidad, la deformación normal es adimensional y la cortante suele expresarse en radianes para medir el cambio angular."},{"label":"D","text":"La deformación normal depende del Módulo de Elasticidad, pero la cortante no depende de ninguna propiedad del material.","isCorrect":false,"rationale":"Ambas deformaciones dependen de las propiedades de rigidez del material, aunque utilizan módulos diferentes (Young vs. Rigidez)."}]},{"question":"En el diagrama esfuerzo-deformación, ¿qué sucede una vez que el material cruza el \"límite de fluencia\"?","hint":"Recuerde qué región del diagrama se considera como el \"punto de no retorno\" en ingeniería.","options":[{"label":"A","text":"El material recupera su forma original si se retira la carga.","isCorrect":false,"rationale":"Esta es la característica de la zona elástica, no de la zona que sigue al límite de fluencia."},{"label":"B","text":"El material se vuelve instantáneamente más rígido (incrementa su valor de $E$).","isCorrect":false,"rationale":"Al contrario, el material fluye o se deforma con mayor facilidad, indicando una pérdida de la resistencia elástica original."},{"label":"C","text":"El material entra en la región plástica y sufre una deformación permanente.","isCorrect":true,"rationale":"El límite de fluencia marca el punto de no retorno donde el material se deforma significativamente sin necesidad de aumentar mucho la carga."},{"label":"D","text":"El esfuerzo y la deformación mantienen una relación lineal constante.","isCorrect":false,"rationale":"La relación lineal (Ley de Hooke) termina precisamente al alcanzar el límite de proporcionalidad, cercano al de fluencia."}]},{"question":"Según la Ley de Hooke, ¿cuál es la relación matemática correcta entre el esfuerzo normal ($\\sigma$) y la deformación unitaria ($\\epsilon$)?","hint":"Considere qué variable representa la 'rigidez' del material y cómo actúa como factor multiplicador.","options":[{"label":"A","text":"$\\sigma = \\Delta L / L_0$","isCorrect":false,"rationale":"Esta es la definición de deformación unitaria normal, no la Ley de Hooke que relaciona esfuerzo con deformación."},{"label":"B","text":"$\\sigma = E / \\epsilon$","isCorrect":false,"rationale":"Esta fórmula implicaría que a mayor deformación, menor es el esfuerzo, lo cual contradice el comportamiento elástico lineal."},{"label":"C","text":"$\\sigma = E \\cdot \\epsilon$","isCorrect":true,"rationale":"El esfuerzo es directamente proporcional a la deformación unitaria, siendo el Módulo de Young ($E$) la constante de proporcionalidad."},{"label":"D","text":"$\\epsilon = \\sigma \\cdot E$","isCorrect":false,"rationale":"Esta expresión es incorrecta; la deformación unitaria es el esfuerzo dividido por el módulo de elasticidad."}]},{"question":"Un material que se rompe súbitamente con muy poca deformación previa se clasifica como:","hint":"Piense en materiales que no 'avisan' antes de quebrarse, como el vidrio.","options":[{"label":"A","text":"Rígido","isCorrect":false,"rationale":"En ingeniería, 'rígido' se refiere a un elemento ideal que no se deforma, no a una categoría de fractura."},{"label":"B","text":"Frágil","isCorrect":true,"rationale":"Materiales como el vidrio o la tiza fallan de forma repentina sin mostrar señales de deformación plástica previa."},{"label":"C","text":"Elástico perfecto","isCorrect":false,"rationale":"Este término describe una capacidad de recuperación de forma, no un modo de fractura sin deformación."},{"label":"D","text":"Dúctil","isCorrect":false,"rationale":"Los materiales dúctiles, como el acero, presentan grandes deformaciones plásticas antes de fallar."}]},{"question":"¿Cuál es la unidad de medida de la deformación unitaria normal ($\\epsilon$) en el Sistema Internacional?","hint":"Recuerde la fórmula $\\epsilon = \\Delta L / L_0$ y analice qué sucede con las unidades de longitud.","options":[{"label":"A","text":"Es adimensional (sin unidades)","isCorrect":true,"rationale":"Al ser un cociente de dos longitudes ($\\Delta L / L_0$), las unidades se cancelan, resultando en un valor puro o porcentaje."},{"label":"B","text":"Pascales ($Pa$)","isCorrect":false,"rationale":"El Pascal es la unidad del esfuerzo y la presión, no de la deformación unitaria."},{"label":"C","text":"Newtons ($N$)","isCorrect":false,"rationale":"El Newton es la unidad de fuerza, una carga aplicada que genera el esfuerzo."},{"label":"D","text":"Milímetros ($mm$)","isCorrect":false,"rationale":"El milímetro mide el desplazamiento o cambio de longitud ($\\Delta L$), pero no la deformación unitaria."}]},{"question":"En la fórmula de desplazamiento axial $\\delta = \\frac{P \\cdot L}{E \\cdot A}$, ¿qué representa la variable $E$?","hint":"Esta propiedad es específica de cada material, como el acero o el aluminio, y mide su resistencia a ser estirado.","options":[{"label":"A","text":"Elongación total del elemento.","isCorrect":false,"rationale":"La elongación o desplazamiento total se representa con el símbolo $\\delta$."},{"label":"B","text":"El esfuerzo interno de tracción.","isCorrect":false,"rationale":"El esfuerzo se representa con la letra griega $\\sigma$."},{"label":"C","text":"La energía acumulada en la deformación.","isCorrect":false,"rationale":"Aunque está relacionada, la energía de deformación no se representa con $E$ en esta fórmula de desplazamiento."},{"label":"D","text":"El Módulo de Elasticidad o Módulo de Young.","isCorrect":true,"rationale":"La variable $E$ cuantifica la rigidez del material; a mayor $E$, menor será la deformación bajo la misma carga."}]},{"question":"Si una barra está compuesta por dos tramos de distinto material y sección, ¿cómo se calcula el desplazamiento total del extremo libre?","hint":"Piense en cómo se comportaría una cadena: si cada eslabón se estira un poco, ¿qué pasa con la longitud total?","options":[{"label":"A","text":"Realizando la sumatoria algebraica de los desplazamientos de cada tramo: $\\delta_{total} = \\sum \\frac{P \\cdot L}{E \\cdot A}$.","isCorrect":true,"rationale":"El desplazamiento total es la acumulación de los estiramientos o acortamientos individuales de cada segmento."},{"label":"B","text":"Multiplicando los desplazamientos de cada tramo.","isCorrect":false,"rationale":"La deformación es una magnitud lineal que se suma, no una relación multiplicativa."},{"label":"C","text":"Calculando el promedio de los desplazamientos de cada tramo.","isCorrect":false,"rationale":"Promediar ignoraría el efecto acumulativo de cada tramo en el desplazamiento total."},{"label":"D","text":"Tomando únicamente el desplazamiento del tramo más largo.","isCorrect":false,"rationale":"Todos los tramos sometidos a carga contribuyen a la deformación total de la estructura."}]},{"question":"Al analizar un pilar a compresión, se obtiene un esfuerzo real de $100 \\text{ MPa}$. Si el material tiene un esfuerzo de falla de $300 \\text{ MPa}$, ¿cuál es su Factor de Seguridad ($FS$)?","hint":"Divida la capacidad máxima del material entre la carga que realmente está soportando.","options":[{"label":"A","text":"$0.33$","isCorrect":false,"rationale":"Un $FS$ menor a 1 indicaría que la estructura ya ha fallado; el cálculo correcto es falla sobre real, no al revés."},{"label":"B","text":"$3.0$","isCorrect":true,"rationale":"El Factor de Seguridad se calcula como la relación entre la resistencia del material y el esfuerzo actuante ($300 / 100 = 3$)."},{"label":"C","text":"$200 \\text{ MPa}$","isCorrect":false,"rationale":"Este valor representa el margen de seguridad en unidades de esfuerzo, pero el $FS$ es un índice adimensional."},{"label":"D","text":"$400 \\text{ MPa}$","isCorrect":false,"rationale":"Sumar los esfuerzos no proporciona ninguna métrica estándar de seguridad de diseño."}]},{"question":"En el caso de una barra rígida que rota debido al estiramiento de un cable, ¿cómo se relaciona el desplazamiento vertical ($\\delta$) con el ángulo de inclinación ($\\theta$)?","hint":"Utilice la aproximación de la tangente para ángulos pequeños: $\\tan(\\theta) \\approx \\theta$.","options":[{"label":"A","text":"$\\theta = E \\cdot \\delta$","isCorrect":false,"rationale":"El Módulo de Young relaciona esfuerzo y deformación unitaria, no desplazamientos con ángulos de rotación."},{"label":"B","text":"$\\theta \\approx \\delta \\cdot L$","isCorrect":false,"rationale":"Multiplicar el desplazamiento por la longitud no da como resultado una medida angular adimensional."},{"label":"C","text":"$\\theta \\approx \\delta / L$","isCorrect":true,"rationale":"Para ángulos muy pequeños, el ángulo en radianes es aproximadamente igual al arco (desplazamiento) dividido por el radio (longitud de la barra)."},{"label":"D","text":"$\\theta = 90^\\circ - \\delta$","isCorrect":false,"rationale":"Esta relación no tiene fundamento trigonométrico para el cálculo de pequeñas rotaciones en barras rígidas."}]},{"question":"¿Por qué un ingeniero debe garantizar que el diseño estructural se mantenga en la \"zona elástica\"?","hint":"Piense en qué sucede con una liga si se estira demasiado y ya no regresa a su tamaño original.","options":[{"label":"A","text":"Para maximizar el estiramiento del material y ahorrar peso.","isCorrect":false,"rationale":"Maximizar el estiramiento suele acercar al material a la zona plástica, lo cual es peligroso para la integridad estructural."},{"label":"B","text":"Para evitar que la estructura sufra deformaciones permanentes o fallas catastróficas tras retirar las cargas de servicio.","isCorrect":true,"rationale":"Mantenerse en la zona elástica asegura que los componentes recuperen su geometría original, preservando la funcionalidad de la máquina o edificio."},{"label":"C","text":"Porque en esa zona el material es más barato.","isCorrect":false,"rationale":"El costo del material no depende de la zona de carga en la que se utilice."},{"label":"D","text":"Porque la Ley de Hooke solo es válida cuando el material se ha roto.","isCorrect":false,"rationale":"La Ley de Hooke describe el comportamiento elástico y deja de ser válida precisamente cuando el material empieza a fallar."}]}];
+const tr = {"correct":"¡Correcto!","incorrect":"Incorrecto","next":"Siguiente pregunta →","seeResults":"Ver resultados","complete":"¡Cuestionario completado!","scoreText":"Obtuviste {correct} de {total} correctas","tryAgain":"Intentar de nuevo","rightAnswer":"Respuesta correcta","notQuite":"No del todo"};
+let currentQ = 0, correctCount = 0, answered = false;
+
+function init() {
+  document.querySelectorAll('.question').forEach((q, i) => q.classList.toggle('active', i === 0));
+  updateProgress();
+  document.querySelectorAll('.option').forEach(opt => opt.addEventListener('click', () => selectOption(opt)));
+  document.querySelectorAll('.next-btn').forEach(btn => btn.addEventListener('click', nextQuestion));
+}
+
+function selectOption(opt) {
+  if (answered) return;
+  answered = true;
+  const q = opt.closest('.question');
+  const options = q.querySelectorAll('.option');
+  const nextBtn = q.querySelector('.next-btn');
+  const isCorrect = opt.dataset.correct === 'true';
+  
+  // Mark all options as disabled
+  options.forEach(o => o.classList.add('disabled'));
+  
+  // Style selected option
+  opt.classList.add('selected', isCorrect ? 'correct' : 'incorrect');
+  
+  // Show correct answer if wrong
+  if (!isCorrect) {
+    const correctOpt = [...options].find(o => o.dataset.correct === 'true');
+    if (correctOpt) correctOpt.classList.add('show-correct');
+  }
+  
+  if (isCorrect) correctCount++;
+  
+  // Show feedback for ALL options that have rationale
+  options.forEach(o => {
+    const wrapper = o.closest('.option-wrapper');
+    const feedback = wrapper.querySelector('.option-feedback');
+    const rationale = o.dataset.rationale;
+    const isThisCorrect = o.dataset.correct === 'true';
+    
+    if (rationale && rationale.trim()) {
+      feedback.classList.remove('hidden');
+      feedback.classList.add(isThisCorrect ? 'correct-feedback' : 'incorrect-feedback');
+      
+      const statusEl = feedback.querySelector('.feedback-status');
+      statusEl.className = 'feedback-status ' + (isThisCorrect ? 'correct' : 'incorrect');
+      statusEl.innerHTML = isThisCorrect 
+        ? '✓ ' + tr.rightAnswer
+        : '✗ ' + tr.notQuite;
+    }
+  });
+  
+  nextBtn.classList.remove('hidden');
+  if (currentQ === quizData.length - 1) nextBtn.textContent = tr.seeResults;
+}
+
+function nextQuestion() {
+  answered = false;
+  currentQ++;
+  if (currentQ >= quizData.length) { showResults(); return; }
+  document.querySelectorAll('.question').forEach((q, i) => q.classList.toggle('active', i === currentQ));
+  updateProgress();
+}
+
+function updateProgress() {
+  document.querySelector('.progress-fill').style.width = (currentQ / quizData.length * 100) + '%';
+}
+
+function showResults() {
+  document.querySelectorAll('.question').forEach(q => q.classList.remove('active'));
+  document.getElementById('results').classList.add('active');
+  const pct = Math.round((correctCount / quizData.length) * 100);
+  document.getElementById('score').textContent = pct + '%';
+  document.getElementById('score-text').textContent = tr.scoreText.replace('{correct}', correctCount).replace('{total}', quizData.length);
+  document.querySelector('.progress-fill').style.width = '100%';
+}
+
+function restart() {
+  currentQ = 0; correctCount = 0; answered = false;
+  document.getElementById('results').classList.remove('active');
+  document.querySelectorAll('.question').forEach((q, i) => {
+    q.classList.toggle('active', i === 0);
+    q.querySelectorAll('.option').forEach(o => o.classList.remove('selected', 'correct', 'incorrect', 'disabled', 'show-correct'));
+    q.querySelectorAll('.option-feedback').forEach(f => {
+      f.classList.add('hidden');
+      f.classList.remove('correct-feedback', 'incorrect-feedback');
+    });
+    const btn = q.querySelector('.next-btn');
+    btn.classList.add('hidden');
+    btn.textContent = tr.next;
+  });
+  updateProgress();
+}
+
+init();
+</script>
+</body>
+</html>
