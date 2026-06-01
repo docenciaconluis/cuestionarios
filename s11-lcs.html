@@ -1,0 +1,1702 @@
+<!DOCTYPE html>
+<html lang="es" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>S11 LCS</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  min-height: 100vh; padding: 20px; color: #333;
+}
+.container { max-width: 700px; margin: 0 auto; }
+.header { text-align: center; color: #fff; padding: 30px 20px; }
+.header h1 { font-size: 28px; font-weight: 700; margin-bottom: 8px; text-shadow: 0 2px 10px rgba(0,0,0,0.2); }
+.header .meta { font-size: 14px; opacity: 0.9; }
+.progress-bar { background: rgba(255,255,255,0.3); border-radius: 10px; height: 8px; margin: 20px 0; overflow: hidden; }
+.progress-fill { background: #fff; height: 100%; width: 0%; transition: width 0.4s ease; border-radius: 10px; }
+.question { background: #fff; border-radius: 16px; padding: 30px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); display: none; }
+.question.active { display: block; }
+.q-header { display: flex; justify-content: space-between; margin-bottom: 20px; font-size: 13px; color: #888; }
+.q-number { font-weight: 600; color: #667eea; }
+.q-text { font-size: 18px; font-weight: 600; line-height: 1.5; margin-bottom: 25px; color: #222; }
+.options { display: flex; flex-direction: column; gap: 12px; }
+.option-wrapper { display: flex; flex-direction: column; }
+.option {
+  display: flex; align-items: flex-start; gap: 14px; padding: 16px 18px;
+  border: 2px solid #e8e8e8; border-radius: 12px; background: #fafafa;
+  cursor: pointer; transition: all 0.2s; text-align: left; font-size: 15px; width: 100%;
+}
+[dir="rtl"] .option { text-align: right; flex-direction: row-reverse; }
+.option:hover:not(.disabled) { border-color: #667eea; background: #f5f3ff; }
+.option.selected { border-color: #667eea; background: #ede9fe; }
+.option.correct { border-color: #22c55e; background: #dcfce7; }
+.option.incorrect { border-color: #ef4444; background: #fee2e2; }
+.option.disabled { cursor: default; }
+.option.show-correct { border-color: #22c55e; background: #dcfce7; }
+.opt-label {
+  display: flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; border-radius: 50%; background: #e8e8e8;
+  font-weight: 700; font-size: 14px; flex-shrink: 0;
+}
+.option.selected .opt-label { background: #667eea; color: #fff; }
+.option.correct .opt-label { background: #22c55e; color: #fff; }
+.option.incorrect .opt-label { background: #ef4444; color: #fff; }
+.option.show-correct .opt-label { background: #22c55e; color: #fff; }
+.opt-text { padding-top: 5px; line-height: 1.5; }
+
+/* Individual option feedback */
+.option-feedback {
+  margin: 8px 0 4px 46px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+[dir="rtl"] .option-feedback { margin-left: 0; margin-right: 46px; }
+.option-feedback.correct-feedback {
+  background: #dcfce7;
+  border-left: 3px solid #22c55e;
+}
+.option-feedback.incorrect-feedback {
+  background: #fef3f2;
+  border-left: 3px solid #fca5a5;
+}
+[dir="rtl"] .option-feedback.correct-feedback,
+[dir="rtl"] .option-feedback.incorrect-feedback {
+  border-left: none;
+  border-right: 3px solid;
+}
+[dir="rtl"] .option-feedback.correct-feedback { border-right-color: #22c55e; }
+[dir="rtl"] .option-feedback.incorrect-feedback { border-right-color: #fca5a5; }
+.feedback-status {
+  font-weight: 600;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.feedback-status.correct { color: #166534; }
+.feedback-status.incorrect { color: #991b1b; }
+.feedback-rationale { color: #444; }
+
+/* Hint box */
+.hint-box {
+  margin: 12px 0;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+}
+.hint-toggle {
+  width: 100%;
+  padding: 10px 16px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  color: #92400e;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.hint-toggle:hover { background: #fef3c7; }
+.hint-content {
+  padding: 0 16px;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s, padding 0.3s;
+  font-size: 14px;
+  color: #78350f;
+  line-height: 1.5;
+}
+.hint-box.show .hint-content {
+  padding: 0 16px 12px;
+  max-height: 200px;
+}
+
+.next-btn {
+  margin-top: 20px; width: 100%; padding: 14px;
+  background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; border: none;
+  border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.next-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(102,126,234,0.4); }
+.hidden { display: none !important; }
+.results { background: #fff; border-radius: 16px; padding: 40px; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.15); display: none; }
+.results.active { display: block; }
+.results h2 { font-size: 28px; margin-bottom: 10px; color: #333; }
+.results .score { font-size: 64px; font-weight: 700; color: #667eea; margin: 20px 0; }
+.results .score-text { font-size: 18px; color: #666; margin-bottom: 30px; }
+.restart-btn {
+  padding: 14px 40px; background: linear-gradient(135deg, #667eea, #764ba2);
+  color: #fff; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer;
+}
+
+/* Math CSS */
+.math, .math-block { font-family: "Cambria Math", "Times New Roman", Times, serif; font-style: italic; }
+.math-block { display: block; text-align: center; margin: 10px 0; font-size: 110%; }
+.frac { display: inline-flex; flex-direction: column; align-items: center; vertical-align: middle; margin: 0 3px; font-size: 0.9em; }
+.frac-num { border-bottom: 1px solid currentColor; padding: 0 4px 2px; line-height: 1.2; }
+.frac-den { padding: 2px 4px 0; line-height: 1.2; }
+.sqrt { white-space: nowrap; }
+.sqrt-content { border-top: 1px solid currentColor; padding: 0 3px; margin-left: 2px; }
+sup, sub { font-size: 0.75em; }
+sup { vertical-align: super; }
+sub { vertical-align: sub; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>S11 LCS</h1>
+    <div class="meta">26 preguntas</div>
+    <div class="progress-bar"><div class="progress-fill"></div></div>
+  </div>
+  <div id="quiz-container">
+        <div class="question" data-index="0">
+          <div class="q-header">
+            <span class="q-number">Pregunta 1</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿Cuál es la función dual primordial de los aranceles dentro de la política comercial de un gobierno?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piense en por qué un gobierno querría encarecer un producto que viene de afuera.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="La calidad y el origen se gestionan mediante certificados específicos, no a través del cobro de aranceles.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Garantizar la calidad de los productos y certificar el origen.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La calidad y el origen se gestionan mediante certificados específicos, no a través del cobro de aranceles.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Los aranceles encarecen las importaciones pero no necesariamente eliminan la competencia ni se usan directamente para subsidiar.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Eliminar la competencia extranjera y subsidiar las exportaciones.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Los aranceles encarecen las importaciones pero no necesariamente eliminan la competencia ni se usan directamente para subsidiar.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Aunque afectan la economía general, su función específica en aduanas se centra en la industria local y la recaudación fiscal.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Regular el flujo de divisas y controlar la inflación interna.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aunque afectan la economía general, su función específica en aduanas se centra en la industria local y la recaudación fiscal.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="true" data-rationale="Los aranceles actúan como barreras para defender productos locales y como una fuente de ingresos directos para el Estado.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Proteger la industria nacional y generar recaudación fiscal.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Los aranceles actúan como barreras para defender productos locales y como una fuente de ingresos directos para el Estado.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="1">
+          <div class="q-header">
+            <span class="q-number">Pregunta 2</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">Verdadero o Falso: En una Zona Franca, las mercancías extranjeras pueden ser ensambladas sin pagar aranceles siempre que no ingresen formalmente al mercado local.</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considere la definición de extraterritorialidad aduanera de estas zonas.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Las zonas francas permiten el almacenamiento y transformación de bienes con suspensión de impuestos hasta su nacionalización o reexportación.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Las zonas francas permiten el almacenamiento y transformación de bienes con suspensión de impuestos hasta su nacionalización o reexportación.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El beneficio principal de estas zonas es precisamente la exención o el diferimiento de aranceles bajo condiciones específicas de permanencia.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El beneficio principal de estas zonas es precisamente la exención o el diferimiento de aranceles bajo condiciones específicas de permanencia.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="2">
+          <div class="q-header">
+            <span class="q-number">Pregunta 3</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿Qué documento se define como el contrato legal principal entre el consignatario y el transportista marítimo?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Busque el documento que viaja con la carga y rige la responsabilidad del transportista.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="El Bill of Lading funciona simultáneamente como contrato de transporte, título de propiedad y recibo de carga.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Conocimiento de Embarque (Bill of Lading)</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El Bill of Lading funciona simultáneamente como contrato de transporte, título de propiedad y recibo de carga.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Este documento detalla la transacción de compraventa entre exportador e importador, no el contrato de transporte.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Factura Comercial</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Este documento detalla la transacción de compraventa entre exportador e importador, no el contrato de transporte.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Su función es acreditar la procedencia de la mercancía para beneficios arancelarios, no rige el transporte.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Certificado de Origen</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Su función es acreditar la procedencia de la mercancía para beneficios arancelarios, no rige el transporte.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Es un instrumento financiero de garantía de pago bancario, ajeno a la logística física del transporte.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Carta de Crédito</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Es un instrumento financiero de garantía de pago bancario, ajeno a la logística física del transporte.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="3">
+          <div class="q-header">
+            <span class="q-number">Pregunta 4</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">Si una empresa importa piezas de China con un arancel del <span class="math">12.5%</span>, pero las ensambla en una Zona Franca y luego las reexporta a otro país, ¿cuál es el beneficio financiero obtenido?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piense en qué sucede con el impuesto si el producto nunca 'entra' oficialmente al país.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="El certificado de origen sigue siendo necesario para que el comprador final en el tercer país reciba beneficios de sus propios tratados.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Eliminación de la necesidad de un Certificado de Origen.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El certificado de origen sigue siendo necesario para que el comprador final en el tercer país reciba beneficios de sus propios tratados.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Al no ingresar formalmente al mercado local (nacionalización), la mercancía reexportada nunca llega a generar la obligación tributaria.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Exención total del pago del arancel de importación.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Al no ingresar formalmente al mercado local (nacionalización), la mercancía reexportada nunca llega a generar la obligación tributaria.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="La zona franca ofrece beneficios tributarios por omisión de cobro, no necesariamente pagos directos o subsidios del gobierno.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Subsidio gubernamental por el ensamblaje de piezas.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La zona franca ofrece beneficios tributarios por omisión de cobro, no necesariamente pagos directos o subsidios del gobierno.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="El flete depende de la naviera y la ruta, no de la ubicación en una zona franca o el pago de aranceles.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Reducción del costo de flete internacional.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El flete depende de la naviera y la ruta, no de la ubicación en una zona franca o el pago de aranceles.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="4">
+          <div class="q-header">
+            <span class="q-number">Pregunta 5</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿Por qué un error en el Certificado de Origen puede arruinar la rentabilidad de una exportación de productos perecederos?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considere qué sucede con un contenedor refrigerado que se queda detenido semanas en el puerto.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="La retención aduanera genera costos de conexión eléctrica y almacenaje que superan rápidamente el margen de ganancia.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Debido a la pérdida de beneficios de TLC y el costo acumulado de demorajes en puerto.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La retención aduanera genera costos de conexión eléctrica y almacenaje que superan rápidamente el margen de ganancia.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El seguro cubre riesgos de tránsito, pero generalmente no negligencias administrativas o documentales del exportador.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Porque invalida el seguro de transporte contra daños físicos.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El seguro cubre riesgos de tránsito, pero generalmente no negligencias administrativas o documentales del exportador.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="La propiedad no cambia por un error documental, pero la carga queda retenida por la autoridad aduanera.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Porque el transportista asume la propiedad de la carga automáticamente.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La propiedad no cambia por un error documental, pero la carga queda retenida por la autoridad aduanera.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Aunque hay multas, el impacto más crítico en perecederos es la pérdida de la carga por tiempo y los costos operativos de retención.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Debido a que el exportador debe pagar el doble del valor de la factura en multas.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aunque hay multas, el impacto más crítico en perecederos es la pérdida de la carga por tiempo y los costos operativos de retención.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="5">
+          <div class="q-header">
+            <span class="q-number">Pregunta 6</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">Verdadero o Falso: El responsable logístico debe considerar que mover carga internacional es financieramente equivalente a la logística nacional, variando solo en la distancia.</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Recuerde los factores adicionales como aduanas y moneda extranjera.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="La logística internacional es mucho más compleja legal y financieramente debido a impuestos, fronteras y normativas globales.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La logística internacional es mucho más compleja legal y financieramente debido a impuestos, fronteras y normativas globales.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Esta visión ignora las barreras arancelarias, costos de intermediarios y la complejidad legal que encarecen el proceso internacional.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esta visión ignora las barreras arancelarias, costos de intermediarios y la complejidad legal que encarecen el proceso internacional.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="6">
+          <div class="q-header">
+            <span class="q-number">Pregunta 7</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿Qué intermediario es responsable de coordinar inspecciones, preparar el papeleo aduanal y agilizar el paso por fronteras?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piense en la figura legal necesaria para desaduanar mercancías.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Su especialidad es el cumplimiento normativo y la representación de la empresa ante la autoridad aduanera.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Agente Aduanal</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Su especialidad es el cumplimiento normativo y la representación de la empresa ante la autoridad aduanera.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Su rol se limita a la cobertura de riesgos y no interviene en la tramitación de documentos de despacho.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Aseguradora de Carga</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Su rol se limita a la cobertura de riesgos y no interviene en la tramitación de documentos de despacho.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Los bancos gestionan la parte financiera (cartas de crédito), no la operatividad física ni el papeleo aduanal.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Entidad Bancaria</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Los bancos gestionan la parte financiera (cartas de crédito), no la operatividad física ni el papeleo aduanal.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Es un proveedor de insumos, pero no gestiona la legalidad del tránsito internacional de la mercancía.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Proveedor de empaques</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Es un proveedor de insumos, pero no gestiona la legalidad del tránsito internacional de la mercancía.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="7">
+          <div class="q-header">
+            <span class="q-number">Pregunta 8</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿Cuál es la utilidad de una Carta de Crédito para un exportador peruano que vende por primera vez a un cliente en Europa?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Es un documento emitido por un banco para dar seguridad financiera.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Ambos documentos son necesarios y cumplen funciones distintas; uno financiero y el otro logístico/legal.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Sustituir al Conocimiento de Embarque como título de propiedad.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Ambos documentos son necesarios y cumplen funciones distintas; uno financiero y el otro logístico/legal.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="La carta de crédito es un instrumento de pago y no influye en las tarifas de los transportistas.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Reducir los costos de envío marítimo.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La carta de crédito es un instrumento de pago y no influye en las tarifas de los transportistas.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="El pago de aranceles se gestiona con el certificado de origen, no con instrumentos financieros de pago.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Evitar el pago de aranceles en el país de destino.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El pago de aranceles se gestiona con el certificado de origen, no con instrumentos financieros de pago.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="true" data-rationale="Funciona como un respaldo bancario que elimina el riesgo de impago por parte del comprador extranjero.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Garantizar que recibirá el pago una vez cumplidas las condiciones del envío.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Funciona como un respaldo bancario que elimina el riesgo de impago por parte del comprador extranjero.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="8">
+          <div class="q-header">
+            <span class="q-number">Pregunta 9</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">Verdadero o Falso: El Certificado de Seguro es el documento que asegura al país comprador que los bienes fueron fabricados específicamente en el país de origen declarado.</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Distinga entre la procedencia de la carga y su protección contra riesgos físicos.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="El Certificado de Seguro evidencia la protección de la carga contra siniestros, no su lugar de fabricación.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El Certificado de Seguro evidencia la protección de la carga contra siniestros, no su lugar de fabricación.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Esa es la descripción del Certificado de Origen; el de seguro protege contra pérdida o daño.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esa es la descripción del Certificado de Origen; el de seguro protege contra pérdida o daño.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="9">
+          <div class="q-header">
+            <span class="q-number">Pregunta 10</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿Qué elemento es fundamental para aplicar a reducciones arancelarias derivadas de Tratados de Libre Comercio (TLC)?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piense en el documento que vincula el producto con los beneficios de un acuerdo entre países.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="El pago del flete es un término comercial (Incoterm), no una base para la reducción de impuestos del gobierno.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Contrato de flete prepagado.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El pago del flete es un término comercial (Incoterm), no una base para la reducción de impuestos del gobierno.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El seguro es para protección de activos y no tiene relevancia para la determinación de impuestos arancelarios.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Póliza de Seguro Internacional.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El seguro es para protección de activos y no tiene relevancia para la determinación de impuestos arancelarios.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="La factura solo indica el precio, pero no sirve legalmente para demostrar el origen bajo las reglas de un TLC.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Factura Comercial con sello notarial.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La factura solo indica el precio, pero no sirve legalmente para demostrar el origen bajo las reglas de un TLC.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="true" data-rationale="Es el documento oficial requerido para probar que la mercancía califica para las preferencias arancelarias del tratado.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Certificado de Origen.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Es el documento oficial requerido para probar que la mercancía califica para las preferencias arancelarias del tratado.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="10">
+          <div class="q-header">
+            <span class="q-number">Pregunta 11</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿Cuál es el riesgo de que la responsabilidad del transportista marítimo sea limitada frente a un exportador?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considere quién paga 'la cuenta' cuando el contenedor no puede salir del puerto por culpa del dueño.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="El transportista tiene obligaciones de custodia, aunque su responsabilidad financiera ante daños esté limitada.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">El transportista puede vender la mercancía si el viaje se retrasa.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El transportista tiene obligaciones de custodia, aunque su responsabilidad financiera ante daños esté limitada.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El seguro es contratado por el dueño de la carga para su propio beneficio, no para el transportista.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">El exportador debe pagar el seguro del transportista.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El seguro es contratado por el dueño de la carga para su propio beneficio, no para el transportista.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="La confiscación ocurre por ilegalidad, no necesariamente por la limitación de responsabilidad del transportista.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">La aduana confisca la mercancía permanentemente.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La confiscación ocurre por ilegalidad, no necesariamente por la limitación de responsabilidad del transportista.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="true" data-rationale="Las navieras limitan su responsabilidad al transporte; si la carga se detiene por falta de papeles, el exportador paga los costos del puerto.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">El exportador asume la mayor parte del costo en caso de demoras por errores documentales ajenos a la naviera.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Las navieras limitan su responsabilidad al transporte; si la carga se detiene por falta de papeles, el exportador paga los costos del puerto.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="11">
+          <div class="q-header">
+            <span class="q-number">Pregunta 12</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">Verdadero o Falso: Los comisionistas y agentes aduanales son prescindibles en el comercio internacional moderno gracias a la digitalización.</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considere si el software sustituye la responsabilidad legal y el conocimiento técnico de campo.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Las empresas raramente operan solas debido a la rigurosidad operativa y técnica que exigen las aduanas globales.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Las empresas raramente operan solas debido a la rigurosidad operativa y técnica que exigen las aduanas globales.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="A pesar de la tecnología, la complejidad legal y la necesidad de representación técnica hacen que estos intermediarios sigan siendo vitales.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">A pesar de la tecnología, la complejidad legal y la necesidad de representación técnica hacen que estos intermediarios sigan siendo vitales.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="12">
+          <div class="q-header">
+            <span class="q-number">Pregunta 13</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">Dentro del flujo estratégico de exportación, ¿por qué es crítico considerar el empaque para el trayecto internacional?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piense en lo que le sucede a una caja de cartón tras 30 días en el mar.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="El trayecto internacional somete a la carga a mayores movimientos y condiciones climáticas que el transporte local.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Para mitigar los riesgos derivados del transporte prolongado y manipulaciones múltiples.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El trayecto internacional somete a la carga a mayores movimientos y condiciones climáticas que el transporte local.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="La estética es comercial, pero la logística prioriza la integridad física durante los riesgos del tránsito largo.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Para cumplir con los estándares estéticos del país de destino.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La estética es comercial, pero la logística prioriza la integridad física durante los riesgos del tránsito largo.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="El empaque es un costo adicional y no influye directamente en el precio de venta de los bienes detallados en la factura.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Para reducir el peso de la factura comercial.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El empaque es un costo adicional y no influye directamente en el precio de venta de los bienes detallados en la factura.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="El arancel se determina por la naturaleza del producto (partida arancelaria), no por el material de su empaque exterior.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Porque el empaque determina el arancel que se debe pagar.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El arancel se determina por la naturaleza del producto (partida arancelaria), no por el material de su empaque exterior.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="13">
+          <div class="q-header">
+            <span class="q-number">Pregunta 14</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">En el contexto de la sesión, ¿qué representa el término 'demoraje' (demurrage)?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Relaciónelo con el tiempo de permanencia de la carga en el terminal portuario.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Los impuestos por tipo de producto son aranceles específicos o ad-valorem, no demorajes.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">El impuesto que se paga por importar productos de lujo.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Los impuestos por tipo de producto son aranceles específicos o ad-valorem, no demorajes.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El demoraje es un costo penal o por uso excedente, no un beneficio o descuento.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">El descuento otorgado por el transportista por entrega anticipada.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El demoraje es un costo penal o por uso excedente, no un beneficio o descuento.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="true" data-rationale="Es una tarifa que se paga cuando la carga no se retira a tiempo de la zona portuaria debido a problemas logísticos o aduaneros.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">El costo por el uso del contenedor más allá del tiempo libre acordado en puerto.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Es una tarifa que se paga cuando la carga no se retira a tiempo de la zona portuaria debido a problemas logísticos o aduaneros.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Los honorarios del agente son gastos de gestión, mientras que el demoraje es un costo operativo de terminal/naviera.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">La comisión que cobra el agente aduanal por sus servicios.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Los honorarios del agente son gastos de gestión, mientras que el demoraje es un costo operativo de terminal/naviera.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="14">
+          <div class="q-header">
+            <span class="q-number">Pregunta 15</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿Cuál es el logro de aprendizaje principal de la Semana 11 para los estudiantes de Logística?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Busque los pilares: aduanas, aranceles y procesos de exportación.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="El sílabo busca que el alumno domine la operatividad técnica y legal necesaria para mover carga globalmente.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Comprender el sistema aduanero, regímenes arancelarios y documentación de exportación.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El sílabo busca que el alumno domine la operatividad técnica y legal necesaria para mover carga globalmente.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Se busca comprender el funcionamiento y aplicación del sistema, no la memorización exhaustiva de tarifas variables.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Memorizar todos los aranceles de todos los países del mundo.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Se busca comprender el funcionamiento y aplicación del sistema, no la memorización exhaustiva de tarifas variables.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="La sesión escala la logística hacia el entorno global, superando el ámbito puramente local o informático.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Dominar el diseño de software para control de inventarios locales.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La sesión escala la logística hacia el entorno global, superando el ámbito puramente local o informático.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="El enfoque es de gestión estratégica y operativa, no de capacitación en conducción técnica.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Aprender a conducir vehículos de carga pesada internacional.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El enfoque es de gestión estratégica y operativa, no de capacitación en conducción técnica.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="15">
+          <div class="q-header">
+            <span class="q-number">Pregunta 16</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">Verdadero o Falso: Según la teoría de Ballou, el Bill of Lading no tiene validez como recibo de mercancía, solo como contrato.</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considere la multiplicidad de funciones legales de este documento logístico.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Es falso, ya que una de sus funciones vitales es precisamente certificar que el transportista recibió los bienes.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Es falso, ya que una de sus funciones vitales es precisamente certificar que el transportista recibió los bienes.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="El documento es polifuncional: contrato, título de propiedad y recibo formal de la carga entregada.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El documento es polifuncional: contrato, título de propiedad y recibo formal de la carga entregada.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="16">
+          <div class="q-header">
+            <span class="q-number">Pregunta 17</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿Qué sucedería con la rentabilidad de una empresa si ignora los aranceles al fijar su precio de exportación?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piense en el impacto de un costo 'oculto' en el estado de resultados.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Los aranceles son impuestos definitivos a menos que existan mecanismos de devolución específicos no mencionados como norma general.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">La aduana le devolvería el dinero al final del año fiscal.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Los aranceles son impuestos definitivos a menos que existan mecanismos de devolución específicos no mencionados como norma general.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Al contrario, el precio podría ser insuficiente para cubrir los costos tributarios, restando competitividad o margen.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">El precio final sería más competitivo en el mercado de destino.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Al contrario, el precio podría ser insuficiente para cubrir los costos tributarios, restando competitividad o margen.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Un precio final elevado por aranceles no previstos suele disminuir la demanda y el volumen de ventas.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Los clientes pagarían el arancel sin que afecte el volumen de ventas.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Un precio final elevado por aranceles no previstos suele disminuir la demanda y el volumen de ventas.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="true" data-rationale="Los aranceles son costos directos que, si no se calculan, deben ser absorbidos por la empresa, reduciendo su ganancia.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">La rentabilidad podría desaparecer debido a costos imprevistos que impactan el precio final.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Los aranceles son costos directos que, si no se calculan, deben ser absorbidos por la empresa, reduciendo su ganancia.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="17">
+          <div class="q-header">
+            <span class="q-number">Pregunta 18</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿Cuál es la principal razón por la que las empresas expanden su red logística más allá de las fronteras nacionales?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considere los beneficios de la economía de escala y la competencia global.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Al contrario, la expansión internacional añade complejidad documental significativa al proceso logístico.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Para simplificar los procesos de documentación administrativa.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Al contrario, la expansión internacional añade complejidad documental significativa al proceso logístico.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El costo depende de la ruta y volumen; la razón estratégica es el acceso a mercados, no solo el costo del transporte.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Porque el transporte marítimo es siempre más barato que el terrestre.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El costo depende de la ruta y volumen; la razón estratégica es el acceso a mercados, no solo el costo del transporte.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="La expansión busca mercados y eficiencia, no es un método legal estándar para evasión fiscal nacional.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Para evitar el pago de impuestos en su país de origen.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La expansión busca mercados y eficiencia, no es un método legal estándar para evasión fiscal nacional.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="true" data-rationale="La escala global permite acceder a insumos más baratos y a una base de clientes mucho más amplia.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Para reducir costos y alcanzar nuevos mercados debido a la globalización.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La escala global permite acceder a insumos más baratos y a una base de clientes mucho más amplia.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="18">
+          <div class="q-header">
+            <span class="q-number">Pregunta 19</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">Verdadero o Falso: Un 'Agente Transportista Internacional' tiene las mismas funciones legales que un 'Banco Emisor' en una exportación.</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Diferencie entre quien mueve el contenedor y quien garantiza el dinero.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Uno se encarga del movimiento físico y logístico, mientras que el otro gestiona el riesgo y flujo financiero.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Uno se encarga del movimiento físico y logístico, mientras que el otro gestiona el riesgo y flujo financiero.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Sus roles son complementarios pero totalmente distintos: uno es logístico y el otro es financiero.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Sus roles son complementarios pero totalmente distintos: uno es logístico y el otro es financiero.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="19">
+          <div class="q-header">
+            <span class="q-number">Pregunta 20</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿Qué elemento de la documentación de exportación asegura que el exportador ha transferido la propiedad de los bienes al banco o al comprador?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Este documento es conocido como un 'título valor' en el comercio marítimo.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Es un documento técnico que describe el contenido del envío, sin validez como título de propiedad.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Lista de Empaque (Packing List)</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Es un documento técnico que describe el contenido del envío, sin validez como título de propiedad.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="En su modalidad negociable, este documento representa la propiedad de la mercancía durante su transporte.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Conocimiento de Embarque (Bill of Lading)</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">En su modalidad negociable, este documento representa la propiedad de la mercancía durante su transporte.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Solo protege el valor económico en caso de siniestro, no transfiere la propiedad legal de los bienes.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Certificado de Seguro</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Solo protege el valor económico en caso de siniestro, no transfiere la propiedad legal de los bienes.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Es un registro de la venta, pero el título de propiedad negociable sobre la mercancía en tránsito es el Bill of Lading.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Factura Comercial</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Es un registro de la venta, pero el título de propiedad negociable sobre la mercancía en tránsito es el Bill of Lading.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="20">
+          <div class="q-header">
+            <span class="q-number">Pregunta 21</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">Si un responsable logístico desea evitar el decomiso de su mercancía en una aduana extranjera, ¿en qué debe enfocar su rigurosidad?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Recuerde que en aduanas 'lo que no está en el papel, no existe'.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="La velocidad afecta el tiempo de entrega, pero no la legalidad del ingreso de la mercancía.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">En la velocidad del buque seleccionado.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La velocidad afecta el tiempo de entrega, pero no la legalidad del ingreso de la mercancía.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="La publicidad no es un requisito aduanero para el levante de las mercancías en frontera.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">En el diseño publicitario del empaque exterior.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La publicidad no es un requisito aduanero para el levante de las mercancías en frontera.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="true" data-rationale="La documentación es el 'escudo' legal; cualquier error puede interpretarse como contrabando o falta administrativa grave.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">En la exactitud y cumplimiento legal de toda la documentación.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La documentación es el 'escudo' legal; cualquier error puede interpretarse como contrabando o falta administrativa grave.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="El medio de transporte no exime del control aduanero ni del riesgo de decomiso por falta de papeles.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">En contratar únicamente transporte terrestre.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El medio de transporte no exime del control aduanero ni del riesgo de decomiso por falta de papeles.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="21">
+          <div class="q-header">
+            <span class="q-number">Pregunta 22</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">Verdadero o Falso: Los Tratados de Libre Comercio (TLC) eliminan por completo la necesidad de pasar por aduanas.</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Distinga entre el pago de impuestos y el control fronterizo de mercancías.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Los TLC reducen o eliminan aranceles, pero el control físico y documental de las aduanas permanece obligatorio.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Los TLC reducen o eliminan aranceles, pero el control físico y documental de las aduanas permanece obligatorio.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Incluso con TLC, todas las mercancías deben pasar control aduanero para verificar origen, seguridad y estadísticas.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Incluso con TLC, todas las mercancías deben pasar control aduanero para verificar origen, seguridad y estadísticas.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="22">
+          <div class="q-header">
+            <span class="q-number">Pregunta 23</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">En el caso de exportar 'café especial' a Japón, ¿qué función cumple el Certificado de Seguro?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piense en la protección contra daños accidentales durante el largo viaje.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="El seguro cubre los riesgos físicos del trayecto, asegurando que el exportador no pierda su capital si ocurre un siniestro.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Proteger la inversión del exportador ante posibles tormentas o pérdida del contenedor en el mar.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El seguro cubre los riesgos físicos del trayecto, asegurando que el exportador no pierda su capital si ocurre un siniestro.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Esta es la función del Certificado de Origen, no del seguro de transporte.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Demostrar que el café fue cultivado en Perú.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esta es la función del Certificado de Origen, no del seguro de transporte.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Esa es la función de la Carta de Crédito; el seguro solo cubre daños a la mercancía.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Asegurar que el banco japonés pagará la factura.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esa es la función de la Carta de Crédito; el seguro solo cubre daños a la mercancía.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="La variedad se certifica mediante documentos fitosanitarios o de calidad, no por el seguro de carga.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Garantizar que el café sea de la variedad arábica.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La variedad se certifica mediante documentos fitosanitarios o de calidad, no por el seguro de carga.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="23">
+          <div class="q-header">
+            <span class="q-number">Pregunta 24</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿Cuál es la utilidad estratégica de las Zonas de Comercio Exterior (Zonas Francas) para una empresa de manufactura ligera?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piense en el beneficio financiero de no pagar impuestos 'por adelantado'.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="El pago diferido permite a la empresa usar ese capital para operaciones antes de cumplir con la obligación tributaria final.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Diferir el pago de aranceles hasta que el producto esté listo para el mercado local, mejorando el flujo de caja.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El pago diferido permite a la empresa usar ese capital para operaciones antes de cumplir con la obligación tributaria final.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="La zona franca es un régimen legal/tributario; la seguridad física depende de la gestión interna de la planta.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Garantizar que el producto no sufrirá daños durante el ensamblaje.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La zona franca es un régimen legal/tributario; la seguridad física depende de la gestión interna de la planta.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Existe control aduanero permanente, aunque se suspendan temporalmente los pagos de aranceles.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Permitir el almacenamiento indefinido sin control aduanero.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Existe control aduanero permanente, aunque se suspendan temporalmente los pagos de aranceles.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Incluso en zonas francas, la gestión de ingresos y salidas requiere la intervención de especialistas aduaneros.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Evitar tener que contratar agentes aduanales.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Incluso en zonas francas, la gestión de ingresos y salidas requiere la intervención de especialistas aduaneros.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="24">
+          <div class="q-header">
+            <span class="q-number">Pregunta 25</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">Verdadero o Falso: La Factura Comercial es un documento financiero emitido por un banco que garantiza el pago al exportador.</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Identifique quién emite cada documento: el vendedor o una institución financiera.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Esa es la definición de Carta de Crédito; la factura la emite el vendedor, no el banco.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esa es la definición de Carta de Crédito; la factura la emite el vendedor, no el banco.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="La Factura Comercial es el documento de cobro emitido por el vendedor al comprador detallando los bienes vendidos.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La Factura Comercial es el documento de cobro emitido por el vendedor al comprador detallando los bienes vendidos.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="25">
+          <div class="q-header">
+            <span class="q-number">Pregunta 26</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿Qué componente del proceso logístico internacional es fundamental para que el exportador 'asegure el cobro de la venta'?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piense en los mecanismos que protegen el flujo de dinero, no solo el flujo de productos.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Desaduanar rápido es eficiente, pero el cobro depende de los términos de pago y garantías bancarias establecidas.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">La velocidad de desaduanamiento en destino.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Desaduanar rápido es eficiente, pero el cobro depende de los términos de pago y garantías bancarias establecidas.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El B/L prueba el envío, pero no garantiza por sí solo que el dinero llegará a la cuenta del exportador.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">El Conocimiento de Embarque únicamente.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El B/L prueba el envío, pero no garantiza por sí solo que el dinero llegará a la cuenta del exportador.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="true" data-rationale="Los instrumentos financieros brindan la seguridad de pago, mientras el marco legal permite reclamar en caso de incumplimiento.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">El marco legal y los instrumentos financieros como la Carta de Crédito.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Los instrumentos financieros brindan la seguridad de pago, mientras el marco legal permite reclamar en caso de incumplimiento.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="El empaque asegura la mercancía, pero no garantiza que el cliente tenga la voluntad o capacidad de pagar.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">El uso de empaques de alta resistencia.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El empaque asegura la mercancía, pero no garantiza que el cliente tenga la voluntad o capacidad de pagar.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      </div>
+  <div class="results" id="results">
+    <h2>¡Cuestionario completado!</h2>
+    <div class="score" id="score">0%</div>
+    <div class="score-text" id="score-text"></div>
+    <button class="restart-btn" onclick="restart()">Intentar de nuevo</button>
+  </div>
+</div>
+<script>
+const quizData = [{"question":"¿Cuál es la función dual primordial de los aranceles dentro de la política comercial de un gobierno?","hint":"Piense en por qué un gobierno querría encarecer un producto que viene de afuera.","options":[{"label":"A","text":"Garantizar la calidad de los productos y certificar el origen.","isCorrect":false,"rationale":"La calidad y el origen se gestionan mediante certificados específicos, no a través del cobro de aranceles."},{"label":"B","text":"Eliminar la competencia extranjera y subsidiar las exportaciones.","isCorrect":false,"rationale":"Los aranceles encarecen las importaciones pero no necesariamente eliminan la competencia ni se usan directamente para subsidiar."},{"label":"C","text":"Regular el flujo de divisas y controlar la inflación interna.","isCorrect":false,"rationale":"Aunque afectan la economía general, su función específica en aduanas se centra en la industria local y la recaudación fiscal."},{"label":"D","text":"Proteger la industria nacional y generar recaudación fiscal.","isCorrect":true,"rationale":"Los aranceles actúan como barreras para defender productos locales y como una fuente de ingresos directos para el Estado."}]},{"question":"Verdadero o Falso: En una Zona Franca, las mercancías extranjeras pueden ser ensambladas sin pagar aranceles siempre que no ingresen formalmente al mercado local.","hint":"Considere la definición de extraterritorialidad aduanera de estas zonas.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"Las zonas francas permiten el almacenamiento y transformación de bienes con suspensión de impuestos hasta su nacionalización o reexportación."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"El beneficio principal de estas zonas es precisamente la exención o el diferimiento de aranceles bajo condiciones específicas de permanencia."}]},{"question":"¿Qué documento se define como el contrato legal principal entre el consignatario y el transportista marítimo?","hint":"Busque el documento que viaja con la carga y rige la responsabilidad del transportista.","options":[{"label":"A","text":"Conocimiento de Embarque (Bill of Lading)","isCorrect":true,"rationale":"El Bill of Lading funciona simultáneamente como contrato de transporte, título de propiedad y recibo de carga."},{"label":"B","text":"Factura Comercial","isCorrect":false,"rationale":"Este documento detalla la transacción de compraventa entre exportador e importador, no el contrato de transporte."},{"label":"C","text":"Certificado de Origen","isCorrect":false,"rationale":"Su función es acreditar la procedencia de la mercancía para beneficios arancelarios, no rige el transporte."},{"label":"D","text":"Carta de Crédito","isCorrect":false,"rationale":"Es un instrumento financiero de garantía de pago bancario, ajeno a la logística física del transporte."}]},{"question":"Si una empresa importa piezas de China con un arancel del $12.5\\%$, pero las ensambla en una Zona Franca y luego las reexporta a otro país, ¿cuál es el beneficio financiero obtenido?","hint":"Piense en qué sucede con el impuesto si el producto nunca 'entra' oficialmente al país.","options":[{"label":"A","text":"Eliminación de la necesidad de un Certificado de Origen.","isCorrect":false,"rationale":"El certificado de origen sigue siendo necesario para que el comprador final en el tercer país reciba beneficios de sus propios tratados."},{"label":"B","text":"Exención total del pago del arancel de importación.","isCorrect":true,"rationale":"Al no ingresar formalmente al mercado local (nacionalización), la mercancía reexportada nunca llega a generar la obligación tributaria."},{"label":"C","text":"Subsidio gubernamental por el ensamblaje de piezas.","isCorrect":false,"rationale":"La zona franca ofrece beneficios tributarios por omisión de cobro, no necesariamente pagos directos o subsidios del gobierno."},{"label":"D","text":"Reducción del costo de flete internacional.","isCorrect":false,"rationale":"El flete depende de la naviera y la ruta, no de la ubicación en una zona franca o el pago de aranceles."}]},{"question":"¿Por qué un error en el Certificado de Origen puede arruinar la rentabilidad de una exportación de productos perecederos?","hint":"Considere qué sucede con un contenedor refrigerado que se queda detenido semanas en el puerto.","options":[{"label":"A","text":"Debido a la pérdida de beneficios de TLC y el costo acumulado de demorajes en puerto.","isCorrect":true,"rationale":"La retención aduanera genera costos de conexión eléctrica y almacenaje que superan rápidamente el margen de ganancia."},{"label":"B","text":"Porque invalida el seguro de transporte contra daños físicos.","isCorrect":false,"rationale":"El seguro cubre riesgos de tránsito, pero generalmente no negligencias administrativas o documentales del exportador."},{"label":"C","text":"Porque el transportista asume la propiedad de la carga automáticamente.","isCorrect":false,"rationale":"La propiedad no cambia por un error documental, pero la carga queda retenida por la autoridad aduanera."},{"label":"D","text":"Debido a que el exportador debe pagar el doble del valor de la factura en multas.","isCorrect":false,"rationale":"Aunque hay multas, el impacto más crítico en perecederos es la pérdida de la carga por tiempo y los costos operativos de retención."}]},{"question":"Verdadero o Falso: El responsable logístico debe considerar que mover carga internacional es financieramente equivalente a la logística nacional, variando solo en la distancia.","hint":"Recuerde los factores adicionales como aduanas y moneda extranjera.","options":[{"label":"A","text":"Falso","isCorrect":true,"rationale":"La logística internacional es mucho más compleja legal y financieramente debido a impuestos, fronteras y normativas globales."},{"label":"B","text":"Verdadero","isCorrect":false,"rationale":"Esta visión ignora las barreras arancelarias, costos de intermediarios y la complejidad legal que encarecen el proceso internacional."}]},{"question":"¿Qué intermediario es responsable de coordinar inspecciones, preparar el papeleo aduanal y agilizar el paso por fronteras?","hint":"Piense en la figura legal necesaria para desaduanar mercancías.","options":[{"label":"A","text":"Agente Aduanal","isCorrect":true,"rationale":"Su especialidad es el cumplimiento normativo y la representación de la empresa ante la autoridad aduanera."},{"label":"B","text":"Aseguradora de Carga","isCorrect":false,"rationale":"Su rol se limita a la cobertura de riesgos y no interviene en la tramitación de documentos de despacho."},{"label":"C","text":"Entidad Bancaria","isCorrect":false,"rationale":"Los bancos gestionan la parte financiera (cartas de crédito), no la operatividad física ni el papeleo aduanal."},{"label":"D","text":"Proveedor de empaques","isCorrect":false,"rationale":"Es un proveedor de insumos, pero no gestiona la legalidad del tránsito internacional de la mercancía."}]},{"question":"¿Cuál es la utilidad de una Carta de Crédito para un exportador peruano que vende por primera vez a un cliente en Europa?","hint":"Es un documento emitido por un banco para dar seguridad financiera.","options":[{"label":"A","text":"Sustituir al Conocimiento de Embarque como título de propiedad.","isCorrect":false,"rationale":"Ambos documentos son necesarios y cumplen funciones distintas; uno financiero y el otro logístico/legal."},{"label":"B","text":"Reducir los costos de envío marítimo.","isCorrect":false,"rationale":"La carta de crédito es un instrumento de pago y no influye en las tarifas de los transportistas."},{"label":"C","text":"Evitar el pago de aranceles en el país de destino.","isCorrect":false,"rationale":"El pago de aranceles se gestiona con el certificado de origen, no con instrumentos financieros de pago."},{"label":"D","text":"Garantizar que recibirá el pago una vez cumplidas las condiciones del envío.","isCorrect":true,"rationale":"Funciona como un respaldo bancario que elimina el riesgo de impago por parte del comprador extranjero."}]},{"question":"Verdadero o Falso: El Certificado de Seguro es el documento que asegura al país comprador que los bienes fueron fabricados específicamente en el país de origen declarado.","hint":"Distinga entre la procedencia de la carga y su protección contra riesgos físicos.","options":[{"label":"A","text":"Falso","isCorrect":true,"rationale":"El Certificado de Seguro evidencia la protección de la carga contra siniestros, no su lugar de fabricación."},{"label":"B","text":"Verdadero","isCorrect":false,"rationale":"Esa es la descripción del Certificado de Origen; el de seguro protege contra pérdida o daño."}]},{"question":"¿Qué elemento es fundamental para aplicar a reducciones arancelarias derivadas de Tratados de Libre Comercio (TLC)?","hint":"Piense en el documento que vincula el producto con los beneficios de un acuerdo entre países.","options":[{"label":"A","text":"Contrato de flete prepagado.","isCorrect":false,"rationale":"El pago del flete es un término comercial (Incoterm), no una base para la reducción de impuestos del gobierno."},{"label":"B","text":"Póliza de Seguro Internacional.","isCorrect":false,"rationale":"El seguro es para protección de activos y no tiene relevancia para la determinación de impuestos arancelarios."},{"label":"C","text":"Factura Comercial con sello notarial.","isCorrect":false,"rationale":"La factura solo indica el precio, pero no sirve legalmente para demostrar el origen bajo las reglas de un TLC."},{"label":"D","text":"Certificado de Origen.","isCorrect":true,"rationale":"Es el documento oficial requerido para probar que la mercancía califica para las preferencias arancelarias del tratado."}]},{"question":"¿Cuál es el riesgo de que la responsabilidad del transportista marítimo sea limitada frente a un exportador?","hint":"Considere quién paga 'la cuenta' cuando el contenedor no puede salir del puerto por culpa del dueño.","options":[{"label":"A","text":"El transportista puede vender la mercancía si el viaje se retrasa.","isCorrect":false,"rationale":"El transportista tiene obligaciones de custodia, aunque su responsabilidad financiera ante daños esté limitada."},{"label":"B","text":"El exportador debe pagar el seguro del transportista.","isCorrect":false,"rationale":"El seguro es contratado por el dueño de la carga para su propio beneficio, no para el transportista."},{"label":"C","text":"La aduana confisca la mercancía permanentemente.","isCorrect":false,"rationale":"La confiscación ocurre por ilegalidad, no necesariamente por la limitación de responsabilidad del transportista."},{"label":"D","text":"El exportador asume la mayor parte del costo en caso de demoras por errores documentales ajenos a la naviera.","isCorrect":true,"rationale":"Las navieras limitan su responsabilidad al transporte; si la carga se detiene por falta de papeles, el exportador paga los costos del puerto."}]},{"question":"Verdadero o Falso: Los comisionistas y agentes aduanales son prescindibles en el comercio internacional moderno gracias a la digitalización.","hint":"Considere si el software sustituye la responsabilidad legal y el conocimiento técnico de campo.","options":[{"label":"A","text":"Falso","isCorrect":true,"rationale":"Las empresas raramente operan solas debido a la rigurosidad operativa y técnica que exigen las aduanas globales."},{"label":"B","text":"Verdadero","isCorrect":false,"rationale":"A pesar de la tecnología, la complejidad legal y la necesidad de representación técnica hacen que estos intermediarios sigan siendo vitales."}]},{"question":"Dentro del flujo estratégico de exportación, ¿por qué es crítico considerar el empaque para el trayecto internacional?","hint":"Piense en lo que le sucede a una caja de cartón tras 30 días en el mar.","options":[{"label":"A","text":"Para mitigar los riesgos derivados del transporte prolongado y manipulaciones múltiples.","isCorrect":true,"rationale":"El trayecto internacional somete a la carga a mayores movimientos y condiciones climáticas que el transporte local."},{"label":"B","text":"Para cumplir con los estándares estéticos del país de destino.","isCorrect":false,"rationale":"La estética es comercial, pero la logística prioriza la integridad física durante los riesgos del tránsito largo."},{"label":"C","text":"Para reducir el peso de la factura comercial.","isCorrect":false,"rationale":"El empaque es un costo adicional y no influye directamente en el precio de venta de los bienes detallados en la factura."},{"label":"D","text":"Porque el empaque determina el arancel que se debe pagar.","isCorrect":false,"rationale":"El arancel se determina por la naturaleza del producto (partida arancelaria), no por el material de su empaque exterior."}]},{"question":"En el contexto de la sesión, ¿qué representa el término 'demoraje' (demurrage)?","hint":"Relaciónelo con el tiempo de permanencia de la carga en el terminal portuario.","options":[{"label":"A","text":"El impuesto que se paga por importar productos de lujo.","isCorrect":false,"rationale":"Los impuestos por tipo de producto son aranceles específicos o ad-valorem, no demorajes."},{"label":"B","text":"El descuento otorgado por el transportista por entrega anticipada.","isCorrect":false,"rationale":"El demoraje es un costo penal o por uso excedente, no un beneficio o descuento."},{"label":"C","text":"El costo por el uso del contenedor más allá del tiempo libre acordado en puerto.","isCorrect":true,"rationale":"Es una tarifa que se paga cuando la carga no se retira a tiempo de la zona portuaria debido a problemas logísticos o aduaneros."},{"label":"D","text":"La comisión que cobra el agente aduanal por sus servicios.","isCorrect":false,"rationale":"Los honorarios del agente son gastos de gestión, mientras que el demoraje es un costo operativo de terminal/naviera."}]},{"question":"¿Cuál es el logro de aprendizaje principal de la Semana 11 para los estudiantes de Logística?","hint":"Busque los pilares: aduanas, aranceles y procesos de exportación.","options":[{"label":"A","text":"Comprender el sistema aduanero, regímenes arancelarios y documentación de exportación.","isCorrect":true,"rationale":"El sílabo busca que el alumno domine la operatividad técnica y legal necesaria para mover carga globalmente."},{"label":"B","text":"Memorizar todos los aranceles de todos los países del mundo.","isCorrect":false,"rationale":"Se busca comprender el funcionamiento y aplicación del sistema, no la memorización exhaustiva de tarifas variables."},{"label":"C","text":"Dominar el diseño de software para control de inventarios locales.","isCorrect":false,"rationale":"La sesión escala la logística hacia el entorno global, superando el ámbito puramente local o informático."},{"label":"D","text":"Aprender a conducir vehículos de carga pesada internacional.","isCorrect":false,"rationale":"El enfoque es de gestión estratégica y operativa, no de capacitación en conducción técnica."}]},{"question":"Verdadero o Falso: Según la teoría de Ballou, el Bill of Lading no tiene validez como recibo de mercancía, solo como contrato.","hint":"Considere la multiplicidad de funciones legales de este documento logístico.","options":[{"label":"A","text":"Verdadero","isCorrect":false,"rationale":"Es falso, ya que una de sus funciones vitales es precisamente certificar que el transportista recibió los bienes."},{"label":"B","text":"Falso","isCorrect":true,"rationale":"El documento es polifuncional: contrato, título de propiedad y recibo formal de la carga entregada."}]},{"question":"¿Qué sucedería con la rentabilidad de una empresa si ignora los aranceles al fijar su precio de exportación?","hint":"Piense en el impacto de un costo 'oculto' en el estado de resultados.","options":[{"label":"A","text":"La aduana le devolvería el dinero al final del año fiscal.","isCorrect":false,"rationale":"Los aranceles son impuestos definitivos a menos que existan mecanismos de devolución específicos no mencionados como norma general."},{"label":"B","text":"El precio final sería más competitivo en el mercado de destino.","isCorrect":false,"rationale":"Al contrario, el precio podría ser insuficiente para cubrir los costos tributarios, restando competitividad o margen."},{"label":"C","text":"Los clientes pagarían el arancel sin que afecte el volumen de ventas.","isCorrect":false,"rationale":"Un precio final elevado por aranceles no previstos suele disminuir la demanda y el volumen de ventas."},{"label":"D","text":"La rentabilidad podría desaparecer debido a costos imprevistos que impactan el precio final.","isCorrect":true,"rationale":"Los aranceles son costos directos que, si no se calculan, deben ser absorbidos por la empresa, reduciendo su ganancia."}]},{"question":"¿Cuál es la principal razón por la que las empresas expanden su red logística más allá de las fronteras nacionales?","hint":"Considere los beneficios de la economía de escala y la competencia global.","options":[{"label":"A","text":"Para simplificar los procesos de documentación administrativa.","isCorrect":false,"rationale":"Al contrario, la expansión internacional añade complejidad documental significativa al proceso logístico."},{"label":"B","text":"Porque el transporte marítimo es siempre más barato que el terrestre.","isCorrect":false,"rationale":"El costo depende de la ruta y volumen; la razón estratégica es el acceso a mercados, no solo el costo del transporte."},{"label":"C","text":"Para evitar el pago de impuestos en su país de origen.","isCorrect":false,"rationale":"La expansión busca mercados y eficiencia, no es un método legal estándar para evasión fiscal nacional."},{"label":"D","text":"Para reducir costos y alcanzar nuevos mercados debido a la globalización.","isCorrect":true,"rationale":"La escala global permite acceder a insumos más baratos y a una base de clientes mucho más amplia."}]},{"question":"Verdadero o Falso: Un 'Agente Transportista Internacional' tiene las mismas funciones legales que un 'Banco Emisor' en una exportación.","hint":"Diferencie entre quien mueve el contenedor y quien garantiza el dinero.","options":[{"label":"A","text":"Verdadero","isCorrect":false,"rationale":"Uno se encarga del movimiento físico y logístico, mientras que el otro gestiona el riesgo y flujo financiero."},{"label":"B","text":"Falso","isCorrect":true,"rationale":"Sus roles son complementarios pero totalmente distintos: uno es logístico y el otro es financiero."}]},{"question":"¿Qué elemento de la documentación de exportación asegura que el exportador ha transferido la propiedad de los bienes al banco o al comprador?","hint":"Este documento es conocido como un 'título valor' en el comercio marítimo.","options":[{"label":"A","text":"Lista de Empaque (Packing List)","isCorrect":false,"rationale":"Es un documento técnico que describe el contenido del envío, sin validez como título de propiedad."},{"label":"B","text":"Conocimiento de Embarque (Bill of Lading)","isCorrect":true,"rationale":"En su modalidad negociable, este documento representa la propiedad de la mercancía durante su transporte."},{"label":"C","text":"Certificado de Seguro","isCorrect":false,"rationale":"Solo protege el valor económico en caso de siniestro, no transfiere la propiedad legal de los bienes."},{"label":"D","text":"Factura Comercial","isCorrect":false,"rationale":"Es un registro de la venta, pero el título de propiedad negociable sobre la mercancía en tránsito es el Bill of Lading."}]},{"question":"Si un responsable logístico desea evitar el decomiso de su mercancía en una aduana extranjera, ¿en qué debe enfocar su rigurosidad?","hint":"Recuerde que en aduanas 'lo que no está en el papel, no existe'.","options":[{"label":"A","text":"En la velocidad del buque seleccionado.","isCorrect":false,"rationale":"La velocidad afecta el tiempo de entrega, pero no la legalidad del ingreso de la mercancía."},{"label":"B","text":"En el diseño publicitario del empaque exterior.","isCorrect":false,"rationale":"La publicidad no es un requisito aduanero para el levante de las mercancías en frontera."},{"label":"C","text":"En la exactitud y cumplimiento legal de toda la documentación.","isCorrect":true,"rationale":"La documentación es el 'escudo' legal; cualquier error puede interpretarse como contrabando o falta administrativa grave."},{"label":"D","text":"En contratar únicamente transporte terrestre.","isCorrect":false,"rationale":"El medio de transporte no exime del control aduanero ni del riesgo de decomiso por falta de papeles."}]},{"question":"Verdadero o Falso: Los Tratados de Libre Comercio (TLC) eliminan por completo la necesidad de pasar por aduanas.","hint":"Distinga entre el pago de impuestos y el control fronterizo de mercancías.","options":[{"label":"A","text":"Falso","isCorrect":true,"rationale":"Los TLC reducen o eliminan aranceles, pero el control físico y documental de las aduanas permanece obligatorio."},{"label":"B","text":"Verdadero","isCorrect":false,"rationale":"Incluso con TLC, todas las mercancías deben pasar control aduanero para verificar origen, seguridad y estadísticas."}]},{"question":"En el caso de exportar 'café especial' a Japón, ¿qué función cumple el Certificado de Seguro?","hint":"Piense en la protección contra daños accidentales durante el largo viaje.","options":[{"label":"A","text":"Proteger la inversión del exportador ante posibles tormentas o pérdida del contenedor en el mar.","isCorrect":true,"rationale":"El seguro cubre los riesgos físicos del trayecto, asegurando que el exportador no pierda su capital si ocurre un siniestro."},{"label":"B","text":"Demostrar que el café fue cultivado en Perú.","isCorrect":false,"rationale":"Esta es la función del Certificado de Origen, no del seguro de transporte."},{"label":"C","text":"Asegurar que el banco japonés pagará la factura.","isCorrect":false,"rationale":"Esa es la función de la Carta de Crédito; el seguro solo cubre daños a la mercancía."},{"label":"D","text":"Garantizar que el café sea de la variedad arábica.","isCorrect":false,"rationale":"La variedad se certifica mediante documentos fitosanitarios o de calidad, no por el seguro de carga."}]},{"question":"¿Cuál es la utilidad estratégica de las Zonas de Comercio Exterior (Zonas Francas) para una empresa de manufactura ligera?","hint":"Piense en el beneficio financiero de no pagar impuestos 'por adelantado'.","options":[{"label":"A","text":"Diferir el pago de aranceles hasta que el producto esté listo para el mercado local, mejorando el flujo de caja.","isCorrect":true,"rationale":"El pago diferido permite a la empresa usar ese capital para operaciones antes de cumplir con la obligación tributaria final."},{"label":"B","text":"Garantizar que el producto no sufrirá daños durante el ensamblaje.","isCorrect":false,"rationale":"La zona franca es un régimen legal/tributario; la seguridad física depende de la gestión interna de la planta."},{"label":"C","text":"Permitir el almacenamiento indefinido sin control aduanero.","isCorrect":false,"rationale":"Existe control aduanero permanente, aunque se suspendan temporalmente los pagos de aranceles."},{"label":"D","text":"Evitar tener que contratar agentes aduanales.","isCorrect":false,"rationale":"Incluso en zonas francas, la gestión de ingresos y salidas requiere la intervención de especialistas aduaneros."}]},{"question":"Verdadero o Falso: La Factura Comercial es un documento financiero emitido por un banco que garantiza el pago al exportador.","hint":"Identifique quién emite cada documento: el vendedor o una institución financiera.","options":[{"label":"A","text":"Verdadero","isCorrect":false,"rationale":"Esa es la definición de Carta de Crédito; la factura la emite el vendedor, no el banco."},{"label":"B","text":"Falso","isCorrect":true,"rationale":"La Factura Comercial es el documento de cobro emitido por el vendedor al comprador detallando los bienes vendidos."}]},{"question":"¿Qué componente del proceso logístico internacional es fundamental para que el exportador 'asegure el cobro de la venta'?","hint":"Piense en los mecanismos que protegen el flujo de dinero, no solo el flujo de productos.","options":[{"label":"A","text":"La velocidad de desaduanamiento en destino.","isCorrect":false,"rationale":"Desaduanar rápido es eficiente, pero el cobro depende de los términos de pago y garantías bancarias establecidas."},{"label":"B","text":"El Conocimiento de Embarque únicamente.","isCorrect":false,"rationale":"El B/L prueba el envío, pero no garantiza por sí solo que el dinero llegará a la cuenta del exportador."},{"label":"C","text":"El marco legal y los instrumentos financieros como la Carta de Crédito.","isCorrect":true,"rationale":"Los instrumentos financieros brindan la seguridad de pago, mientras el marco legal permite reclamar en caso de incumplimiento."},{"label":"D","text":"El uso de empaques de alta resistencia.","isCorrect":false,"rationale":"El empaque asegura la mercancía, pero no garantiza que el cliente tenga la voluntad o capacidad de pagar."}]}];
+const tr = {"correct":"¡Correcto!","incorrect":"Incorrecto","next":"Siguiente pregunta →","seeResults":"Ver resultados","complete":"¡Cuestionario completado!","scoreText":"Obtuviste {correct} de {total} correctas","tryAgain":"Intentar de nuevo","rightAnswer":"Respuesta correcta","notQuite":"No del todo"};
+let currentQ = 0, correctCount = 0, answered = false;
+
+function init() {
+  document.querySelectorAll('.question').forEach((q, i) => q.classList.toggle('active', i === 0));
+  updateProgress();
+  document.querySelectorAll('.option').forEach(opt => opt.addEventListener('click', () => selectOption(opt)));
+  document.querySelectorAll('.next-btn').forEach(btn => btn.addEventListener('click', nextQuestion));
+}
+
+function selectOption(opt) {
+  if (answered) return;
+  answered = true;
+  const q = opt.closest('.question');
+  const options = q.querySelectorAll('.option');
+  const nextBtn = q.querySelector('.next-btn');
+  const isCorrect = opt.dataset.correct === 'true';
+  
+  // Mark all options as disabled
+  options.forEach(o => o.classList.add('disabled'));
+  
+  // Style selected option
+  opt.classList.add('selected', isCorrect ? 'correct' : 'incorrect');
+  
+  // Show correct answer if wrong
+  if (!isCorrect) {
+    const correctOpt = [...options].find(o => o.dataset.correct === 'true');
+    if (correctOpt) correctOpt.classList.add('show-correct');
+  }
+  
+  if (isCorrect) correctCount++;
+  
+  // Show feedback for ALL options that have rationale
+  options.forEach(o => {
+    const wrapper = o.closest('.option-wrapper');
+    const feedback = wrapper.querySelector('.option-feedback');
+    const rationale = o.dataset.rationale;
+    const isThisCorrect = o.dataset.correct === 'true';
+    
+    if (rationale && rationale.trim()) {
+      feedback.classList.remove('hidden');
+      feedback.classList.add(isThisCorrect ? 'correct-feedback' : 'incorrect-feedback');
+      
+      const statusEl = feedback.querySelector('.feedback-status');
+      statusEl.className = 'feedback-status ' + (isThisCorrect ? 'correct' : 'incorrect');
+      statusEl.innerHTML = isThisCorrect 
+        ? '✓ ' + tr.rightAnswer
+        : '✗ ' + tr.notQuite;
+    }
+  });
+  
+  nextBtn.classList.remove('hidden');
+  if (currentQ === quizData.length - 1) nextBtn.textContent = tr.seeResults;
+}
+
+function nextQuestion() {
+  answered = false;
+  currentQ++;
+  if (currentQ >= quizData.length) { showResults(); return; }
+  document.querySelectorAll('.question').forEach((q, i) => q.classList.toggle('active', i === currentQ));
+  updateProgress();
+}
+
+function updateProgress() {
+  document.querySelector('.progress-fill').style.width = (currentQ / quizData.length * 100) + '%';
+}
+
+function showResults() {
+  document.querySelectorAll('.question').forEach(q => q.classList.remove('active'));
+  document.getElementById('results').classList.add('active');
+  const pct = Math.round((correctCount / quizData.length) * 100);
+  document.getElementById('score').textContent = pct + '%';
+  document.getElementById('score-text').textContent = tr.scoreText.replace('{correct}', correctCount).replace('{total}', quizData.length);
+  document.querySelector('.progress-fill').style.width = '100%';
+}
+
+function restart() {
+  currentQ = 0; correctCount = 0; answered = false;
+  document.getElementById('results').classList.remove('active');
+  document.querySelectorAll('.question').forEach((q, i) => {
+    q.classList.toggle('active', i === 0);
+    q.querySelectorAll('.option').forEach(o => o.classList.remove('selected', 'correct', 'incorrect', 'disabled', 'show-correct'));
+    q.querySelectorAll('.option-feedback').forEach(f => {
+      f.classList.add('hidden');
+      f.classList.remove('correct-feedback', 'incorrect-feedback');
+    });
+    const btn = q.querySelector('.next-btn');
+    btn.classList.add('hidden');
+    btn.textContent = tr.next;
+  });
+  updateProgress();
+}
+
+init();
+</script>
+</body>
+</html>
