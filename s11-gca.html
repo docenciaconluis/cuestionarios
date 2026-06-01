@@ -1,0 +1,2104 @@
+<!DOCTYPE html>
+<html lang="es" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>S11 - GCA - UTP</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  min-height: 100vh; padding: 20px; color: #333;
+}
+.container { max-width: 700px; margin: 0 auto; }
+.header { text-align: center; color: #fff; padding: 30px 20px; }
+.header h1 { font-size: 28px; font-weight: 700; margin-bottom: 8px; text-shadow: 0 2px 10px rgba(0,0,0,0.2); }
+.header .meta { font-size: 14px; opacity: 0.9; }
+.progress-bar { background: rgba(255,255,255,0.3); border-radius: 10px; height: 8px; margin: 20px 0; overflow: hidden; }
+.progress-fill { background: #fff; height: 100%; width: 0%; transition: width 0.4s ease; border-radius: 10px; }
+.question { background: #fff; border-radius: 16px; padding: 30px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); display: none; }
+.question.active { display: block; }
+.q-header { display: flex; justify-content: space-between; margin-bottom: 20px; font-size: 13px; color: #888; }
+.q-number { font-weight: 600; color: #667eea; }
+.q-text { font-size: 18px; font-weight: 600; line-height: 1.5; margin-bottom: 25px; color: #222; }
+.options { display: flex; flex-direction: column; gap: 12px; }
+.option-wrapper { display: flex; flex-direction: column; }
+.option {
+  display: flex; align-items: flex-start; gap: 14px; padding: 16px 18px;
+  border: 2px solid #e8e8e8; border-radius: 12px; background: #fafafa;
+  cursor: pointer; transition: all 0.2s; text-align: left; font-size: 15px; width: 100%;
+}
+[dir="rtl"] .option { text-align: right; flex-direction: row-reverse; }
+.option:hover:not(.disabled) { border-color: #667eea; background: #f5f3ff; }
+.option.selected { border-color: #667eea; background: #ede9fe; }
+.option.correct { border-color: #22c55e; background: #dcfce7; }
+.option.incorrect { border-color: #ef4444; background: #fee2e2; }
+.option.disabled { cursor: default; }
+.option.show-correct { border-color: #22c55e; background: #dcfce7; }
+.opt-label {
+  display: flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; border-radius: 50%; background: #e8e8e8;
+  font-weight: 700; font-size: 14px; flex-shrink: 0;
+}
+.option.selected .opt-label { background: #667eea; color: #fff; }
+.option.correct .opt-label { background: #22c55e; color: #fff; }
+.option.incorrect .opt-label { background: #ef4444; color: #fff; }
+.option.show-correct .opt-label { background: #22c55e; color: #fff; }
+.opt-text { padding-top: 5px; line-height: 1.5; }
+
+/* Individual option feedback */
+.option-feedback {
+  margin: 8px 0 4px 46px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+[dir="rtl"] .option-feedback { margin-left: 0; margin-right: 46px; }
+.option-feedback.correct-feedback {
+  background: #dcfce7;
+  border-left: 3px solid #22c55e;
+}
+.option-feedback.incorrect-feedback {
+  background: #fef3f2;
+  border-left: 3px solid #fca5a5;
+}
+[dir="rtl"] .option-feedback.correct-feedback,
+[dir="rtl"] .option-feedback.incorrect-feedback {
+  border-left: none;
+  border-right: 3px solid;
+}
+[dir="rtl"] .option-feedback.correct-feedback { border-right-color: #22c55e; }
+[dir="rtl"] .option-feedback.incorrect-feedback { border-right-color: #fca5a5; }
+.feedback-status {
+  font-weight: 600;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.feedback-status.correct { color: #166534; }
+.feedback-status.incorrect { color: #991b1b; }
+.feedback-rationale { color: #444; }
+
+/* Hint box */
+.hint-box {
+  margin: 12px 0;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+}
+.hint-toggle {
+  width: 100%;
+  padding: 10px 16px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  color: #92400e;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.hint-toggle:hover { background: #fef3c7; }
+.hint-content {
+  padding: 0 16px;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s, padding 0.3s;
+  font-size: 14px;
+  color: #78350f;
+  line-height: 1.5;
+}
+.hint-box.show .hint-content {
+  padding: 0 16px 12px;
+  max-height: 200px;
+}
+
+.next-btn {
+  margin-top: 20px; width: 100%; padding: 14px;
+  background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; border: none;
+  border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.next-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(102,126,234,0.4); }
+.hidden { display: none !important; }
+.results { background: #fff; border-radius: 16px; padding: 40px; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.15); display: none; }
+.results.active { display: block; }
+.results h2 { font-size: 28px; margin-bottom: 10px; color: #333; }
+.results .score { font-size: 64px; font-weight: 700; color: #667eea; margin: 20px 0; }
+.results .score-text { font-size: 18px; color: #666; margin-bottom: 30px; }
+.restart-btn {
+  padding: 14px 40px; background: linear-gradient(135deg, #667eea, #764ba2);
+  color: #fff; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer;
+}
+
+/* Math CSS */
+.math, .math-block { font-family: "Cambria Math", "Times New Roman", Times, serif; font-style: italic; }
+.math-block { display: block; text-align: center; margin: 10px 0; font-size: 110%; }
+.frac { display: inline-flex; flex-direction: column; align-items: center; vertical-align: middle; margin: 0 3px; font-size: 0.9em; }
+.frac-num { border-bottom: 1px solid currentColor; padding: 0 4px 2px; line-height: 1.2; }
+.frac-den { padding: 2px 4px 0; line-height: 1.2; }
+.sqrt { white-space: nowrap; }
+.sqrt-content { border-top: 1px solid currentColor; padding: 0 3px; margin-left: 2px; }
+sup, sub { font-size: 0.75em; }
+sup { vertical-align: super; }
+sub { vertical-align: sub; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>S11 - GCA - UTP</h1>
+    <div class="meta">30 preguntas</div>
+    <div class="progress-bar"><div class="progress-fill"></div></div>
+  </div>
+  <div id="quiz-container">
+        <div class="question" data-index="0">
+          <div class="q-header">
+            <span class="q-number">Pregunta 1</span>
+            <span class="q-of">/ 30</span>
+          </div>
+          <div class="q-text">¿Cuál es el propósito primordial de la función de transporte dentro de la distribución física según el material?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considere la definición que relaciona las actividades con la ubicación final de la mercancía.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="El transporte debe equilibrar el costo con la seguridad y la calidad del servicio al cliente.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Priorizar únicamente la reducción de costos operativos sin considerar el servicio.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El transporte debe equilibrar el costo con la seguridad y la calidad del servicio al cliente.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="La distribución física busca la eficiencia logística integrando factores económicos con el cumplimiento de estándares de entrega.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Situar los productos en el destino bajo condiciones de seguridad, servicio y costo.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La distribución física busca la eficiencia logística integrando factores económicos con el cumplimiento de estándares de entrega.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="La integridad del producto es uno de los objetivos explícitos de la distribución logística.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Maximizar la velocidad de entrega ignorando la integridad física del producto.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La integridad del producto es uno de los objetivos explícitos de la distribución logística.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="El transporte se encarga del traslado desde el punto de origen o almacenamiento, no necesariamente de eliminar la infraestructura de almacenaje.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Eliminar por completo el uso de almacenes intermedios para acelerar la entrega.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El transporte se encarga del traslado desde el punto de origen o almacenamiento, no necesariamente de eliminar la infraestructura de almacenaje.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="1">
+          <div class="q-header">
+            <span class="q-number">Pregunta 2</span>
+            <span class="q-of">/ 30</span>
+          </div>
+          <div class="q-text">En el transporte marítimo, ¿cuál es la diferencia clave entre un servicio regular y uno no regular?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piense en la previsibilidad de los tiempos y las rutas de navegación.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Esto describe al servicio no regular, donde las condiciones se pactan caso por caso.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">El servicio regular no tiene un itinerario fijo y depende de la negociación.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esto describe al servicio no regular, donde las condiciones se pactan caso por caso.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="La regularidad implica constancia en las rutas y fechas de origen y destino fijas.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">El servicio regular opera con buques que siguen una ruta e itinerario preestablecido.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La regularidad implica constancia en las rutas y fechas de origen y destino fijas.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Ambos servicios contribuyen al comercio exterior, aunque bajo distintas modalidades de contratación.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">El servicio regular es el único que permite el desarrollo del comercio exterior.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Ambos servicios contribuyen al comercio exterior, aunque bajo distintas modalidades de contratación.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Ambos servicios pueden transportar carga pesada, la diferencia radica en la programación de los viajes.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">El servicio no regular solo transporta carga voluminosa y pesada.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Ambos servicios pueden transportar carga pesada, la diferencia radica en la programación de los viajes.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="2">
+          <div class="q-header">
+            <span class="q-number">Pregunta 3</span>
+            <span class="q-of">/ 30</span>
+          </div>
+          <div class="q-text">¿Qué desventaja es característica del transporte marítimo debido a la manipulación intensiva de la carga?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Relacione el riesgo de daño con la protección física del producto.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Debido a las múltiples maniobras de carga y descarga, el producto requiere mayor protección para evitar deterioros.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">La necesidad de emplear embalajes altamente resistentes.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Debido a las múltiples maniobras de carga y descarga, el producto requiere mayor protección para evitar deterioros.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Al contrario, la gran capacidad de carga es su principal ventaja competitiva.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">La imposibilidad de transportar productos de gran volumen.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Al contrario, la gran capacidad de carga es su principal ventaja competitiva.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="El material indica que los seguros suelen ser más costosos en la vía marítima.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">El bajo costo de los seguros comparado con el transporte terrestre.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El material indica que los seguros suelen ser más costosos en la vía marítima.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="El transporte marítimo está limitado exclusivamente a la infraestructura portuaria.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">La flexibilidad total para descargar en cualquier punto geográfico.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El transporte marítimo está limitado exclusivamente a la infraestructura portuaria.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="3">
+          <div class="q-header">
+            <span class="q-number">Pregunta 4</span>
+            <span class="q-of">/ 30</span>
+          </div>
+          <div class="q-text">Al planear rutas de transporte, ¿cuál es el objetivo final de reducir los 'viajes vacíos'?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piense en la rentabilidad del activo (vehículo) durante todo su recorrido.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Aunque el descanso es importante, la reducción de viajes vacíos es una métrica de eficiencia operativa y de costos.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Aumentar el tiempo de descanso disponible para los conductores.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aunque el descanso es importante, la reducción de viajes vacíos es una métrica de eficiencia operativa y de costos.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="La sincronización horaria depende de la ventana de entrega, no directamente de la carga de retorno.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Garantizar que todos los clientes reciban su pedido a la misma hora.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La sincronización horaria depende de la ventana de entrega, no directamente de la carga de retorno.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Las restricciones de tráfico son una limitación externa, no el motivo principal para evitar retornos vacíos.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Cumplir con las restricciones de tráfico en zonas urbanas.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Las restricciones de tráfico son una limitación externa, no el motivo principal para evitar retornos vacíos.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="true" data-rationale="Mover un vehículo sin carga consume recursos sin generar valor, por lo que su optimización es crucial.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Optimizar el uso de los vehículos y minimizar costos innecesarios.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Mover un vehículo sin carga consume recursos sin generar valor, por lo que su optimización es crucial.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="4">
+          <div class="q-header">
+            <span class="q-number">Pregunta 5</span>
+            <span class="q-of">/ 30</span>
+          </div>
+          <div class="q-text">En el contexto de las herramientas tecnológicas, ¿qué función cumplen los Sistemas de Información Geográfica (SIG)?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Su nombre hace referencia directa a la cartografía y la ubicación espacial.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="La predicción de demanda suele hacerse mediante software estadístico o módulos de planificación de la cadena.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Predecir la demanda de productos en las tiendas minoristas.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La predicción de demanda suele hacerse mediante software estadístico o módulos de planificación de la cadena.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Los SIG permiten visualizar la ubicación de puntos y obstáculos en un entorno geográfico preciso.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Analizar datos geoespaciales para identificar rutas y zonas de entrega en mapas.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Los SIG permiten visualizar la ubicación de puntos y obstáculos en un entorno geográfico preciso.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Aunque pueden integrarse, los SIG son para visualización y análisis, mientras que los VRP se enfocan en la resolución algorítmica.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Resolver exclusivamente el problema matemático del viajante.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aunque pueden integrarse, los SIG son para visualización y análisis, mientras que los VRP se enfocan en la resolución algorítmica.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Esta es una función más específica de los sistemas de telemetría o gestión de flotas.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Modelar matemáticamente la velocidad promedio de cada camión.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esta es una función más específica de los sistemas de telemetría o gestión de flotas.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="5">
+          <div class="q-header">
+            <span class="q-number">Pregunta 6</span>
+            <span class="q-of">/ 30</span>
+          </div>
+          <div class="q-text">¿Cuál de los siguientes algoritmos es mencionado para el diseño de rutas mediante modelos de redes?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Es un método matemático fundamental para encontrar distancias mínimas en un grafo.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Montecarlo se usa para simulaciones de probabilidad y riesgo, no para optimización determinista de redes.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Modelo de Montecarlo.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Montecarlo se usa para simulaciones de probabilidad y riesgo, no para optimización determinista de redes.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Pareto se usa para priorizar inventarios (80/20), no específicamente para el trazado de rutas de red.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Algoritmo de Pareto.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Pareto se usa para priorizar inventarios (80/20), no específicamente para el trazado de rutas de red.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="true" data-rationale="Dijkstra es un algoritmo clásico de teoría de grafos utilizado para encontrar el camino más corto entre nodos.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Algoritmo de Dijkstra.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Dijkstra es un algoritmo clásico de teoría de grafos utilizado para encontrar el camino más corto entre nodos.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="La regresión lineal se aplica para proyectar tendencias, no para resolver la conexión óptima entre puntos geográficos.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Análisis de regresión lineal.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La regresión lineal se aplica para proyectar tendencias, no para resolver la conexión óptima entre puntos geográficos.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="6">
+          <div class="q-header">
+            <span class="q-number">Pregunta 7</span>
+            <span class="q-of">/ 30</span>
+          </div>
+          <div class="q-text">¿Qué acción se recomienda realizar en la fase de 'Evaluación y mejora' tras la implementación de una ruta?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Se trata de usar la experiencia de campo para perfeccionar la estrategia logística.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="El aprendizaje a partir de los datos reales permite corregir desviaciones en la planificación teórica.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Recoger datos post-entrega como tiempos reales e incidencias para ajustar rutas futuras.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El aprendizaje a partir de los datos reales permite corregir desviaciones en la planificación teórica.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Respetar las ventanas de entrega es fundamental para la satisfacción del cliente y el cumplimiento del servicio.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Ignorar las ventanas de entrega de los clientes para simplificar el proceso.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Respetar las ventanas de entrega es fundamental para la satisfacción del cliente y el cumplimiento del servicio.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="El uso de software especializado está diseñado precisamente para minimizar los márgenes de error humano.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Planificar las rutas manualmente para evitar errores del software.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El uso de software especializado está diseñado precisamente para minimizar los márgenes de error humano.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="El GPS es una herramienta de monitoreo continuo, su eliminación perjudicaría la mejora futura.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Eliminar el seguimiento por GPS para reducir costos de datos.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El GPS es una herramienta de monitoreo continuo, su eliminación perjudicaría la mejora futura.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="7">
+          <div class="q-header">
+            <span class="q-number">Pregunta 8</span>
+            <span class="q-of">/ 30</span>
+          </div>
+          <div class="q-text">Sobre la planeación de rutas, ¿qué implica considerar las 'restricciones horarias'?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piense en las limitaciones externas impuestas por el entorno urbano o el receptor del pedido.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Las ciudades y clientes suelen tener horarios específicos que limitan cuándo puede circular o entregar un vehículo.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Considerar normativas de tráfico y las ventanas de tiempo permitidas para carga/descarga.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Las ciudades y clientes suelen tener horarios específicos que limitan cuándo puede circular o entregar un vehículo.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Esto no es factible para todos los clientes y no representa una gestión eficiente de la flota completa.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Limitar todas las entregas a ser realizadas únicamente de madrugada.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esto no es factible para todos los clientes y no representa una gestión eficiente de la flota completa.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Ignorar los tiempos de parada en cada cliente resultaría en una planificación de ruta poco realista.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Calcular únicamente el tiempo total del recorrido sin paradas.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Ignorar los tiempos de parada en cada cliente resultaría en una planificación de ruta poco realista.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Aunque es un factor, las restricciones horarias abarcan normativas de tráfico y horarios de recepción de clientes.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Solo se refiere al tiempo que el conductor tiene para almorzar.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aunque es un factor, las restricciones horarias abarcan normativas de tráfico y horarios de recepción de clientes.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="8">
+          <div class="q-header">
+            <span class="q-number">Pregunta 9</span>
+            <span class="q-of">/ 30</span>
+          </div>
+          <div class="q-text">Indique si la siguiente afirmación es verdadera o falsa: El transporte marítimo es el medio de transporte de mercancía más moderno y con la reglamentación más reciente.</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considere la historia del comercio internacional desde la antigüedad.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="El material indica explícitamente que es el medio de transporte más antiguo.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El material indica explícitamente que es el medio de transporte más antiguo.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Históricamente, el comercio marítimo precede a los métodos aéreos y terrestres mecanizados modernos.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Históricamente, el comercio marítimo precede a los métodos aéreos y terrestres mecanizados modernos.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="9">
+          <div class="q-header">
+            <span class="q-number">Pregunta 10</span>
+            <span class="q-of">/ 30</span>
+          </div>
+          <div class="q-text">¿Cuál es un beneficio directo del uso de software de simulación logística en el diseño de rutas?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Se trata de probar hipótesis en un entorno controlado y digital.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="La simulación es una herramienta de análisis de datos, no un sistema de robótica para carga física.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Automatizar el proceso de carga física de los camiones en el almacén.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La simulación es una herramienta de análisis de datos, no un sistema de robótica para carga física.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="La simulación no controla variables económicas externas como el mercado de hidrocarburos.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Garantizar que el precio del combustible nunca suba.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La simulación no controla variables económicas externas como el mercado de hidrocarburos.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="true" data-rationale="Permite probar virtualmente cómo afectaría el tráfico o el clima a la operación logística.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Identificar cuellos de botella y evaluar escenarios bajo distintas condiciones antes de la ejecución.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Permite probar virtualmente cómo afectaría el tráfico o el clima a la operación logística.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="El software asiste en la planificación, pero la ejecución sigue requiriendo personal calificado.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Reemplazar la necesidad de contratar conductores capacitados.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El software asiste en la planificación, pero la ejecución sigue requiriendo personal calificado.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="10">
+          <div class="q-header">
+            <span class="q-number">Pregunta 11</span>
+            <span class="q-of">/ 30</span>
+          </div>
+          <div class="q-text">En el diagrama de flujo logístico, ¿qué actividad conecta directamente al cliente final con el almacén en caso de devoluciones?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Es el término utilizado para el flujo de bienes que 'vuelve' en la cadena.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="La predicción ocurre antes de que el cliente realice el pedido, no después de la entrega.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Predicción de la demanda.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La predicción ocurre antes de que el cliente realice el pedido, no después de la entrega.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Esta actividad ocurre en la fábrica, lejos de la interacción directa con la devolución del cliente.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Optimización de la producción.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esta actividad ocurre en la fábrica, lejos de la interacción directa con la devolución del cliente.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Esto representa el flujo de salida de mercancía, no el flujo de retorno por insatisfacción o error.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Pedidos a domicilio.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esto representa el flujo de salida de mercancía, no el flujo de retorno por insatisfacción o error.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="true" data-rationale="Este proceso gestiona el retorno de mercancías desde el punto de consumo hacia el origen o centros de acopio.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Logística inversa.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Este proceso gestiona el retorno de mercancías desde el punto de consumo hacia el origen o centros de acopio.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="11">
+          <div class="q-header">
+            <span class="q-number">Pregunta 12</span>
+            <span class="q-of">/ 30</span>
+          </div>
+          <div class="q-text">¿Cuál es la función principal de los Sistemas de Gestión de Transporte (TMS)?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Busque la herramienta que unifica el control de toda la operación de transporte.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Es una herramienta operativa para logística, no una herramienta comercial de captación de clientes.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Sustituir al departamento de ventas de la empresa.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Es una herramienta operativa para logística, no una herramienta comercial de captación de clientes.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Los TMS utilizan mapas, pero su valor central es la gestión de la carga, fletes y tiempos.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Dibujar mapas geográficos sin procesar datos de carga.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Los TMS utilizan mapas, pero su valor central es la gestión de la carga, fletes y tiempos.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="true" data-rationale="Un TMS ofrece una visión holística para gestionar la eficiencia operativa del transporte de extremo a extremo.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Integrar la planificación y el control de rutas con otras operaciones logísticas.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Un TMS ofrece una visión holística para gestionar la eficiencia operativa del transporte de extremo a extremo.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Esa es tarea de un WMS (Warehouse Management System), no de un TMS.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Diseñar exclusivamente el layout interno de un almacén.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esa es tarea de un WMS (Warehouse Management System), no de un TMS.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="12">
+          <div class="q-header">
+            <span class="q-number">Pregunta 13</span>
+            <span class="q-of">/ 30</span>
+          </div>
+          <div class="q-text">Al clasificar los puntos de entrega, ¿por qué es importante agrupar por cercanía geográfica?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Relacione la ubicación de las paradas con el consumo de recursos del camión.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="La agrupación es una decisión técnica operativa independiente de las leyes de privacidad.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Para cumplir con la ley de protección de datos del consumidor.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La agrupación es una decisión técnica operativa independiente de las leyes de privacidad.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="La agrupación geográfica busca eficiencia de movimiento, no homogeneidad de carga.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Para asegurar que todos los clientes reciban el mismo tipo de producto.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La agrupación geográfica busca eficiencia de movimiento, no homogeneidad de carga.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="true" data-rationale="Reducir la distancia recorrida entre clientes mejora la rentabilidad de la ruta.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Para minimizar el tiempo de desplazamiento entre paradas y optimizar el uso del combustible.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Reducir la distancia recorrida entre clientes mejora la rentabilidad de la ruta.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="La comunicación no es una variable técnica que se busque restringir mediante la agrupación geográfica.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Para evitar que los conductores hablen con clientes de distintos distritos.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La comunicación no es una variable técnica que se busque restringir mediante la agrupación geográfica.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="13">
+          <div class="q-header">
+            <span class="q-number">Pregunta 14</span>
+            <span class="q-of">/ 30</span>
+          </div>
+          <div class="q-text">¿Qué representa el 'Problema del Viajante' (VRP) en la logística de distribución?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Es un modelo matemático para determinar el recorrido más eficiente visitando múltiples paradas.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="No es un problema de recursos humanos, sino un desafío matemático de optimización.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">El reto de contratar personal que esté dispuesto a viajar largas distancias.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">No es un problema de recursos humanos, sino un desafío matemático de optimización.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El término se aplica al ruteo de vehículos de carga, no a viajes corporativos de personal.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">La dificultad de gestionar los pasajes aéreos para los ejecutivos de la cadena de suministro.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El término se aplica al ruteo de vehículos de carga, no a viajes corporativos de personal.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="true" data-rationale="Es un problema clásico de optimización combinatoria esencial para minimizar costos de transporte.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">El desafío de encontrar la ruta más corta que visite todos los puntos de entrega y regrese al origen.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Es un problema clásico de optimización combinatoria esencial para minimizar costos de transporte.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Esto se conoce como entrega fallida, no como el Problema del Viajante matemático.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">El problema de los clientes que no se encuentran en su domicilio al momento de la entrega.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esto se conoce como entrega fallida, no como el Problema del Viajante matemático.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="14">
+          <div class="q-header">
+            <span class="q-number">Pregunta 15</span>
+            <span class="q-of">/ 30</span>
+          </div>
+          <div class="q-text">Indique cuál de estos es un objetivo de aprendizaje de la sesión mencionado en el material:</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Revise las primeras láminas sobre el 'Logro de aprendizaje de la sesión'.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="La sesión es de ingeniería/gestión logística, no de capacitación técnica de conducción marítima.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Certificarse como conductor profesional de buques mercantes.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La sesión es de ingeniería/gestión logística, no de capacitación técnica de conducción marítima.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El material usa una empresa de colchones como ejemplo de distribución, no como objeto de estudio de manufactura.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Aprender a fabricar colchones de alta tecnología.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El material usa una empresa de colchones como ejemplo de distribución, no como objeto de estudio de manufactura.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="true" data-rationale="Este es el logro principal declarado para que el estudiante comprenda la utilidad de la gestión de distribución.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Entender qué es la distribución física, rutas y transporte y su aporte a las operaciones logísticas.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Este es el logro principal declarado para que el estudiante comprenda la utilidad de la gestión de distribución.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="El enfoque está en la distribución física de productos, no en robótica doméstica.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Diseñar algoritmos de inteligencia artificial para robots domésticos.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El enfoque está en la distribución física de productos, no en robótica doméstica.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="15">
+          <div class="q-header">
+            <span class="q-number">Pregunta 16</span>
+            <span class="q-of">/ 30</span>
+          </div>
+          <div class="q-text">¿Qué factor debe recolectarse y analizarse para asegurar que el vehículo seleccionado sea el adecuado para la ruta?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considere las dimensiones físicas y de peso que limitan el transporte.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Es indispensable que el espacio y peso disponible coincidan con los requerimientos de los pedidos.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">El volumen y tipo de carga junto con la capacidad del vehículo.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Es indispensable que el espacio y peso disponible coincidan con los requerimientos de los pedidos.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="La estética del vehículo no afecta la viabilidad técnica de la ruta ni la carga.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">El color de la carrocería del camión.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La estética del vehículo no afecta la viabilidad técnica de la ruta ni la carga.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Este es un detalle de mantenimiento, no un dato crítico de planificación de rutas de distribución.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">El nombre del fabricante de los neumáticos.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Este es un detalle de mantenimiento, no un dato crítico de planificación de rutas de distribución.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Factores personales no influyen en los objetivos de optimización operativa del transporte.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">La preferencia musical del conductor de la flota.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Factores personales no influyen en los objetivos de optimización operativa del transporte.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="16">
+          <div class="q-header">
+            <span class="q-number">Pregunta 17</span>
+            <span class="q-of">/ 30</span>
+          </div>
+          <div class="q-text">En el ejemplo de la empresa 'Paraíso', ¿cuál es su estrategia para la distribución de pedidos a hogares?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Busque la lámina del ejemplo sobre el traslado de colchones.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Su estrategia abarca desde el transporte correcto hasta el seguimiento de la entrega 'última milla'.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Utilizar un sistema de logística terrestre propio con monitoreo en tiempo real.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Su estrategia abarca desde el transporte correcto hasta el seguimiento de la entrega 'última milla'.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El material menciona que poseen un sistema propio de logística terrestre para llegar a los hogares.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Vender únicamente a través de tiendas físicas de terceros.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El material menciona que poseen un sistema propio de logística terrestre para llegar a los hogares.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Aunque es una tecnología emergente, el caso menciona específicamente logística terrestre.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Entregar los colchones mediante drones para evitar el tráfico.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aunque es una tecnología emergente, el caso menciona específicamente logística terrestre.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="La empresa busca asegurar la calidad mediante una estrategia de distribución física controlada.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Subcontratar todo el proceso de transporte a empresas de mensajería informal.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La empresa busca asegurar la calidad mediante una estrategia de distribución física controlada.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="17">
+          <div class="q-header">
+            <span class="q-number">Pregunta 18</span>
+            <span class="q-of">/ 30</span>
+          </div>
+          <div class="q-text">¿Por qué es importante implementar y monitorear la ruta en tiempo real mediante GPS?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piense en la necesidad de reaccionar ante eventos inesperados en la carretera.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Los peajes suelen estar ya calculados en los costos; el monitoreo busca gestionar imprevistos más que evitar peajes planeados.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Para evitar que el conductor use rutas con peajes.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Los peajes suelen estar ya calculados en los costos; el monitoreo busca gestionar imprevistos más que evitar peajes planeados.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="El tráfico o accidentes requieren una respuesta proactiva que solo el seguimiento en vivo permite.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Para realizar ajustes según las condiciones dinámicas de la ruta y asegurar el cumplimiento.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El tráfico o accidentes requieren una respuesta proactiva que solo el seguimiento en vivo permite.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="El GPS se enfoca en ubicación y tiempos; el control de combustible es una función de la telemetría del motor.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Para medir únicamente el nivel de combustible gastado cada diez minutos.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El GPS se enfoca en ubicación y tiempos; el control de combustible es una función de la telemetría del motor.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="El GPS ayuda a la logística, pero la comunicación con el cliente es un complemento de servicio, no una sustitución.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Para sustituir la comunicación verbal con el cliente por mensajes automáticos.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El GPS ayuda a la logística, pero la comunicación con el cliente es un complemento de servicio, no una sustitución.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="18">
+          <div class="q-header">
+            <span class="q-number">Pregunta 19</span>
+            <span class="q-of">/ 30</span>
+          </div>
+          <div class="q-text">Dentro de la teoría de grafos aplicada a rutas, ¿qué representan los 'nodos' y las 'aristas'?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Visualice un mapa esquemático donde los puntos están unidos por líneas.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Este concepto no tiene relación con el modelado matemático de redes de transporte.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Los nodos son las leyes de tránsito y las aristas son las multas aplicadas.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Este concepto no tiene relación con el modelado matemático de redes de transporte.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Las facturas son documentos contables, no componentes de una red de infraestructura de transporte.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Los nodos son los almacenes y las aristas son las facturas de venta.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Las facturas son documentos contables, no componentes de una red de infraestructura de transporte.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Los elementos de un grafo deben ser espaciales o conectores físicos en el ruteo.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Los nodos son los conductores y las aristas son los tipos de combustible.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Los elementos de un grafo deben ser espaciales o conectores físicos en el ruteo.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="true" data-rationale="En un modelo de red $G = (V, E)$, los vértices o nodos son locaciones y los ejes o aristas son las rutas.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Los nodos son los puntos de origen/destino y las aristas son las vías de conexión.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">En un modelo de red <span class="math">G = (V, E)</span>, los vértices o nodos son locaciones y los ejes o aristas son las rutas.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="19">
+          <div class="q-header">
+            <span class="q-number">Pregunta 20</span>
+            <span class="q-of">/ 30</span>
+          </div>
+          <div class="q-text">¿Cuál es una ventaja competitiva del transporte marítimo respecto a los fletes?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piense en el costo por unidad cuando se transporta en cantidades masivas.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="La economía de escala de los grandes buques reduce significativamente el costo por tonelada transportada.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Fletes bajos que permiten mover grandes volúmenes a menor costo unitario.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La economía de escala de los grandes buques reduce significativamente el costo por tonelada transportada.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Al contrario, el transporte marítimo destaca por tener fletes bajos comparados con otros medios para largas distancias.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Fletes extremadamente altos debido a la exclusividad.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Al contrario, el transporte marítimo destaca por tener fletes bajos comparados con otros medios para largas distancias.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Los fletes marítimos son altamente volátiles y dependen de la oferta y demanda del mercado global.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Fletes fijos que nunca cambian independientemente de la demanda global.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Los fletes marítimos son altamente volátiles y dependen de la oferta y demanda del mercado global.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Aun con buques propios, existen costos operativos que se contabilizan como fletes internos o costos de transferencia.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Eliminación total del pago de fletes si el buque es propio.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aun con buques propios, existen costos operativos que se contabilizan como fletes internos o costos de transferencia.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="20">
+          <div class="q-header">
+            <span class="q-number">Pregunta 21</span>
+            <span class="q-of">/ 30</span>
+          </div>
+          <div class="q-text">¿Qué busca optimizar primordialmente la planeación de rutas para mejorar la 'satisfacción del cliente'?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considere qué factor de tiempo valora más quien espera un pedido.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="La puntualidad es el factor determinante en la percepción de calidad del servicio de distribución.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">El cumplimiento estricto de los tiempos de entrega prometidos.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La puntualidad es el factor determinante en la percepción de calidad del servicio de distribución.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Modificar el producto es una decisión de diseño, no una optimización de la ruta de entrega.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Reducir el tamaño del producto para que ocupe menos espacio en el camión.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Modificar el producto es una decisión de diseño, no una optimización de la ruta de entrega.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Aunque es parte de la imagen, la satisfacción logística se centra en el cumplimiento de la entrega.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">El diseño gráfico de la factura impresa.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aunque es parte de la imagen, la satisfacción logística se centra en el cumplimiento de la entrega.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="La publicidad no es un objetivo de la gestión de rutas, sino del área de marketing.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">La cantidad de publicidad que se le entrega al cliente en su domicilio.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La publicidad no es un objetivo de la gestión de rutas, sino del área de marketing.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="21">
+          <div class="q-header">
+            <span class="q-number">Pregunta 22</span>
+            <span class="q-of">/ 30</span>
+          </div>
+          <div class="q-text">En el modelado de redes, ¿cuál es el objetivo del algoritmo de Floyd-Warshall?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Es un algoritmo más exhaustivo que Dijkstra para redes completas.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="El mantenimiento predictivo utiliza otros modelos estadísticos y sensores IoT.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Predecir fallas mecánicas en los motores de los barcos.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El mantenimiento predictivo utiliza otros modelos estadísticos y sensores IoT.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="A diferencia de Dijkstra, este algoritmo calcula la distancia mínima para todas las combinaciones posibles de puntos.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Encontrar los caminos más cortos entre todos los pares de nodos en una red.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">A diferencia de Dijkstra, este algoritmo calcula la distancia mínima para todas las combinaciones posibles de puntos.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Floyd-Warshall es un algoritmo de caminos mínimos en grafos, no de control de existencias.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Contabilizar el inventario de seguridad en los almacenes.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Floyd-Warshall es un algoritmo de caminos mínimos en grafos, no de control de existencias.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Los algoritmos de grafos son herramientas técnicas de ingeniería, no de comunicación creativa.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Diseñar la campaña publicitaria para el transporte marítimo.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Los algoritmos de grafos son herramientas técnicas de ingeniería, no de comunicación creativa.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="22">
+          <div class="q-header">
+            <span class="q-number">Pregunta 23</span>
+            <span class="q-of">/ 30</span>
+          </div>
+          <div class="q-text">Indique cuál es una característica del servicio no regular en el transporte marítimo:</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piense en la flexibilidad de negociación para cargas puntuales.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Este tipo de carga suele ir por vía aérea o servicios de courier rápido, no por buques no regulares.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Transporte exclusivo de correspondencia y documentos pequeños.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Este tipo de carga suele ir por vía aérea o servicios de courier rápido, no por buques no regulares.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="No existe tal obligación; el servicio se rige por la demanda y los contratos específicos.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Obligatoriedad de atracar en todos los puertos del mundo mensualmente.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">No existe tal obligación; el servicio se rige por la demanda y los contratos específicos.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Esta es la definición del servicio regular o de línea.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Itinerario preestablecido e inamovible.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esta es la definición del servicio regular o de línea.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="true" data-rationale="Funciona similar a un 'taxi' marítimo que se contrata para misiones o cargas específicas.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Condiciones de navegación negociables entre las partes y sin itinerario fijo.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Funciona similar a un 'taxi' marítimo que se contrata para misiones o cargas específicas.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="23">
+          <div class="q-header">
+            <span class="q-number">Pregunta 24</span>
+            <span class="q-of">/ 30</span>
+          </div>
+          <div class="q-text">¿Qué herramienta permite ejecutar rutas simuladas para evaluar costos proyectados antes de salir al campo?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Es la herramienta que permite jugar con el escenario antes de arriesgar recursos reales.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Esto genera demanda pero no ayuda en la evaluación técnica de la ejecución de las rutas.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Publicidad en redes sociales sobre los servicios de entrega.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esto genera demanda pero no ayuda en la evaluación técnica de la ejecución de las rutas.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Estas herramientas están diseñadas para predecir el comportamiento del sistema bajo incertidumbre y evaluar escenarios de costo.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Software de Simulación Logística (ej. AnyLogic, Simio).</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Estas herramientas están diseñadas para predecir el comportamiento del sistema bajo incertidumbre y evaluar escenarios de costo.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Aunque visualiza, no posee las capacidades de modelado dinámico de costos y variables logísticas de un simulador.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Google Earth Pro únicamente.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aunque visualiza, no posee las capacidades de modelado dinámico de costos y variables logísticas de un simulador.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Son registros administrativos que no tienen capacidad predictiva ni de simulación compleja.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Hojas de asistencia manuales de los conductores.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Son registros administrativos que no tienen capacidad predictiva ni de simulación compleja.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="24">
+          <div class="q-header">
+            <span class="q-number">Pregunta 25</span>
+            <span class="q-of">/ 30</span>
+          </div>
+          <div class="q-text">¿Cuál es la utilidad de identificar 'zonas prioritarias' en la clasificación de puntos de entrega?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considere la jerarquía de servicio en el cumplimiento de los contratos.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="La logística no determina políticas impositivas gubernamentales.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Cobrar más impuestos a los clientes que viven en esas áreas.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La logística no determina políticas impositivas gubernamentales.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Incluso en zonas prioritarias, el monitoreo es vital para medir el cumplimiento del servicio especial.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Eliminar la necesidad de usar GPS en esas zonas conocidas.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Incluso en zonas prioritarias, el monitoreo es vital para medir el cumplimiento del servicio especial.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="true" data-rationale="La priorización permite gestionar niveles de servicio diferenciados según la importancia del cliente o contrato.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Asegurar que los clientes estratégicos o con urgencia reciban su pedido primero.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La priorización permite gestionar niveles de servicio diferenciados según la importancia del cliente o contrato.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="La logística empresarial no tiene potestad para regular el tráfico público de terceros.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Prohibir la entrada de otros transportistas en esas calles específicas.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La logística empresarial no tiene potestad para regular el tráfico público de terceros.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="25">
+          <div class="q-header">
+            <span class="q-number">Pregunta 26</span>
+            <span class="q-of">/ 30</span>
+          </div>
+          <div class="q-text">¿A qué se refiere el término 'última milla' mencionado indirectamente en la utilidad del software de distribución?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Es el eslabón final de la cadena de suministro que tiene contacto con el comprador.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Esa es una restricción legal de tránsito, no una fase del proceso de distribución.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">La velocidad máxima permitida para los camiones de carga pesada.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esa es una restricción legal de tránsito, no una fase del proceso de distribución.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Es la parte más crítica y costosa de la distribución donde se garantiza el servicio de calidad.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">El tramo final del proceso de entrega que llega directamente al cliente final.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Es la parte más crítica y costosa de la distribución donde se garantiza el servicio de calidad.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Ese tramo se conoce como transporte primario o de larga distancia.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">La distancia entre la fábrica y el primer centro de distribución.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Ese tramo se conoce como transporte primario o de larga distancia.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Aunque existe, el término logístico se aplica generalmente a la entrega final al consumidor.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">El último kilómetro que recorre un barco antes de llegar al puerto.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aunque existe, el término logístico se aplica generalmente a la entrega final al consumidor.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="26">
+          <div class="q-header">
+            <span class="q-number">Pregunta 27</span>
+            <span class="q-of">/ 30</span>
+          </div>
+          <div class="q-text">En la gestión operativa, ¿qué se busca minimizar al realizar una planificación óptima del personal en el almacén?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piense en cómo el personal afecta la velocidad de salida de los camiones.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Aunque reduce horas extra, el objetivo logístico es sincronizar la capacidad humana con la demanda de despacho.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">La cantidad de tiempo que los empleados pasan fuera del horario laboral.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aunque reduce horas extra, el objetivo logístico es sincronizar la capacidad humana con la demanda de despacho.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Este es un gasto administrativo menor que no impacta directamente en la eficiencia de las rutas de distribución.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">El número de uniformes que la empresa debe comprar anualmente.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Este es un gasto administrativo menor que no impacta directamente en la eficiencia de las rutas de distribución.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="La comunicación debe maximizarse y ser fluida para evitar errores en la carga.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">La necesidad de comunicación entre el almacén y el transporte logístico.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La comunicación debe maximizarse y ser fluida para evitar errores en la carga.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="true" data-rationale="Una asignación eficiente garantiza que los pedidos salgan a tiempo hacia el transporte sin desperdiciar recursos.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Cuellos de botella en la preparación de pedidos y costos laborales excesivos.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Una asignación eficiente garantiza que los pedidos salgan a tiempo hacia el transporte sin desperdiciar recursos.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="27">
+          <div class="q-header">
+            <span class="q-number">Pregunta 28</span>
+            <span class="q-of">/ 30</span>
+          </div>
+          <div class="q-text">Indique cuál de estos programas se especializa en resolver el Problema del Ruteo de Vehículos (VRP):</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Busque un nombre que sugiera la optimización de caminos.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Es una herramienta diseñada específicamente para la planificación y optimización algorítmica de rutas de entrega.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">OptimoRoute.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Es una herramienta diseñada específicamente para la planificación y optimización algorítmica de rutas de entrega.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Es una plataforma de streaming de música, no una herramienta de gestión de transporte.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Spotify.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Es una plataforma de streaming de música, no una herramienta de gestión de transporte.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Es un procesador de textos que no puede resolver problemas complejos de grafos matemáticos.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Microsoft Word.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Es un procesador de textos que no puede resolver problemas complejos de grafos matemáticos.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Es un software de edición de imágenes, sin funciones de optimización logística.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Adobe Photoshop.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Es un software de edición de imágenes, sin funciones de optimización logística.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="28">
+          <div class="q-header">
+            <span class="q-number">Pregunta 29</span>
+            <span class="q-of">/ 30</span>
+          </div>
+          <div class="q-text">Al asegurar la integridad del producto durante su transporte, ¿qué riesgo se busca mitigar?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considere la condición física en la que el cliente espera recibir su paquete.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="La distribución debe garantizar que el producto llegue en condiciones óptimas de uso al consumidor.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Daños físicos, contaminación o roturas de la mercancía durante el trayecto.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La distribución debe garantizar que el producto llegue en condiciones óptimas de uso al consumidor.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Este es un fallo de planificación operativa, no un problema directo de integridad de la mercancía cargada.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">El riesgo de que el camión se quede sin combustible a mitad del camino.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Este es un fallo de planificación operativa, no un problema directo de integridad de la mercancía cargada.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Este riesgo de obsolescencia se gestiona reduciendo el 'lead time', pero la 'integridad' se refiere al estado físico.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Que el producto pase de moda durante el tiempo que dura el envío.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Este riesgo de obsolescencia se gestiona reduciendo el 'lead time', pero la 'integridad' se refiere al estado físico.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Este es un riesgo comercial de ventas, no un riesgo físico de transporte.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">El riesgo de que el cliente cambie de opinión después de la compra.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Este es un riesgo comercial de ventas, no un riesgo físico de transporte.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="29">
+          <div class="q-header">
+            <span class="q-number">Pregunta 30</span>
+            <span class="q-of">/ 30</span>
+          </div>
+          <div class="q-text">¿Qué ventaja tiene el transporte marítimo en términos de regulaciones internacionales?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Relacione la antigüedad del medio con la madurez de sus leyes.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Al ser el medio más antiguo, tiene usos y costumbres reglamentados globalmente que dan seguridad jurídica al comercio.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Posee un marco normativo estandarizado que facilita el desarrollo del comercio exterior.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Al ser el medio más antiguo, tiene usos y costumbres reglamentados globalmente que dan seguridad jurídica al comercio.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Las regulaciones de transporte no sustituyen las obligaciones tributarias de las organizaciones.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Exime a las empresas de pagar impuestos en sus países de origen.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Las regulaciones de transporte no sustituyen las obligaciones tributarias de las organizaciones.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="El transporte marítimo está sujeto a convenios internacionales y leyes nacionales de los estados portuarios.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Permite que cada capitán invente sus propias leyes al llegar a un puerto.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El transporte marítimo está sujeto a convenios internacionales y leyes nacionales de los estados portuarios.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Existen marcos regulatorios internacionales muy estrictos (ej. OMI) que rigen la navegación.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">La ausencia total de leyes que permite navegar libremente por cualquier país.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Existen marcos regulatorios internacionales muy estrictos (ej. OMI) que rigen la navegación.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      </div>
+  <div class="results" id="results">
+    <h2>¡Cuestionario completado!</h2>
+    <div class="score" id="score">0%</div>
+    <div class="score-text" id="score-text"></div>
+    <button class="restart-btn" onclick="restart()">Intentar de nuevo</button>
+  </div>
+</div>
+<script>
+const quizData = [{"question":"¿Cuál es el propósito primordial de la función de transporte dentro de la distribución física según el material?","hint":"Considere la definición que relaciona las actividades con la ubicación final de la mercancía.","options":[{"label":"A","text":"Priorizar únicamente la reducción de costos operativos sin considerar el servicio.","isCorrect":false,"rationale":"El transporte debe equilibrar el costo con la seguridad y la calidad del servicio al cliente."},{"label":"B","text":"Situar los productos en el destino bajo condiciones de seguridad, servicio y costo.","isCorrect":true,"rationale":"La distribución física busca la eficiencia logística integrando factores económicos con el cumplimiento de estándares de entrega."},{"label":"C","text":"Maximizar la velocidad de entrega ignorando la integridad física del producto.","isCorrect":false,"rationale":"La integridad del producto es uno de los objetivos explícitos de la distribución logística."},{"label":"D","text":"Eliminar por completo el uso de almacenes intermedios para acelerar la entrega.","isCorrect":false,"rationale":"El transporte se encarga del traslado desde el punto de origen o almacenamiento, no necesariamente de eliminar la infraestructura de almacenaje."}]},{"question":"En el transporte marítimo, ¿cuál es la diferencia clave entre un servicio regular y uno no regular?","hint":"Piense en la previsibilidad de los tiempos y las rutas de navegación.","options":[{"label":"A","text":"El servicio regular no tiene un itinerario fijo y depende de la negociación.","isCorrect":false,"rationale":"Esto describe al servicio no regular, donde las condiciones se pactan caso por caso."},{"label":"B","text":"El servicio regular opera con buques que siguen una ruta e itinerario preestablecido.","isCorrect":true,"rationale":"La regularidad implica constancia en las rutas y fechas de origen y destino fijas."},{"label":"C","text":"El servicio regular es el único que permite el desarrollo del comercio exterior.","isCorrect":false,"rationale":"Ambos servicios contribuyen al comercio exterior, aunque bajo distintas modalidades de contratación."},{"label":"D","text":"El servicio no regular solo transporta carga voluminosa y pesada.","isCorrect":false,"rationale":"Ambos servicios pueden transportar carga pesada, la diferencia radica en la programación de los viajes."}]},{"question":"¿Qué desventaja es característica del transporte marítimo debido a la manipulación intensiva de la carga?","hint":"Relacione el riesgo de daño con la protección física del producto.","options":[{"label":"A","text":"La necesidad de emplear embalajes altamente resistentes.","isCorrect":true,"rationale":"Debido a las múltiples maniobras de carga y descarga, el producto requiere mayor protección para evitar deterioros."},{"label":"B","text":"La imposibilidad de transportar productos de gran volumen.","isCorrect":false,"rationale":"Al contrario, la gran capacidad de carga es su principal ventaja competitiva."},{"label":"C","text":"El bajo costo de los seguros comparado con el transporte terrestre.","isCorrect":false,"rationale":"El material indica que los seguros suelen ser más costosos en la vía marítima."},{"label":"D","text":"La flexibilidad total para descargar en cualquier punto geográfico.","isCorrect":false,"rationale":"El transporte marítimo está limitado exclusivamente a la infraestructura portuaria."}]},{"question":"Al planear rutas de transporte, ¿cuál es el objetivo final de reducir los 'viajes vacíos'?","hint":"Piense en la rentabilidad del activo (vehículo) durante todo su recorrido.","options":[{"label":"A","text":"Aumentar el tiempo de descanso disponible para los conductores.","isCorrect":false,"rationale":"Aunque el descanso es importante, la reducción de viajes vacíos es una métrica de eficiencia operativa y de costos."},{"label":"B","text":"Garantizar que todos los clientes reciban su pedido a la misma hora.","isCorrect":false,"rationale":"La sincronización horaria depende de la ventana de entrega, no directamente de la carga de retorno."},{"label":"C","text":"Cumplir con las restricciones de tráfico en zonas urbanas.","isCorrect":false,"rationale":"Las restricciones de tráfico son una limitación externa, no el motivo principal para evitar retornos vacíos."},{"label":"D","text":"Optimizar el uso de los vehículos y minimizar costos innecesarios.","isCorrect":true,"rationale":"Mover un vehículo sin carga consume recursos sin generar valor, por lo que su optimización es crucial."}]},{"question":"En el contexto de las herramientas tecnológicas, ¿qué función cumplen los Sistemas de Información Geográfica (SIG)?","hint":"Su nombre hace referencia directa a la cartografía y la ubicación espacial.","options":[{"label":"A","text":"Predecir la demanda de productos en las tiendas minoristas.","isCorrect":false,"rationale":"La predicción de demanda suele hacerse mediante software estadístico o módulos de planificación de la cadena."},{"label":"B","text":"Analizar datos geoespaciales para identificar rutas y zonas de entrega en mapas.","isCorrect":true,"rationale":"Los SIG permiten visualizar la ubicación de puntos y obstáculos en un entorno geográfico preciso."},{"label":"C","text":"Resolver exclusivamente el problema matemático del viajante.","isCorrect":false,"rationale":"Aunque pueden integrarse, los SIG son para visualización y análisis, mientras que los VRP se enfocan en la resolución algorítmica."},{"label":"D","text":"Modelar matemáticamente la velocidad promedio de cada camión.","isCorrect":false,"rationale":"Esta es una función más específica de los sistemas de telemetría o gestión de flotas."}]},{"question":"¿Cuál de los siguientes algoritmos es mencionado para el diseño de rutas mediante modelos de redes?","hint":"Es un método matemático fundamental para encontrar distancias mínimas en un grafo.","options":[{"label":"A","text":"Modelo de Montecarlo.","isCorrect":false,"rationale":"Montecarlo se usa para simulaciones de probabilidad y riesgo, no para optimización determinista de redes."},{"label":"B","text":"Algoritmo de Pareto.","isCorrect":false,"rationale":"Pareto se usa para priorizar inventarios (80/20), no específicamente para el trazado de rutas de red."},{"label":"C","text":"Algoritmo de Dijkstra.","isCorrect":true,"rationale":"Dijkstra es un algoritmo clásico de teoría de grafos utilizado para encontrar el camino más corto entre nodos."},{"label":"D","text":"Análisis de regresión lineal.","isCorrect":false,"rationale":"La regresión lineal se aplica para proyectar tendencias, no para resolver la conexión óptima entre puntos geográficos."}]},{"question":"¿Qué acción se recomienda realizar en la fase de 'Evaluación y mejora' tras la implementación de una ruta?","hint":"Se trata de usar la experiencia de campo para perfeccionar la estrategia logística.","options":[{"label":"A","text":"Recoger datos post-entrega como tiempos reales e incidencias para ajustar rutas futuras.","isCorrect":true,"rationale":"El aprendizaje a partir de los datos reales permite corregir desviaciones en la planificación teórica."},{"label":"B","text":"Ignorar las ventanas de entrega de los clientes para simplificar el proceso.","isCorrect":false,"rationale":"Respetar las ventanas de entrega es fundamental para la satisfacción del cliente y el cumplimiento del servicio."},{"label":"C","text":"Planificar las rutas manualmente para evitar errores del software.","isCorrect":false,"rationale":"El uso de software especializado está diseñado precisamente para minimizar los márgenes de error humano."},{"label":"D","text":"Eliminar el seguimiento por GPS para reducir costos de datos.","isCorrect":false,"rationale":"El GPS es una herramienta de monitoreo continuo, su eliminación perjudicaría la mejora futura."}]},{"question":"Sobre la planeación de rutas, ¿qué implica considerar las 'restricciones horarias'?","hint":"Piense en las limitaciones externas impuestas por el entorno urbano o el receptor del pedido.","options":[{"label":"A","text":"Considerar normativas de tráfico y las ventanas de tiempo permitidas para carga/descarga.","isCorrect":true,"rationale":"Las ciudades y clientes suelen tener horarios específicos que limitan cuándo puede circular o entregar un vehículo."},{"label":"B","text":"Limitar todas las entregas a ser realizadas únicamente de madrugada.","isCorrect":false,"rationale":"Esto no es factible para todos los clientes y no representa una gestión eficiente de la flota completa."},{"label":"C","text":"Calcular únicamente el tiempo total del recorrido sin paradas.","isCorrect":false,"rationale":"Ignorar los tiempos de parada en cada cliente resultaría en una planificación de ruta poco realista."},{"label":"D","text":"Solo se refiere al tiempo que el conductor tiene para almorzar.","isCorrect":false,"rationale":"Aunque es un factor, las restricciones horarias abarcan normativas de tráfico y horarios de recepción de clientes."}]},{"question":"Indique si la siguiente afirmación es verdadera o falsa: El transporte marítimo es el medio de transporte de mercancía más moderno y con la reglamentación más reciente.","hint":"Considere la historia del comercio internacional desde la antigüedad.","options":[{"label":"A","text":"Verdadero","isCorrect":false,"rationale":"El material indica explícitamente que es el medio de transporte más antiguo."},{"label":"B","text":"Falso","isCorrect":true,"rationale":"Históricamente, el comercio marítimo precede a los métodos aéreos y terrestres mecanizados modernos."}]},{"question":"¿Cuál es un beneficio directo del uso de software de simulación logística en el diseño de rutas?","hint":"Se trata de probar hipótesis en un entorno controlado y digital.","options":[{"label":"A","text":"Automatizar el proceso de carga física de los camiones en el almacén.","isCorrect":false,"rationale":"La simulación es una herramienta de análisis de datos, no un sistema de robótica para carga física."},{"label":"B","text":"Garantizar que el precio del combustible nunca suba.","isCorrect":false,"rationale":"La simulación no controla variables económicas externas como el mercado de hidrocarburos."},{"label":"C","text":"Identificar cuellos de botella y evaluar escenarios bajo distintas condiciones antes de la ejecución.","isCorrect":true,"rationale":"Permite probar virtualmente cómo afectaría el tráfico o el clima a la operación logística."},{"label":"D","text":"Reemplazar la necesidad de contratar conductores capacitados.","isCorrect":false,"rationale":"El software asiste en la planificación, pero la ejecución sigue requiriendo personal calificado."}]},{"question":"En el diagrama de flujo logístico, ¿qué actividad conecta directamente al cliente final con el almacén en caso de devoluciones?","hint":"Es el término utilizado para el flujo de bienes que 'vuelve' en la cadena.","options":[{"label":"A","text":"Predicción de la demanda.","isCorrect":false,"rationale":"La predicción ocurre antes de que el cliente realice el pedido, no después de la entrega."},{"label":"B","text":"Optimización de la producción.","isCorrect":false,"rationale":"Esta actividad ocurre en la fábrica, lejos de la interacción directa con la devolución del cliente."},{"label":"C","text":"Pedidos a domicilio.","isCorrect":false,"rationale":"Esto representa el flujo de salida de mercancía, no el flujo de retorno por insatisfacción o error."},{"label":"D","text":"Logística inversa.","isCorrect":true,"rationale":"Este proceso gestiona el retorno de mercancías desde el punto de consumo hacia el origen o centros de acopio."}]},{"question":"¿Cuál es la función principal de los Sistemas de Gestión de Transporte (TMS)?","hint":"Busque la herramienta que unifica el control de toda la operación de transporte.","options":[{"label":"A","text":"Sustituir al departamento de ventas de la empresa.","isCorrect":false,"rationale":"Es una herramienta operativa para logística, no una herramienta comercial de captación de clientes."},{"label":"B","text":"Dibujar mapas geográficos sin procesar datos de carga.","isCorrect":false,"rationale":"Los TMS utilizan mapas, pero su valor central es la gestión de la carga, fletes y tiempos."},{"label":"C","text":"Integrar la planificación y el control de rutas con otras operaciones logísticas.","isCorrect":true,"rationale":"Un TMS ofrece una visión holística para gestionar la eficiencia operativa del transporte de extremo a extremo."},{"label":"D","text":"Diseñar exclusivamente el layout interno de un almacén.","isCorrect":false,"rationale":"Esa es tarea de un WMS (Warehouse Management System), no de un TMS."}]},{"question":"Al clasificar los puntos de entrega, ¿por qué es importante agrupar por cercanía geográfica?","hint":"Relacione la ubicación de las paradas con el consumo de recursos del camión.","options":[{"label":"A","text":"Para cumplir con la ley de protección de datos del consumidor.","isCorrect":false,"rationale":"La agrupación es una decisión técnica operativa independiente de las leyes de privacidad."},{"label":"B","text":"Para asegurar que todos los clientes reciban el mismo tipo de producto.","isCorrect":false,"rationale":"La agrupación geográfica busca eficiencia de movimiento, no homogeneidad de carga."},{"label":"C","text":"Para minimizar el tiempo de desplazamiento entre paradas y optimizar el uso del combustible.","isCorrect":true,"rationale":"Reducir la distancia recorrida entre clientes mejora la rentabilidad de la ruta."},{"label":"D","text":"Para evitar que los conductores hablen con clientes de distintos distritos.","isCorrect":false,"rationale":"La comunicación no es una variable técnica que se busque restringir mediante la agrupación geográfica."}]},{"question":"¿Qué representa el 'Problema del Viajante' (VRP) en la logística de distribución?","hint":"Es un modelo matemático para determinar el recorrido más eficiente visitando múltiples paradas.","options":[{"label":"A","text":"El reto de contratar personal que esté dispuesto a viajar largas distancias.","isCorrect":false,"rationale":"No es un problema de recursos humanos, sino un desafío matemático de optimización."},{"label":"B","text":"La dificultad de gestionar los pasajes aéreos para los ejecutivos de la cadena de suministro.","isCorrect":false,"rationale":"El término se aplica al ruteo de vehículos de carga, no a viajes corporativos de personal."},{"label":"C","text":"El desafío de encontrar la ruta más corta que visite todos los puntos de entrega y regrese al origen.","isCorrect":true,"rationale":"Es un problema clásico de optimización combinatoria esencial para minimizar costos de transporte."},{"label":"D","text":"El problema de los clientes que no se encuentran en su domicilio al momento de la entrega.","isCorrect":false,"rationale":"Esto se conoce como entrega fallida, no como el Problema del Viajante matemático."}]},{"question":"Indique cuál de estos es un objetivo de aprendizaje de la sesión mencionado en el material:","hint":"Revise las primeras láminas sobre el 'Logro de aprendizaje de la sesión'.","options":[{"label":"A","text":"Certificarse como conductor profesional de buques mercantes.","isCorrect":false,"rationale":"La sesión es de ingeniería/gestión logística, no de capacitación técnica de conducción marítima."},{"label":"B","text":"Aprender a fabricar colchones de alta tecnología.","isCorrect":false,"rationale":"El material usa una empresa de colchones como ejemplo de distribución, no como objeto de estudio de manufactura."},{"label":"C","text":"Entender qué es la distribución física, rutas y transporte y su aporte a las operaciones logísticas.","isCorrect":true,"rationale":"Este es el logro principal declarado para que el estudiante comprenda la utilidad de la gestión de distribución."},{"label":"D","text":"Diseñar algoritmos de inteligencia artificial para robots domésticos.","isCorrect":false,"rationale":"El enfoque está en la distribución física de productos, no en robótica doméstica."}]},{"question":"¿Qué factor debe recolectarse y analizarse para asegurar que el vehículo seleccionado sea el adecuado para la ruta?","hint":"Considere las dimensiones físicas y de peso que limitan el transporte.","options":[{"label":"A","text":"El volumen y tipo de carga junto con la capacidad del vehículo.","isCorrect":true,"rationale":"Es indispensable que el espacio y peso disponible coincidan con los requerimientos de los pedidos."},{"label":"B","text":"El color de la carrocería del camión.","isCorrect":false,"rationale":"La estética del vehículo no afecta la viabilidad técnica de la ruta ni la carga."},{"label":"C","text":"El nombre del fabricante de los neumáticos.","isCorrect":false,"rationale":"Este es un detalle de mantenimiento, no un dato crítico de planificación de rutas de distribución."},{"label":"D","text":"La preferencia musical del conductor de la flota.","isCorrect":false,"rationale":"Factores personales no influyen en los objetivos de optimización operativa del transporte."}]},{"question":"En el ejemplo de la empresa 'Paraíso', ¿cuál es su estrategia para la distribución de pedidos a hogares?","hint":"Busque la lámina del ejemplo sobre el traslado de colchones.","options":[{"label":"A","text":"Utilizar un sistema de logística terrestre propio con monitoreo en tiempo real.","isCorrect":true,"rationale":"Su estrategia abarca desde el transporte correcto hasta el seguimiento de la entrega 'última milla'."},{"label":"B","text":"Vender únicamente a través de tiendas físicas de terceros.","isCorrect":false,"rationale":"El material menciona que poseen un sistema propio de logística terrestre para llegar a los hogares."},{"label":"C","text":"Entregar los colchones mediante drones para evitar el tráfico.","isCorrect":false,"rationale":"Aunque es una tecnología emergente, el caso menciona específicamente logística terrestre."},{"label":"D","text":"Subcontratar todo el proceso de transporte a empresas de mensajería informal.","isCorrect":false,"rationale":"La empresa busca asegurar la calidad mediante una estrategia de distribución física controlada."}]},{"question":"¿Por qué es importante implementar y monitorear la ruta en tiempo real mediante GPS?","hint":"Piense en la necesidad de reaccionar ante eventos inesperados en la carretera.","options":[{"label":"A","text":"Para evitar que el conductor use rutas con peajes.","isCorrect":false,"rationale":"Los peajes suelen estar ya calculados en los costos; el monitoreo busca gestionar imprevistos más que evitar peajes planeados."},{"label":"B","text":"Para realizar ajustes según las condiciones dinámicas de la ruta y asegurar el cumplimiento.","isCorrect":true,"rationale":"El tráfico o accidentes requieren una respuesta proactiva que solo el seguimiento en vivo permite."},{"label":"C","text":"Para medir únicamente el nivel de combustible gastado cada diez minutos.","isCorrect":false,"rationale":"El GPS se enfoca en ubicación y tiempos; el control de combustible es una función de la telemetría del motor."},{"label":"D","text":"Para sustituir la comunicación verbal con el cliente por mensajes automáticos.","isCorrect":false,"rationale":"El GPS ayuda a la logística, pero la comunicación con el cliente es un complemento de servicio, no una sustitución."}]},{"question":"Dentro de la teoría de grafos aplicada a rutas, ¿qué representan los 'nodos' y las 'aristas'?","hint":"Visualice un mapa esquemático donde los puntos están unidos por líneas.","options":[{"label":"A","text":"Los nodos son las leyes de tránsito y las aristas son las multas aplicadas.","isCorrect":false,"rationale":"Este concepto no tiene relación con el modelado matemático de redes de transporte."},{"label":"B","text":"Los nodos son los almacenes y las aristas son las facturas de venta.","isCorrect":false,"rationale":"Las facturas son documentos contables, no componentes de una red de infraestructura de transporte."},{"label":"C","text":"Los nodos son los conductores y las aristas son los tipos de combustible.","isCorrect":false,"rationale":"Los elementos de un grafo deben ser espaciales o conectores físicos en el ruteo."},{"label":"D","text":"Los nodos son los puntos de origen/destino y las aristas son las vías de conexión.","isCorrect":true,"rationale":"En un modelo de red $G = (V, E)$, los vértices o nodos son locaciones y los ejes o aristas son las rutas."}]},{"question":"¿Cuál es una ventaja competitiva del transporte marítimo respecto a los fletes?","hint":"Piense en el costo por unidad cuando se transporta en cantidades masivas.","options":[{"label":"A","text":"Fletes bajos que permiten mover grandes volúmenes a menor costo unitario.","isCorrect":true,"rationale":"La economía de escala de los grandes buques reduce significativamente el costo por tonelada transportada."},{"label":"B","text":"Fletes extremadamente altos debido a la exclusividad.","isCorrect":false,"rationale":"Al contrario, el transporte marítimo destaca por tener fletes bajos comparados con otros medios para largas distancias."},{"label":"C","text":"Fletes fijos que nunca cambian independientemente de la demanda global.","isCorrect":false,"rationale":"Los fletes marítimos son altamente volátiles y dependen de la oferta y demanda del mercado global."},{"label":"D","text":"Eliminación total del pago de fletes si el buque es propio.","isCorrect":false,"rationale":"Aun con buques propios, existen costos operativos que se contabilizan como fletes internos o costos de transferencia."}]},{"question":"¿Qué busca optimizar primordialmente la planeación de rutas para mejorar la 'satisfacción del cliente'?","hint":"Considere qué factor de tiempo valora más quien espera un pedido.","options":[{"label":"A","text":"El cumplimiento estricto de los tiempos de entrega prometidos.","isCorrect":true,"rationale":"La puntualidad es el factor determinante en la percepción de calidad del servicio de distribución."},{"label":"B","text":"Reducir el tamaño del producto para que ocupe menos espacio en el camión.","isCorrect":false,"rationale":"Modificar el producto es una decisión de diseño, no una optimización de la ruta de entrega."},{"label":"C","text":"El diseño gráfico de la factura impresa.","isCorrect":false,"rationale":"Aunque es parte de la imagen, la satisfacción logística se centra en el cumplimiento de la entrega."},{"label":"D","text":"La cantidad de publicidad que se le entrega al cliente en su domicilio.","isCorrect":false,"rationale":"La publicidad no es un objetivo de la gestión de rutas, sino del área de marketing."}]},{"question":"En el modelado de redes, ¿cuál es el objetivo del algoritmo de Floyd-Warshall?","hint":"Es un algoritmo más exhaustivo que Dijkstra para redes completas.","options":[{"label":"A","text":"Predecir fallas mecánicas en los motores de los barcos.","isCorrect":false,"rationale":"El mantenimiento predictivo utiliza otros modelos estadísticos y sensores IoT."},{"label":"B","text":"Encontrar los caminos más cortos entre todos los pares de nodos en una red.","isCorrect":true,"rationale":"A diferencia de Dijkstra, este algoritmo calcula la distancia mínima para todas las combinaciones posibles de puntos."},{"label":"C","text":"Contabilizar el inventario de seguridad en los almacenes.","isCorrect":false,"rationale":"Floyd-Warshall es un algoritmo de caminos mínimos en grafos, no de control de existencias."},{"label":"D","text":"Diseñar la campaña publicitaria para el transporte marítimo.","isCorrect":false,"rationale":"Los algoritmos de grafos son herramientas técnicas de ingeniería, no de comunicación creativa."}]},{"question":"Indique cuál es una característica del servicio no regular en el transporte marítimo:","hint":"Piense en la flexibilidad de negociación para cargas puntuales.","options":[{"label":"A","text":"Transporte exclusivo de correspondencia y documentos pequeños.","isCorrect":false,"rationale":"Este tipo de carga suele ir por vía aérea o servicios de courier rápido, no por buques no regulares."},{"label":"B","text":"Obligatoriedad de atracar en todos los puertos del mundo mensualmente.","isCorrect":false,"rationale":"No existe tal obligación; el servicio se rige por la demanda y los contratos específicos."},{"label":"C","text":"Itinerario preestablecido e inamovible.","isCorrect":false,"rationale":"Esta es la definición del servicio regular o de línea."},{"label":"D","text":"Condiciones de navegación negociables entre las partes y sin itinerario fijo.","isCorrect":true,"rationale":"Funciona similar a un 'taxi' marítimo que se contrata para misiones o cargas específicas."}]},{"question":"¿Qué herramienta permite ejecutar rutas simuladas para evaluar costos proyectados antes de salir al campo?","hint":"Es la herramienta que permite jugar con el escenario antes de arriesgar recursos reales.","options":[{"label":"A","text":"Publicidad en redes sociales sobre los servicios de entrega.","isCorrect":false,"rationale":"Esto genera demanda pero no ayuda en la evaluación técnica de la ejecución de las rutas."},{"label":"B","text":"Software de Simulación Logística (ej. AnyLogic, Simio).","isCorrect":true,"rationale":"Estas herramientas están diseñadas para predecir el comportamiento del sistema bajo incertidumbre y evaluar escenarios de costo."},{"label":"C","text":"Google Earth Pro únicamente.","isCorrect":false,"rationale":"Aunque visualiza, no posee las capacidades de modelado dinámico de costos y variables logísticas de un simulador."},{"label":"D","text":"Hojas de asistencia manuales de los conductores.","isCorrect":false,"rationale":"Son registros administrativos que no tienen capacidad predictiva ni de simulación compleja."}]},{"question":"¿Cuál es la utilidad de identificar 'zonas prioritarias' en la clasificación de puntos de entrega?","hint":"Considere la jerarquía de servicio en el cumplimiento de los contratos.","options":[{"label":"A","text":"Cobrar más impuestos a los clientes que viven en esas áreas.","isCorrect":false,"rationale":"La logística no determina políticas impositivas gubernamentales."},{"label":"B","text":"Eliminar la necesidad de usar GPS en esas zonas conocidas.","isCorrect":false,"rationale":"Incluso en zonas prioritarias, el monitoreo es vital para medir el cumplimiento del servicio especial."},{"label":"C","text":"Asegurar que los clientes estratégicos o con urgencia reciban su pedido primero.","isCorrect":true,"rationale":"La priorización permite gestionar niveles de servicio diferenciados según la importancia del cliente o contrato."},{"label":"D","text":"Prohibir la entrada de otros transportistas en esas calles específicas.","isCorrect":false,"rationale":"La logística empresarial no tiene potestad para regular el tráfico público de terceros."}]},{"question":"¿A qué se refiere el término 'última milla' mencionado indirectamente en la utilidad del software de distribución?","hint":"Es el eslabón final de la cadena de suministro que tiene contacto con el comprador.","options":[{"label":"A","text":"La velocidad máxima permitida para los camiones de carga pesada.","isCorrect":false,"rationale":"Esa es una restricción legal de tránsito, no una fase del proceso de distribución."},{"label":"B","text":"El tramo final del proceso de entrega que llega directamente al cliente final.","isCorrect":true,"rationale":"Es la parte más crítica y costosa de la distribución donde se garantiza el servicio de calidad."},{"label":"C","text":"La distancia entre la fábrica y el primer centro de distribución.","isCorrect":false,"rationale":"Ese tramo se conoce como transporte primario o de larga distancia."},{"label":"D","text":"El último kilómetro que recorre un barco antes de llegar al puerto.","isCorrect":false,"rationale":"Aunque existe, el término logístico se aplica generalmente a la entrega final al consumidor."}]},{"question":"En la gestión operativa, ¿qué se busca minimizar al realizar una planificación óptima del personal en el almacén?","hint":"Piense en cómo el personal afecta la velocidad de salida de los camiones.","options":[{"label":"A","text":"La cantidad de tiempo que los empleados pasan fuera del horario laboral.","isCorrect":false,"rationale":"Aunque reduce horas extra, el objetivo logístico es sincronizar la capacidad humana con la demanda de despacho."},{"label":"B","text":"El número de uniformes que la empresa debe comprar anualmente.","isCorrect":false,"rationale":"Este es un gasto administrativo menor que no impacta directamente en la eficiencia de las rutas de distribución."},{"label":"C","text":"La necesidad de comunicación entre el almacén y el transporte logístico.","isCorrect":false,"rationale":"La comunicación debe maximizarse y ser fluida para evitar errores en la carga."},{"label":"D","text":"Cuellos de botella en la preparación de pedidos y costos laborales excesivos.","isCorrect":true,"rationale":"Una asignación eficiente garantiza que los pedidos salgan a tiempo hacia el transporte sin desperdiciar recursos."}]},{"question":"Indique cuál de estos programas se especializa en resolver el Problema del Ruteo de Vehículos (VRP):","hint":"Busque un nombre que sugiera la optimización de caminos.","options":[{"label":"A","text":"OptimoRoute.","isCorrect":true,"rationale":"Es una herramienta diseñada específicamente para la planificación y optimización algorítmica de rutas de entrega."},{"label":"B","text":"Spotify.","isCorrect":false,"rationale":"Es una plataforma de streaming de música, no una herramienta de gestión de transporte."},{"label":"C","text":"Microsoft Word.","isCorrect":false,"rationale":"Es un procesador de textos que no puede resolver problemas complejos de grafos matemáticos."},{"label":"D","text":"Adobe Photoshop.","isCorrect":false,"rationale":"Es un software de edición de imágenes, sin funciones de optimización logística."}]},{"question":"Al asegurar la integridad del producto durante su transporte, ¿qué riesgo se busca mitigar?","hint":"Considere la condición física en la que el cliente espera recibir su paquete.","options":[{"label":"A","text":"Daños físicos, contaminación o roturas de la mercancía durante el trayecto.","isCorrect":true,"rationale":"La distribución debe garantizar que el producto llegue en condiciones óptimas de uso al consumidor."},{"label":"B","text":"El riesgo de que el camión se quede sin combustible a mitad del camino.","isCorrect":false,"rationale":"Este es un fallo de planificación operativa, no un problema directo de integridad de la mercancía cargada."},{"label":"C","text":"Que el producto pase de moda durante el tiempo que dura el envío.","isCorrect":false,"rationale":"Este riesgo de obsolescencia se gestiona reduciendo el 'lead time', pero la 'integridad' se refiere al estado físico."},{"label":"D","text":"El riesgo de que el cliente cambie de opinión después de la compra.","isCorrect":false,"rationale":"Este es un riesgo comercial de ventas, no un riesgo físico de transporte."}]},{"question":"¿Qué ventaja tiene el transporte marítimo en términos de regulaciones internacionales?","hint":"Relacione la antigüedad del medio con la madurez de sus leyes.","options":[{"label":"A","text":"Posee un marco normativo estandarizado que facilita el desarrollo del comercio exterior.","isCorrect":true,"rationale":"Al ser el medio más antiguo, tiene usos y costumbres reglamentados globalmente que dan seguridad jurídica al comercio."},{"label":"B","text":"Exime a las empresas de pagar impuestos en sus países de origen.","isCorrect":false,"rationale":"Las regulaciones de transporte no sustituyen las obligaciones tributarias de las organizaciones."},{"label":"C","text":"Permite que cada capitán invente sus propias leyes al llegar a un puerto.","isCorrect":false,"rationale":"El transporte marítimo está sujeto a convenios internacionales y leyes nacionales de los estados portuarios."},{"label":"D","text":"La ausencia total de leyes que permite navegar libremente por cualquier país.","isCorrect":false,"rationale":"Existen marcos regulatorios internacionales muy estrictos (ej. OMI) que rigen la navegación."}]}];
+const tr = {"correct":"¡Correcto!","incorrect":"Incorrecto","next":"Siguiente pregunta →","seeResults":"Ver resultados","complete":"¡Cuestionario completado!","scoreText":"Obtuviste {correct} de {total} correctas","tryAgain":"Intentar de nuevo","rightAnswer":"Respuesta correcta","notQuite":"No del todo"};
+let currentQ = 0, correctCount = 0, answered = false;
+
+function init() {
+  document.querySelectorAll('.question').forEach((q, i) => q.classList.toggle('active', i === 0));
+  updateProgress();
+  document.querySelectorAll('.option').forEach(opt => opt.addEventListener('click', () => selectOption(opt)));
+  document.querySelectorAll('.next-btn').forEach(btn => btn.addEventListener('click', nextQuestion));
+}
+
+function selectOption(opt) {
+  if (answered) return;
+  answered = true;
+  const q = opt.closest('.question');
+  const options = q.querySelectorAll('.option');
+  const nextBtn = q.querySelector('.next-btn');
+  const isCorrect = opt.dataset.correct === 'true';
+  
+  // Mark all options as disabled
+  options.forEach(o => o.classList.add('disabled'));
+  
+  // Style selected option
+  opt.classList.add('selected', isCorrect ? 'correct' : 'incorrect');
+  
+  // Show correct answer if wrong
+  if (!isCorrect) {
+    const correctOpt = [...options].find(o => o.dataset.correct === 'true');
+    if (correctOpt) correctOpt.classList.add('show-correct');
+  }
+  
+  if (isCorrect) correctCount++;
+  
+  // Show feedback for ALL options that have rationale
+  options.forEach(o => {
+    const wrapper = o.closest('.option-wrapper');
+    const feedback = wrapper.querySelector('.option-feedback');
+    const rationale = o.dataset.rationale;
+    const isThisCorrect = o.dataset.correct === 'true';
+    
+    if (rationale && rationale.trim()) {
+      feedback.classList.remove('hidden');
+      feedback.classList.add(isThisCorrect ? 'correct-feedback' : 'incorrect-feedback');
+      
+      const statusEl = feedback.querySelector('.feedback-status');
+      statusEl.className = 'feedback-status ' + (isThisCorrect ? 'correct' : 'incorrect');
+      statusEl.innerHTML = isThisCorrect 
+        ? '✓ ' + tr.rightAnswer
+        : '✗ ' + tr.notQuite;
+    }
+  });
+  
+  nextBtn.classList.remove('hidden');
+  if (currentQ === quizData.length - 1) nextBtn.textContent = tr.seeResults;
+}
+
+function nextQuestion() {
+  answered = false;
+  currentQ++;
+  if (currentQ >= quizData.length) { showResults(); return; }
+  document.querySelectorAll('.question').forEach((q, i) => q.classList.toggle('active', i === currentQ));
+  updateProgress();
+}
+
+function updateProgress() {
+  document.querySelector('.progress-fill').style.width = (currentQ / quizData.length * 100) + '%';
+}
+
+function showResults() {
+  document.querySelectorAll('.question').forEach(q => q.classList.remove('active'));
+  document.getElementById('results').classList.add('active');
+  const pct = Math.round((correctCount / quizData.length) * 100);
+  document.getElementById('score').textContent = pct + '%';
+  document.getElementById('score-text').textContent = tr.scoreText.replace('{correct}', correctCount).replace('{total}', quizData.length);
+  document.querySelector('.progress-fill').style.width = '100%';
+}
+
+function restart() {
+  currentQ = 0; correctCount = 0; answered = false;
+  document.getElementById('results').classList.remove('active');
+  document.querySelectorAll('.question').forEach((q, i) => {
+    q.classList.toggle('active', i === 0);
+    q.querySelectorAll('.option').forEach(o => o.classList.remove('selected', 'correct', 'incorrect', 'disabled', 'show-correct'));
+    q.querySelectorAll('.option-feedback').forEach(f => {
+      f.classList.add('hidden');
+      f.classList.remove('correct-feedback', 'incorrect-feedback');
+    });
+    const btn = q.querySelector('.next-btn');
+    btn.classList.add('hidden');
+    btn.textContent = tr.next;
+  });
+  updateProgress();
+}
+
+init();
+</script>
+</body>
+</html>
