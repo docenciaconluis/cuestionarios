@@ -1,0 +1,1066 @@
+<!DOCTYPE html>
+<html lang="es" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>S11.1 Auto Cuestionario</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  min-height: 100vh; padding: 20px; color: #333;
+}
+.container { max-width: 700px; margin: 0 auto; }
+.header { text-align: center; color: #fff; padding: 30px 20px; }
+.header h1 { font-size: 28px; font-weight: 700; margin-bottom: 8px; text-shadow: 0 2px 10px rgba(0,0,0,0.2); }
+.header .meta { font-size: 14px; opacity: 0.9; }
+.progress-bar { background: rgba(255,255,255,0.3); border-radius: 10px; height: 8px; margin: 20px 0; overflow: hidden; }
+.progress-fill { background: #fff; height: 100%; width: 0%; transition: width 0.4s ease; border-radius: 10px; }
+.question { background: #fff; border-radius: 16px; padding: 30px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); display: none; }
+.question.active { display: block; }
+.q-header { display: flex; justify-content: space-between; margin-bottom: 20px; font-size: 13px; color: #888; }
+.q-number { font-weight: 600; color: #667eea; }
+.q-text { font-size: 18px; font-weight: 600; line-height: 1.5; margin-bottom: 25px; color: #222; }
+.options { display: flex; flex-direction: column; gap: 12px; }
+.option-wrapper { display: flex; flex-direction: column; }
+.option {
+  display: flex; align-items: flex-start; gap: 14px; padding: 16px 18px;
+  border: 2px solid #e8e8e8; border-radius: 12px; background: #fafafa;
+  cursor: pointer; transition: all 0.2s; text-align: left; font-size: 15px; width: 100%;
+}
+[dir="rtl"] .option { text-align: right; flex-direction: row-reverse; }
+.option:hover:not(.disabled) { border-color: #667eea; background: #f5f3ff; }
+.option.selected { border-color: #667eea; background: #ede9fe; }
+.option.correct { border-color: #22c55e; background: #dcfce7; }
+.option.incorrect { border-color: #ef4444; background: #fee2e2; }
+.option.disabled { cursor: default; }
+.option.show-correct { border-color: #22c55e; background: #dcfce7; }
+.opt-label {
+  display: flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; border-radius: 50%; background: #e8e8e8;
+  font-weight: 700; font-size: 14px; flex-shrink: 0;
+}
+.option.selected .opt-label { background: #667eea; color: #fff; }
+.option.correct .opt-label { background: #22c55e; color: #fff; }
+.option.incorrect .opt-label { background: #ef4444; color: #fff; }
+.option.show-correct .opt-label { background: #22c55e; color: #fff; }
+.opt-text { padding-top: 5px; line-height: 1.5; }
+
+/* Individual option feedback */
+.option-feedback {
+  margin: 8px 0 4px 46px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+[dir="rtl"] .option-feedback { margin-left: 0; margin-right: 46px; }
+.option-feedback.correct-feedback {
+  background: #dcfce7;
+  border-left: 3px solid #22c55e;
+}
+.option-feedback.incorrect-feedback {
+  background: #fef3f2;
+  border-left: 3px solid #fca5a5;
+}
+[dir="rtl"] .option-feedback.correct-feedback,
+[dir="rtl"] .option-feedback.incorrect-feedback {
+  border-left: none;
+  border-right: 3px solid;
+}
+[dir="rtl"] .option-feedback.correct-feedback { border-right-color: #22c55e; }
+[dir="rtl"] .option-feedback.incorrect-feedback { border-right-color: #fca5a5; }
+.feedback-status {
+  font-weight: 600;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.feedback-status.correct { color: #166534; }
+.feedback-status.incorrect { color: #991b1b; }
+.feedback-rationale { color: #444; }
+
+/* Hint box */
+.hint-box {
+  margin: 12px 0;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+}
+.hint-toggle {
+  width: 100%;
+  padding: 10px 16px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  color: #92400e;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.hint-toggle:hover { background: #fef3c7; }
+.hint-content {
+  padding: 0 16px;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s, padding 0.3s;
+  font-size: 14px;
+  color: #78350f;
+  line-height: 1.5;
+}
+.hint-box.show .hint-content {
+  padding: 0 16px 12px;
+  max-height: 200px;
+}
+
+.next-btn {
+  margin-top: 20px; width: 100%; padding: 14px;
+  background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; border: none;
+  border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.next-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(102,126,234,0.4); }
+.hidden { display: none !important; }
+.results { background: #fff; border-radius: 16px; padding: 40px; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.15); display: none; }
+.results.active { display: block; }
+.results h2 { font-size: 28px; margin-bottom: 10px; color: #333; }
+.results .score { font-size: 64px; font-weight: 700; color: #667eea; margin: 20px 0; }
+.results .score-text { font-size: 18px; color: #666; margin-bottom: 30px; }
+.restart-btn {
+  padding: 14px 40px; background: linear-gradient(135deg, #667eea, #764ba2);
+  color: #fff; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer;
+}
+
+/* Math CSS */
+.math, .math-block { font-family: "Cambria Math", "Times New Roman", Times, serif; font-style: italic; }
+.math-block { display: block; text-align: center; margin: 10px 0; font-size: 110%; }
+.frac { display: inline-flex; flex-direction: column; align-items: center; vertical-align: middle; margin: 0 3px; font-size: 0.9em; }
+.frac-num { border-bottom: 1px solid currentColor; padding: 0 4px 2px; line-height: 1.2; }
+.frac-den { padding: 2px 4px 0; line-height: 1.2; }
+.sqrt { white-space: nowrap; }
+.sqrt-content { border-top: 1px solid currentColor; padding: 0 3px; margin-left: 2px; }
+sup, sub { font-size: 0.75em; }
+sup { vertical-align: super; }
+sub { vertical-align: sub; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>S11.1 Auto Cuestionario</h1>
+    <div class="meta">20 preguntas</div>
+    <div class="progress-bar"><div class="progress-fill"></div></div>
+  </div>
+  <div id="quiz-container">
+        <div class="question" data-index="0">
+          <div class="q-header">
+            <span class="q-number">Pregunta 1</span>
+            <span class="q-of">/ 20</span>
+          </div>
+          <div class="q-text">¿Es correcto afirmar que un protocolo de comunicación es el conjunto de reglas que permite la transferencia de datos entre equipos de una red?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piensa en el protocolo como el &quot;idioma&quot; que comparten los dispositivos.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="El material define los protocolos como un conjunto de normas o reglas que actúan como un idioma común para que los dispositivos se entiendan.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El material define los protocolos como un conjunto de normas o reglas que actúan como un idioma común para que los dispositivos se entiendan.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Esta afirmación es precisa según la definición técnica que establece que los protocolos son normativas de comunicación, no solo hardware.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esta afirmación es precisa según la definición técnica que establece que los protocolos son normativas de comunicación, no solo hardware.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="1">
+          <div class="q-header">
+            <span class="q-number">Pregunta 2</span>
+            <span class="q-of">/ 20</span>
+          </div>
+          <div class="q-text">En la transmisión de datos tipo Simplex, ¿los datos pueden circular en ambos sentidos pero no de manera simultánea?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Recuerda el ejemplo de la señal de televisión mencionado en la sesión.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="La circulación en ambos sentidos no simultáneos corresponde al modo Half duplex, no al Simplex.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La circulación en ambos sentidos no simultáneos corresponde al modo Half duplex, no al Simplex.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="En el modo Simplex, la comunicación es unidireccional y permanente en un solo sentido, como la señal de televisión.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">En el modo Simplex, la comunicación es unidireccional y permanente en un solo sentido, como la señal de televisión.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="2">
+          <div class="q-header">
+            <span class="q-number">Pregunta 3</span>
+            <span class="q-of">/ 20</span>
+          </div>
+          <div class="q-text">¿Es el walkie-talkie un ejemplo de comunicación Semiduplex o Half duplex?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considera si en ese dispositivo se puede hablar y escuchar al mismo tiempo.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="En un walkie-talkie, ambas estaciones pueden hablar, pero deben turnarse ya que no pueden transmitir simultáneamente.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">En un walkie-talkie, ambas estaciones pueden hablar, pero deben turnarse ya que no pueden transmitir simultáneamente.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El walkie-talkie es el ejemplo clásico de Half duplex porque requiere que un emisor termine antes de que el otro comience.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El walkie-talkie es el ejemplo clásico de Half duplex porque requiere que un emisor termine antes de que el otro comience.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="3">
+          <div class="q-header">
+            <span class="q-number">Pregunta 4</span>
+            <span class="q-of">/ 20</span>
+          </div>
+          <div class="q-text">En una comunicación Full duplex, ¿ambas estaciones pueden enviar y recibir datos simultáneamente?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Relaciónalo con el funcionamiento de una llamada telefónica convencional.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="La capacidad de comunicación simultánea en ambos sentidos es precisamente la característica definitoria del modo Full duplex.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La capacidad de comunicación simultánea en ambos sentidos es precisamente la característica definitoria del modo Full duplex.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="El modo Full duplex permite el flujo bidireccional constante, permitiendo la recepción y envío al mismo tiempo, como en un teléfono.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El modo Full duplex permite el flujo bidireccional constante, permitiendo la recepción y envío al mismo tiempo, como en un teléfono.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="4">
+          <div class="q-header">
+            <span class="q-number">Pregunta 5</span>
+            <span class="q-of">/ 20</span>
+          </div>
+          <div class="q-text">¿Se encuentra el protocolo AS-i en la base de la pirámide CIM, específicamente en el nivel de sensores y actuadores?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Recuerda qué nivel se encarga de la conexión física con los dispositivos de entrada y salida de campo.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="AS-i está diseñado para el nivel más bajo de la automatización, conectando directamente sensores y actuadores con un cable bifilar.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">AS-i está diseñado para el nivel más bajo de la automatización, conectando directamente sensores y actuadores con un cable bifilar.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El material ubica explícitamente a AS-i en el primer peldaño o base de la pirámide de automatización.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El material ubica explícitamente a AS-i en el primer peldaño o base de la pirámide de automatización.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="5">
+          <div class="q-header">
+            <span class="q-number">Pregunta 6</span>
+            <span class="q-of">/ 20</span>
+          </div>
+          <div class="q-text">¿El protocolo AS-i permite la comunicación directa entre dos o más PLCs diferentes?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Busca la sección de limitaciones del protocolo AS-i en el material.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="El protocolo está limitado a la comunicación entre un maestro y sus esclavos (sensores/actuadores), no entre controladores.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El protocolo está limitado a la comunicación entre un maestro y sus esclavos (sensores/actuadores), no entre controladores.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Una de las limitaciones críticas mencionadas es que AS-i no puede comunicar distintos PLCs entre sí.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Una de las limitaciones críticas mencionadas es que AS-i no puede comunicar distintos PLCs entre sí.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="6">
+          <div class="q-header">
+            <span class="q-number">Pregunta 7</span>
+            <span class="q-of">/ 20</span>
+          </div>
+          <div class="q-text">¿Es Profibus el bus de comunicación más extendido en el mercado para el nivel de campo?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Revisa el porcentaje de mercado mencionado para este protocolo.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="El material indica que el $40\%$ de los procesos industriales actuales utilizan Profibus en este nivel.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El material indica que el <span class="math">40%</span> de los procesos industriales actuales utilizan Profibus en este nivel.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Las estadísticas presentadas confirman que es el protocolo líder para dispositivos de campo como variadores y servomotores.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Las estadísticas presentadas confirman que es el protocolo líder para dispositivos de campo como variadores y servomotores.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="7">
+          <div class="q-header">
+            <span class="q-number">Pregunta 8</span>
+            <span class="q-of">/ 20</span>
+          </div>
+          <div class="q-text">¿El protocolo Profibus permite conectar un máximo de 31 estaciones mediante un PLC maestro?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Distingue entre la capacidad de dispositivos del nivel de sensores y el nivel de campo.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Profibus permite una capacidad mucho mayor, pudiendo comunicar hasta 127 estaciones.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Profibus permite una capacidad mucho mayor, pudiendo comunicar hasta 127 estaciones.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El límite de 31 esclavos corresponde al protocolo AS-i, no a Profibus.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El límite de 31 esclavos corresponde al protocolo AS-i, no a Profibus.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="8">
+          <div class="q-header">
+            <span class="q-number">Pregunta 9</span>
+            <span class="q-of">/ 20</span>
+          </div>
+          <div class="q-text">¿Es posible que una red Profibus alcance distancias de más de <span class="math">100</span> km utilizando fibra óptica?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Compara las capacidades del cobre frente a la fibra óptica mencionadas en el texto.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Aunque en cobre se limita a 10 km, el uso de fibra óptica extiende el alcance de Profibus por encima de los $100$ km.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aunque en cobre se limita a 10 km, el uso de fibra óptica extiende el alcance de Profibus por encima de los <span class="math">100</span> km.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El soporte físico de transmisión cambia drásticamente el alcance máximo permitido por este protocolo.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El soporte físico de transmisión cambia drásticamente el alcance máximo permitido por este protocolo.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="9">
+          <div class="q-header">
+            <span class="q-number">Pregunta 10</span>
+            <span class="q-of">/ 20</span>
+          </div>
+          <div class="q-text">¿El protocolo Profinet es uno de los estándares más utilizados en el nivel de célula o control?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Ubica este protocolo dentro de los peldaños de la pirámide CIM.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Profinet se utiliza en el nivel de célula para conectar procesos mediante red local, aumentando la velocidad y facilidad de programación.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Profinet se utiliza en el nivel de célula para conectar procesos mediante red local, aumentando la velocidad y facilidad de programación.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El nivel de célula utiliza Industrial Ethernet, y Profinet es específicamente destacado como su estándar principal.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El nivel de célula utiliza Industrial Ethernet, y Profinet es específicamente destacado como su estándar principal.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="10">
+          <div class="q-header">
+            <span class="q-number">Pregunta 11</span>
+            <span class="q-of">/ 20</span>
+          </div>
+          <div class="q-text">¿Industrial Ethernet utiliza dispositivos como conmutadores (switches) y concentradores (hubs) para gestionar los datos?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piensa en los equipos necesarios para crear una red local industrial.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Para lograr el acceso a datos en tiempo real en la red local (LAN), se requiere de esta infraestructura de red activa.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Para lograr el acceso a datos en tiempo real en la red local (LAN), se requiere de esta infraestructura de red activa.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El hardware de red mencionado es fundamental para la conectividad en el nivel de célula descrito.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El hardware de red mencionado es fundamental para la conectividad en el nivel de célula descrito.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="11">
+          <div class="q-header">
+            <span class="q-number">Pregunta 12</span>
+            <span class="q-of">/ 20</span>
+          </div>
+          <div class="q-text">¿El protocolo Ethernet TCP/IP se utiliza para conectar el software SCADA con los sistemas de gestión empresarial?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Relaciona este protocolo con el nivel más alto de la pirámide CIM.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="TCP/IP actúa como el eslabón superior que integra los datos de control de planta con la administración de la empresa.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">TCP/IP actúa como el eslabón superior que integra los datos de control de planta con la administración de la empresa.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Esta es la función principal de TCP/IP en el nivel de gestión, el punto más alto de la pirámide.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esta es la función principal de TCP/IP en el nivel de gestión, el punto más alto de la pirámide.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="12">
+          <div class="q-header">
+            <span class="q-number">Pregunta 13</span>
+            <span class="q-of">/ 20</span>
+          </div>
+          <div class="q-text">En el nivel de gestión, ¿los protocolos TCP/IP incluyen únicamente el transporte de datos, excluyendo el acceso a la red?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considera si TCP/IP es un modelo de capas que cubre desde el acceso hasta la aplicación.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="El material especifica que estos protocolos abarcan el acceso, el transporte y también las aplicaciones de usuario.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El material especifica que estos protocolos abarcan el acceso, el transporte y también las aplicaciones de usuario.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Los protocolos TCP/IP son integrales; incluyen el acceso a la red, el transporte y las aplicaciones.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Los protocolos TCP/IP son integrales; incluyen el acceso a la red, el transporte y las aplicaciones.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="13">
+          <div class="q-header">
+            <span class="q-number">Pregunta 14</span>
+            <span class="q-of">/ 20</span>
+          </div>
+          <div class="q-text">¿La pirámide CIM muestra que el nivel de sensores y actuadores está jerárquicamente por encima del nivel de campo?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Visualiza el orden de los niveles desde la base hasta la punta de la pirámide.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="La jerarquía asciende desde los sensores (base) hacia la gestión (cúspide), pasando por campo y célula.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La jerarquía asciende desde los sensores (base) hacia la gestión (cúspide), pasando por campo y célula.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El nivel de sensores y actuadores es la base de la pirámide, por lo que está debajo del nivel de campo.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El nivel de sensores y actuadores es la base de la pirámide, por lo que está debajo del nivel de campo.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="14">
+          <div class="q-header">
+            <span class="q-number">Pregunta 15</span>
+            <span class="q-of">/ 20</span>
+          </div>
+          <div class="q-text">¿Utiliza el protocolo AS-i un único cable bifilar (de dos hilos) para enlazar todos sus elementos?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Recuerda la descripción física del medio de transmisión de AS-i.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Una característica distintiva de AS-i es el uso de un solo cable de dos hilos para simplificar el cableado de sensores.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Una característica distintiva de AS-i es el uso de un solo cable de dos hilos para simplificar el cableado de sensores.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El texto resalta que el cable bifilar es la solución habitual para evitar la gran cantidad de cables en la base de la pirámide.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El texto resalta que el cable bifilar es la solución habitual para evitar la gran cantidad de cables en la base de la pirámide.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="15">
+          <div class="q-header">
+            <span class="q-number">Pregunta 16</span>
+            <span class="q-of">/ 20</span>
+          </div>
+          <div class="q-text">¿Puede una red AS-i alcanzar una longitud de hasta 300 metros si se utilizan repetidores?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Verifica el alcance máximo de AS-i cuando se emplean elementos de extensión de red.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Con el uso de repetidores, la extensión máxima permitida para este bus de sensores llega a los 300 metros.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Con el uso de repetidores, la extensión máxima permitida para este bus de sensores llega a los 300 metros.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El límite de 300 metros con repetidores es un dato técnico específico proporcionado para el protocolo AS-i.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El límite de 300 metros con repetidores es un dato técnico específico proporcionado para el protocolo AS-i.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="16">
+          <div class="q-header">
+            <span class="q-number">Pregunta 17</span>
+            <span class="q-of">/ 20</span>
+          </div>
+          <div class="q-text">¿Profinet disminuye la velocidad de transmisión en comparación con Profibus para asegurar la estabilidad?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Analiza cómo evoluciona la velocidad de transmisión al subir de nivel en la pirámide.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Profinet en realidad aumenta de forma significativa la velocidad de transmisión respecto a sus predecesores.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Profinet en realidad aumenta de forma significativa la velocidad de transmisión respecto a sus predecesores.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Una de las ventajas mencionadas de Profinet es precisamente el aumento en la velocidad y el número de conexiones simultáneas.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Una de las ventajas mencionadas de Profinet es precisamente el aumento en la velocidad y el número de conexiones simultáneas.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="17">
+          <div class="q-header">
+            <span class="q-number">Pregunta 18</span>
+            <span class="q-of">/ 20</span>
+          </div>
+          <div class="q-text">¿Es el teléfono un ejemplo cotidiano de comunicación tipo Full duplex?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piensa si en una llamada puedes escuchar a la otra persona mientras tú estás hablando.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="El teléfono es el ejemplo que ilustra la comunicación bidireccional simultánea perfecta.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El teléfono es el ejemplo que ilustra la comunicación bidireccional simultánea perfecta.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="En una llamada telefónica, ambas personas pueden hablar y ser escuchadas al mismo tiempo sin interrumpir el flujo.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">En una llamada telefónica, ambas personas pueden hablar y ser escuchadas al mismo tiempo sin interrumpir el flujo.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="18">
+          <div class="q-header">
+            <span class="q-number">Pregunta 19</span>
+            <span class="q-of">/ 20</span>
+          </div>
+          <div class="q-text">¿Los protocolos de comunicación industrial permiten que dispositivos de distintas marcas y modelos se entiendan entre sí?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Recuerda la analogía del &quot;idioma&quot; utilizada en la sesión.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Al actuar como un estándar o idioma común, eliminan las barreras de compatibilidad entre fabricantes.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Al actuar como un estándar o idioma común, eliminan las barreras de compatibilidad entre fabricantes.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Esta es la utilidad fundamental descrita: permitir la interoperabilidad en entornos multimarca.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esta es la utilidad fundamental descrita: permitir la interoperabilidad en entornos multimarca.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="19">
+          <div class="q-header">
+            <span class="q-number">Pregunta 20</span>
+            <span class="q-of">/ 20</span>
+          </div>
+          <div class="q-text">En la pirámide CIM, ¿se asocia el nivel de campo con dispositivos como variadores de frecuencia y grupos de válvulas?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Revisa los componentes mencionados para el segundo peldaño de la pirámide.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="El material identifica explícitamente a los variadores de frecuencia como elementos típicos del segundo peldaño o nivel de campo.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El material identifica explícitamente a los variadores de frecuencia como elementos típicos del segundo peldaño o nivel de campo.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="El nivel de campo conecta las partes de la máquina como variadores y válvulas, comúnmente usando Profibus.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El nivel de campo conecta las partes de la máquina como variadores y válvulas, comúnmente usando Profibus.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      </div>
+  <div class="results" id="results">
+    <h2>¡Cuestionario completado!</h2>
+    <div class="score" id="score">0%</div>
+    <div class="score-text" id="score-text"></div>
+    <button class="restart-btn" onclick="restart()">Intentar de nuevo</button>
+  </div>
+</div>
+<script>
+const quizData = [{"question":"¿Es correcto afirmar que un protocolo de comunicación es el conjunto de reglas que permite la transferencia de datos entre equipos de una red?","hint":"Piensa en el protocolo como el \"idioma\" que comparten los dispositivos.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"El material define los protocolos como un conjunto de normas o reglas que actúan como un idioma común para que los dispositivos se entiendan."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"Esta afirmación es precisa según la definición técnica que establece que los protocolos son normativas de comunicación, no solo hardware."}]},{"question":"En la transmisión de datos tipo Simplex, ¿los datos pueden circular en ambos sentidos pero no de manera simultánea?","hint":"Recuerda el ejemplo de la señal de televisión mencionado en la sesión.","options":[{"label":"A","text":"Verdadero","isCorrect":false,"rationale":"La circulación en ambos sentidos no simultáneos corresponde al modo Half duplex, no al Simplex."},{"label":"B","text":"Falso","isCorrect":true,"rationale":"En el modo Simplex, la comunicación es unidireccional y permanente en un solo sentido, como la señal de televisión."}]},{"question":"¿Es el walkie-talkie un ejemplo de comunicación Semiduplex o Half duplex?","hint":"Considera si en ese dispositivo se puede hablar y escuchar al mismo tiempo.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"En un walkie-talkie, ambas estaciones pueden hablar, pero deben turnarse ya que no pueden transmitir simultáneamente."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"El walkie-talkie es el ejemplo clásico de Half duplex porque requiere que un emisor termine antes de que el otro comience."}]},{"question":"En una comunicación Full duplex, ¿ambas estaciones pueden enviar y recibir datos simultáneamente?","hint":"Relaciónalo con el funcionamiento de una llamada telefónica convencional.","options":[{"label":"A","text":"Falso","isCorrect":false,"rationale":"La capacidad de comunicación simultánea en ambos sentidos es precisamente la característica definitoria del modo Full duplex."},{"label":"B","text":"Verdadero","isCorrect":true,"rationale":"El modo Full duplex permite el flujo bidireccional constante, permitiendo la recepción y envío al mismo tiempo, como en un teléfono."}]},{"question":"¿Se encuentra el protocolo AS-i en la base de la pirámide CIM, específicamente en el nivel de sensores y actuadores?","hint":"Recuerda qué nivel se encarga de la conexión física con los dispositivos de entrada y salida de campo.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"AS-i está diseñado para el nivel más bajo de la automatización, conectando directamente sensores y actuadores con un cable bifilar."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"El material ubica explícitamente a AS-i en el primer peldaño o base de la pirámide de automatización."}]},{"question":"¿El protocolo AS-i permite la comunicación directa entre dos o más PLCs diferentes?","hint":"Busca la sección de limitaciones del protocolo AS-i en el material.","options":[{"label":"A","text":"Falso","isCorrect":true,"rationale":"El protocolo está limitado a la comunicación entre un maestro y sus esclavos (sensores/actuadores), no entre controladores."},{"label":"B","text":"Verdadero","isCorrect":false,"rationale":"Una de las limitaciones críticas mencionadas es que AS-i no puede comunicar distintos PLCs entre sí."}]},{"question":"¿Es Profibus el bus de comunicación más extendido en el mercado para el nivel de campo?","hint":"Revisa el porcentaje de mercado mencionado para este protocolo.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"El material indica que el $40\\%$ de los procesos industriales actuales utilizan Profibus en este nivel."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"Las estadísticas presentadas confirman que es el protocolo líder para dispositivos de campo como variadores y servomotores."}]},{"question":"¿El protocolo Profibus permite conectar un máximo de 31 estaciones mediante un PLC maestro?","hint":"Distingue entre la capacidad de dispositivos del nivel de sensores y el nivel de campo.","options":[{"label":"A","text":"Falso","isCorrect":true,"rationale":"Profibus permite una capacidad mucho mayor, pudiendo comunicar hasta 127 estaciones."},{"label":"B","text":"Verdadero","isCorrect":false,"rationale":"El límite de 31 esclavos corresponde al protocolo AS-i, no a Profibus."}]},{"question":"¿Es posible que una red Profibus alcance distancias de más de $100$ km utilizando fibra óptica?","hint":"Compara las capacidades del cobre frente a la fibra óptica mencionadas en el texto.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"Aunque en cobre se limita a 10 km, el uso de fibra óptica extiende el alcance de Profibus por encima de los $100$ km."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"El soporte físico de transmisión cambia drásticamente el alcance máximo permitido por este protocolo."}]},{"question":"¿El protocolo Profinet es uno de los estándares más utilizados en el nivel de célula o control?","hint":"Ubica este protocolo dentro de los peldaños de la pirámide CIM.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"Profinet se utiliza en el nivel de célula para conectar procesos mediante red local, aumentando la velocidad y facilidad de programación."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"El nivel de célula utiliza Industrial Ethernet, y Profinet es específicamente destacado como su estándar principal."}]},{"question":"¿Industrial Ethernet utiliza dispositivos como conmutadores (switches) y concentradores (hubs) para gestionar los datos?","hint":"Piensa en los equipos necesarios para crear una red local industrial.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"Para lograr el acceso a datos en tiempo real en la red local (LAN), se requiere de esta infraestructura de red activa."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"El hardware de red mencionado es fundamental para la conectividad en el nivel de célula descrito."}]},{"question":"¿El protocolo Ethernet TCP/IP se utiliza para conectar el software SCADA con los sistemas de gestión empresarial?","hint":"Relaciona este protocolo con el nivel más alto de la pirámide CIM.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"TCP/IP actúa como el eslabón superior que integra los datos de control de planta con la administración de la empresa."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"Esta es la función principal de TCP/IP en el nivel de gestión, el punto más alto de la pirámide."}]},{"question":"En el nivel de gestión, ¿los protocolos TCP/IP incluyen únicamente el transporte de datos, excluyendo el acceso a la red?","hint":"Considera si TCP/IP es un modelo de capas que cubre desde el acceso hasta la aplicación.","options":[{"label":"A","text":"Falso","isCorrect":true,"rationale":"El material especifica que estos protocolos abarcan el acceso, el transporte y también las aplicaciones de usuario."},{"label":"B","text":"Verdadero","isCorrect":false,"rationale":"Los protocolos TCP/IP son integrales; incluyen el acceso a la red, el transporte y las aplicaciones."}]},{"question":"¿La pirámide CIM muestra que el nivel de sensores y actuadores está jerárquicamente por encima del nivel de campo?","hint":"Visualiza el orden de los niveles desde la base hasta la punta de la pirámide.","options":[{"label":"A","text":"Falso","isCorrect":true,"rationale":"La jerarquía asciende desde los sensores (base) hacia la gestión (cúspide), pasando por campo y célula."},{"label":"B","text":"Verdadero","isCorrect":false,"rationale":"El nivel de sensores y actuadores es la base de la pirámide, por lo que está debajo del nivel de campo."}]},{"question":"¿Utiliza el protocolo AS-i un único cable bifilar (de dos hilos) para enlazar todos sus elementos?","hint":"Recuerda la descripción física del medio de transmisión de AS-i.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"Una característica distintiva de AS-i es el uso de un solo cable de dos hilos para simplificar el cableado de sensores."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"El texto resalta que el cable bifilar es la solución habitual para evitar la gran cantidad de cables en la base de la pirámide."}]},{"question":"¿Puede una red AS-i alcanzar una longitud de hasta 300 metros si se utilizan repetidores?","hint":"Verifica el alcance máximo de AS-i cuando se emplean elementos de extensión de red.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"Con el uso de repetidores, la extensión máxima permitida para este bus de sensores llega a los 300 metros."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"El límite de 300 metros con repetidores es un dato técnico específico proporcionado para el protocolo AS-i."}]},{"question":"¿Profinet disminuye la velocidad de transmisión en comparación con Profibus para asegurar la estabilidad?","hint":"Analiza cómo evoluciona la velocidad de transmisión al subir de nivel en la pirámide.","options":[{"label":"A","text":"Verdadero","isCorrect":false,"rationale":"Profinet en realidad aumenta de forma significativa la velocidad de transmisión respecto a sus predecesores."},{"label":"B","text":"Falso","isCorrect":true,"rationale":"Una de las ventajas mencionadas de Profinet es precisamente el aumento en la velocidad y el número de conexiones simultáneas."}]},{"question":"¿Es el teléfono un ejemplo cotidiano de comunicación tipo Full duplex?","hint":"Piensa si en una llamada puedes escuchar a la otra persona mientras tú estás hablando.","options":[{"label":"A","text":"Falso","isCorrect":false,"rationale":"El teléfono es el ejemplo que ilustra la comunicación bidireccional simultánea perfecta."},{"label":"B","text":"Verdadero","isCorrect":true,"rationale":"En una llamada telefónica, ambas personas pueden hablar y ser escuchadas al mismo tiempo sin interrumpir el flujo."}]},{"question":"¿Los protocolos de comunicación industrial permiten que dispositivos de distintas marcas y modelos se entiendan entre sí?","hint":"Recuerda la analogía del \"idioma\" utilizada en la sesión.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"Al actuar como un estándar o idioma común, eliminan las barreras de compatibilidad entre fabricantes."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"Esta es la utilidad fundamental descrita: permitir la interoperabilidad en entornos multimarca."}]},{"question":"En la pirámide CIM, ¿se asocia el nivel de campo con dispositivos como variadores de frecuencia y grupos de válvulas?","hint":"Revisa los componentes mencionados para el segundo peldaño de la pirámide.","options":[{"label":"A","text":"Falso","isCorrect":false,"rationale":"El material identifica explícitamente a los variadores de frecuencia como elementos típicos del segundo peldaño o nivel de campo."},{"label":"B","text":"Verdadero","isCorrect":true,"rationale":"El nivel de campo conecta las partes de la máquina como variadores y válvulas, comúnmente usando Profibus."}]}];
+const tr = {"correct":"¡Correcto!","incorrect":"Incorrecto","next":"Siguiente pregunta →","seeResults":"Ver resultados","complete":"¡Cuestionario completado!","scoreText":"Obtuviste {correct} de {total} correctas","tryAgain":"Intentar de nuevo","rightAnswer":"Respuesta correcta","notQuite":"No del todo"};
+let currentQ = 0, correctCount = 0, answered = false;
+
+function init() {
+  document.querySelectorAll('.question').forEach((q, i) => q.classList.toggle('active', i === 0));
+  updateProgress();
+  document.querySelectorAll('.option').forEach(opt => opt.addEventListener('click', () => selectOption(opt)));
+  document.querySelectorAll('.next-btn').forEach(btn => btn.addEventListener('click', nextQuestion));
+}
+
+function selectOption(opt) {
+  if (answered) return;
+  answered = true;
+  const q = opt.closest('.question');
+  const options = q.querySelectorAll('.option');
+  const nextBtn = q.querySelector('.next-btn');
+  const isCorrect = opt.dataset.correct === 'true';
+  
+  // Mark all options as disabled
+  options.forEach(o => o.classList.add('disabled'));
+  
+  // Style selected option
+  opt.classList.add('selected', isCorrect ? 'correct' : 'incorrect');
+  
+  // Show correct answer if wrong
+  if (!isCorrect) {
+    const correctOpt = [...options].find(o => o.dataset.correct === 'true');
+    if (correctOpt) correctOpt.classList.add('show-correct');
+  }
+  
+  if (isCorrect) correctCount++;
+  
+  // Show feedback for ALL options that have rationale
+  options.forEach(o => {
+    const wrapper = o.closest('.option-wrapper');
+    const feedback = wrapper.querySelector('.option-feedback');
+    const rationale = o.dataset.rationale;
+    const isThisCorrect = o.dataset.correct === 'true';
+    
+    if (rationale && rationale.trim()) {
+      feedback.classList.remove('hidden');
+      feedback.classList.add(isThisCorrect ? 'correct-feedback' : 'incorrect-feedback');
+      
+      const statusEl = feedback.querySelector('.feedback-status');
+      statusEl.className = 'feedback-status ' + (isThisCorrect ? 'correct' : 'incorrect');
+      statusEl.innerHTML = isThisCorrect 
+        ? '✓ ' + tr.rightAnswer
+        : '✗ ' + tr.notQuite;
+    }
+  });
+  
+  nextBtn.classList.remove('hidden');
+  if (currentQ === quizData.length - 1) nextBtn.textContent = tr.seeResults;
+}
+
+function nextQuestion() {
+  answered = false;
+  currentQ++;
+  if (currentQ >= quizData.length) { showResults(); return; }
+  document.querySelectorAll('.question').forEach((q, i) => q.classList.toggle('active', i === currentQ));
+  updateProgress();
+}
+
+function updateProgress() {
+  document.querySelector('.progress-fill').style.width = (currentQ / quizData.length * 100) + '%';
+}
+
+function showResults() {
+  document.querySelectorAll('.question').forEach(q => q.classList.remove('active'));
+  document.getElementById('results').classList.add('active');
+  const pct = Math.round((correctCount / quizData.length) * 100);
+  document.getElementById('score').textContent = pct + '%';
+  document.getElementById('score-text').textContent = tr.scoreText.replace('{correct}', correctCount).replace('{total}', quizData.length);
+  document.querySelector('.progress-fill').style.width = '100%';
+}
+
+function restart() {
+  currentQ = 0; correctCount = 0; answered = false;
+  document.getElementById('results').classList.remove('active');
+  document.querySelectorAll('.question').forEach((q, i) => {
+    q.classList.toggle('active', i === 0);
+    q.querySelectorAll('.option').forEach(o => o.classList.remove('selected', 'correct', 'incorrect', 'disabled', 'show-correct'));
+    q.querySelectorAll('.option-feedback').forEach(f => {
+      f.classList.add('hidden');
+      f.classList.remove('correct-feedback', 'incorrect-feedback');
+    });
+    const btn = q.querySelector('.next-btn');
+    btn.classList.add('hidden');
+    btn.textContent = tr.next;
+  });
+  updateProgress();
+}
+
+init();
+</script>
+</body>
+</html>
