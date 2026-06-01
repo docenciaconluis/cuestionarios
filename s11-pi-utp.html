@@ -1,0 +1,1346 @@
+<!DOCTYPE html>
+<html lang="es" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>S11 - Proc. Ing. - UTP</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  min-height: 100vh; padding: 20px; color: #333;
+}
+.container { max-width: 700px; margin: 0 auto; }
+.header { text-align: center; color: #fff; padding: 30px 20px; }
+.header h1 { font-size: 28px; font-weight: 700; margin-bottom: 8px; text-shadow: 0 2px 10px rgba(0,0,0,0.2); }
+.header .meta { font-size: 14px; opacity: 0.9; }
+.progress-bar { background: rgba(255,255,255,0.3); border-radius: 10px; height: 8px; margin: 20px 0; overflow: hidden; }
+.progress-fill { background: #fff; height: 100%; width: 0%; transition: width 0.4s ease; border-radius: 10px; }
+.question { background: #fff; border-radius: 16px; padding: 30px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); display: none; }
+.question.active { display: block; }
+.q-header { display: flex; justify-content: space-between; margin-bottom: 20px; font-size: 13px; color: #888; }
+.q-number { font-weight: 600; color: #667eea; }
+.q-text { font-size: 18px; font-weight: 600; line-height: 1.5; margin-bottom: 25px; color: #222; }
+.options { display: flex; flex-direction: column; gap: 12px; }
+.option-wrapper { display: flex; flex-direction: column; }
+.option {
+  display: flex; align-items: flex-start; gap: 14px; padding: 16px 18px;
+  border: 2px solid #e8e8e8; border-radius: 12px; background: #fafafa;
+  cursor: pointer; transition: all 0.2s; text-align: left; font-size: 15px; width: 100%;
+}
+[dir="rtl"] .option { text-align: right; flex-direction: row-reverse; }
+.option:hover:not(.disabled) { border-color: #667eea; background: #f5f3ff; }
+.option.selected { border-color: #667eea; background: #ede9fe; }
+.option.correct { border-color: #22c55e; background: #dcfce7; }
+.option.incorrect { border-color: #ef4444; background: #fee2e2; }
+.option.disabled { cursor: default; }
+.option.show-correct { border-color: #22c55e; background: #dcfce7; }
+.opt-label {
+  display: flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; border-radius: 50%; background: #e8e8e8;
+  font-weight: 700; font-size: 14px; flex-shrink: 0;
+}
+.option.selected .opt-label { background: #667eea; color: #fff; }
+.option.correct .opt-label { background: #22c55e; color: #fff; }
+.option.incorrect .opt-label { background: #ef4444; color: #fff; }
+.option.show-correct .opt-label { background: #22c55e; color: #fff; }
+.opt-text { padding-top: 5px; line-height: 1.5; }
+
+/* Individual option feedback */
+.option-feedback {
+  margin: 8px 0 4px 46px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+[dir="rtl"] .option-feedback { margin-left: 0; margin-right: 46px; }
+.option-feedback.correct-feedback {
+  background: #dcfce7;
+  border-left: 3px solid #22c55e;
+}
+.option-feedback.incorrect-feedback {
+  background: #fef3f2;
+  border-left: 3px solid #fca5a5;
+}
+[dir="rtl"] .option-feedback.correct-feedback,
+[dir="rtl"] .option-feedback.incorrect-feedback {
+  border-left: none;
+  border-right: 3px solid;
+}
+[dir="rtl"] .option-feedback.correct-feedback { border-right-color: #22c55e; }
+[dir="rtl"] .option-feedback.incorrect-feedback { border-right-color: #fca5a5; }
+.feedback-status {
+  font-weight: 600;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.feedback-status.correct { color: #166534; }
+.feedback-status.incorrect { color: #991b1b; }
+.feedback-rationale { color: #444; }
+
+/* Hint box */
+.hint-box {
+  margin: 12px 0;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+}
+.hint-toggle {
+  width: 100%;
+  padding: 10px 16px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  color: #92400e;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.hint-toggle:hover { background: #fef3c7; }
+.hint-content {
+  padding: 0 16px;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s, padding 0.3s;
+  font-size: 14px;
+  color: #78350f;
+  line-height: 1.5;
+}
+.hint-box.show .hint-content {
+  padding: 0 16px 12px;
+  max-height: 200px;
+}
+
+.next-btn {
+  margin-top: 20px; width: 100%; padding: 14px;
+  background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; border: none;
+  border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.next-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(102,126,234,0.4); }
+.hidden { display: none !important; }
+.results { background: #fff; border-radius: 16px; padding: 40px; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.15); display: none; }
+.results.active { display: block; }
+.results h2 { font-size: 28px; margin-bottom: 10px; color: #333; }
+.results .score { font-size: 64px; font-weight: 700; color: #667eea; margin: 20px 0; }
+.results .score-text { font-size: 18px; color: #666; margin-bottom: 30px; }
+.restart-btn {
+  padding: 14px 40px; background: linear-gradient(135deg, #667eea, #764ba2);
+  color: #fff; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer;
+}
+
+/* Math CSS */
+.math, .math-block { font-family: "Cambria Math", "Times New Roman", Times, serif; font-style: italic; }
+.math-block { display: block; text-align: center; margin: 10px 0; font-size: 110%; }
+.frac { display: inline-flex; flex-direction: column; align-items: center; vertical-align: middle; margin: 0 3px; font-size: 0.9em; }
+.frac-num { border-bottom: 1px solid currentColor; padding: 0 4px 2px; line-height: 1.2; }
+.frac-den { padding: 2px 4px 0; line-height: 1.2; }
+.sqrt { white-space: nowrap; }
+.sqrt-content { border-top: 1px solid currentColor; padding: 0 3px; margin-left: 2px; }
+sup, sub { font-size: 0.75em; }
+sup { vertical-align: super; }
+sub { vertical-align: sub; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>S11 - Proc. Ing. - UTP</h1>
+    <div class="meta">27 preguntas</div>
+    <div class="progress-bar"><div class="progress-fill"></div></div>
+  </div>
+  <div id="quiz-container">
+        <div class="question" data-index="0">
+          <div class="q-header">
+            <span class="q-number">Pregunta 1</span>
+            <span class="q-of">/ 27</span>
+          </div>
+          <div class="q-text">¿Es el desperdicio tipo Muda definido como la utilización de recursos superiores a los mínimos requeridos?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considere la relación entre los recursos mínimos necesarios y los realmente utilizados en la producción.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Este concepto se basa en la idea de que cualquier recurso empleado por encima de lo estrictamente necesario para generar valor se considera un desperdicio.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Este concepto se basa en la idea de que cualquier recurso empleado por encima de lo estrictamente necesario para generar valor se considera un desperdicio.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Esta definición no corresponde a la irregularidad ni al exceso de carga, sino al consumo ineficiente de materiales, tiempo o mano de obra.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esta definición no corresponde a la irregularidad ni al exceso de carga, sino al consumo ineficiente de materiales, tiempo o mano de obra.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="1">
+          <div class="q-header">
+            <span class="q-number">Pregunta 2</span>
+            <span class="q-of">/ 27</span>
+          </div>
+          <div class="q-text">¿El concepto de Mura hace referencia específicamente a trabajar a un ritmo por encima de la capacidad nominal de la línea?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Diferencie entre la variabilidad en la carga de trabajo y el esfuerzo excesivo del sistema.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="El exceso de ritmo o sobrecarga sobre la capacidad nominal es la definición de Muri, no de Mura.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El exceso de ritmo o sobrecarga sobre la capacidad nominal es la definición de Muri, no de Mura.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Mura se define como una irregularidad o desbalance en la carga de trabajo, no necesariamente como un exceso de capacidad.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Mura se define como una irregularidad o desbalance en la carga de trabajo, no necesariamente como un exceso de capacidad.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="2">
+          <div class="q-header">
+            <span class="q-number">Pregunta 3</span>
+            <span class="q-of">/ 27</span>
+          </div>
+          <div class="q-text">¿La sobreproducción es considerada el peor de los Mudas porque genera otros tipos de desperdicios?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piense en las consecuencias de fabricar productos antes de que exista una demanda real por parte del cliente.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Aunque todos los desperdicios son negativos, la sobreproducción tiene un efecto multiplicador sobre las demás ineficiencias del sistema.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aunque todos los desperdicios son negativos, la sobreproducción tiene un efecto multiplicador sobre las demás ineficiencias del sistema.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Producir más de lo requerido por el cliente oculta problemas y genera inventarios innecesarios y transporte adicional.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Producir más de lo requerido por el cliente oculta problemas y genera inventarios innecesarios y transporte adicional.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="3">
+          <div class="q-header">
+            <span class="q-number">Pregunta 4</span>
+            <span class="q-of">/ 27</span>
+          </div>
+          <div class="q-text">En el ejemplo del montacargas, ¿realizar <span class="math">2</span> viajes de <span class="math">3000</span> kg con una unidad de capacidad de <span class="math">2000</span> kg representa un caso de Muri?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Compare la carga transportada en cada viaje con la capacidad límite permitida para el equipo.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Exceder la capacidad nominal de la maquinaria ($2000$ kg) somete al equipo a un estrés indebido y riesgos de seguridad.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Exceder la capacidad nominal de la maquinaria (<span class="math">2000</span> kg) somete al equipo a un estrés indebido y riesgos de seguridad.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Esta acción no representa un desbalance ni un uso de recursos inferiores a la capacidad, sino una sobrecarga directa del equipo.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esta acción no representa un desbalance ni un uso de recursos inferiores a la capacidad, sino una sobrecarga directa del equipo.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="4">
+          <div class="q-header">
+            <span class="q-number">Pregunta 5</span>
+            <span class="q-of">/ 27</span>
+          </div>
+          <div class="q-text">¿El Sistema de Producción Toyota (<span class="math">TPS</span>) se considera un precursor del concepto genérico de Lean Manufacturing?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Recuerde el origen histórico de las metodologías de producción eficientes en la industria automotriz.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Aunque son conceptos relacionados, el Lean Manufacturing es la evolución global de las prácticas originadas específicamente en el sistema japonés.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aunque son conceptos relacionados, el Lean Manufacturing es la evolución global de las prácticas originadas específicamente en el sistema japonés.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Los principios de gestión integral y eliminación de desperdicios desarrollados por Toyota sentaron las bases de lo que hoy se conoce como manufactura esbelta.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Los principios de gestión integral y eliminación de desperdicios desarrollados por Toyota sentaron las bases de lo que hoy se conoce como manufactura esbelta.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="5">
+          <div class="q-header">
+            <span class="q-number">Pregunta 6</span>
+            <span class="q-of">/ 27</span>
+          </div>
+          <div class="q-text">¿El sistema PULL implica producir grandes lotes para asegurar que siempre haya stock disponible para el siguiente proceso?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Analice si el proceso se activa por una orden de producción externa o por la demanda real del paso siguiente.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="El sistema PULL se basa en solicitar solo las piezas necesarias, en el momento preciso y en la cantidad exacta requerida por el proceso siguiente.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El sistema PULL se basa en solicitar solo las piezas necesarias, en el momento preciso y en la cantidad exacta requerida por el proceso siguiente.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="La producción de grandes lotes para stock es característica del sistema PUSH, que es lo opuesto a la filosofía Just-in-Time.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La producción de grandes lotes para stock es característica del sistema PUSH, que es lo opuesto a la filosofía Just-in-Time.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="6">
+          <div class="q-header">
+            <span class="q-number">Pregunta 7</span>
+            <span class="q-of">/ 27</span>
+          </div>
+          <div class="q-text">¿Se define el Takt Time como el tiempo total que tarda una pieza en recorrer toda la línea de producción desde el inicio hasta el fin?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considere la diferencia entre el tiempo de proceso individual y el ritmo de salida necesario para el mercado.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="El Takt Time es el ritmo o frecuencia con la que se debe completar un producto para sincronizar la producción con las ventas.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El Takt Time es el ritmo o frecuencia con la que se debe completar un producto para sincronizar la producción con las ventas.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Esa definición corresponde al Lead Time; el Takt Time es la velocidad constante requerida para satisfacer la demanda del cliente.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esa definición corresponde al Lead Time; el Takt Time es la velocidad constante requerida para satisfacer la demanda del cliente.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="7">
+          <div class="q-header">
+            <span class="q-number">Pregunta 8</span>
+            <span class="q-of">/ 27</span>
+          </div>
+          <div class="q-text">¿El flujo continuo busca producir una sola pieza a la vez, eliminando el estancamiento del trabajo entre procesos?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piense en el movimiento ideal de una pieza de trabajo a través de una fábrica eficiente.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="El objetivo es que el material se mueva constantemente a través del sistema sin interrupciones ni acumulaciones en forma de inventario en proceso.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El objetivo es que el material se mueva constantemente a través del sistema sin interrupciones ni acumulaciones en forma de inventario en proceso.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El flujo continuo rechaza el procesamiento por lotes para evitar que las piezas esperen turnos, lo que reduce el tiempo de ciclo total.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El flujo continuo rechaza el procesamiento por lotes para evitar que las piezas esperen turnos, lo que reduce el tiempo de ciclo total.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="8">
+          <div class="q-header">
+            <span class="q-number">Pregunta 9</span>
+            <span class="q-of">/ 27</span>
+          </div>
+          <div class="q-text">¿En la filosofía JIT, el operario asume la responsabilidad de controlar su propio trabajo para garantizar la calidad a la primera?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Reflexione sobre quién es el actor principal en la detección de problemas dentro de la estación de trabajo.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Delegar la calidad a un departamento externo al final de la línea contradice el principio de eliminar desperdicios y procesos de retrabajo.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Delegar la calidad a un departamento externo al final de la línea contradice el principio de eliminar desperdicios y procesos de retrabajo.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="El autocontrol permite detectar fallas de inmediato, evitando que los defectos se propaguen a las etapas posteriores de la cadena.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El autocontrol permite detectar fallas de inmediato, evitando que los defectos se propaguen a las etapas posteriores de la cadena.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="9">
+          <div class="q-header">
+            <span class="q-number">Pregunta 10</span>
+            <span class="q-of">/ 27</span>
+          </div>
+          <div class="q-text">¿Una de las desventajas del JIT es que limita la posibilidad de reducir precios de compra si las adquisiciones se hacen en bajas cantidades?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Analice el impacto que tiene la frecuencia y el tamaño de los pedidos en los costos unitarios de materia prima.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Aunque el JIT mejora la eficiencia interna, a menudo sacrifica los descuentos que los proveedores ofrecen por pedidos masivos.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aunque el JIT mejora la eficiencia interna, a menudo sacrifica los descuentos que los proveedores ofrecen por pedidos masivos.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Al comprar solo lo necesario para el corto plazo, se pierde el poder de negociación basado en economías de escala por volumen.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Al comprar solo lo necesario para el corto plazo, se pierde el poder de negociación basado en economías de escala por volumen.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="10">
+          <div class="q-header">
+            <span class="q-number">Pregunta 11</span>
+            <span class="q-of">/ 27</span>
+          </div>
+          <div class="q-text">¿El desperdicio de 'Talento humano mal utilizado' fue uno de los siete desperdicios originales identificados por Taichi Ohno?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Diferencie entre los desperdicios operativos clásicos y las dimensiones humanas o ambientales agregadas con el tiempo.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Taichi Ohno identificó originalmente $7$ desperdicios; el talento humano y el medio ambiente fueron clasificaciones añadidas posteriormente.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Taichi Ohno identificó originalmente <span class="math">7</span> desperdicios; el talento humano y el medio ambiente fueron clasificaciones añadidas posteriormente.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Aunque es un Muda reconocido actualmente, no formaba parte de la lista inicial de los siete desperdicios clásicos del sistema Toyota.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aunque es un Muda reconocido actualmente, no formaba parte de la lista inicial de los siete desperdicios clásicos del sistema Toyota.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="11">
+          <div class="q-header">
+            <span class="q-number">Pregunta 12</span>
+            <span class="q-of">/ 27</span>
+          </div>
+          <div class="q-text">¿El desperdicio al medio ambiente se refiere exclusivamente a la contaminación producida por químicos tóxicos?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considere si la energía calorífica perdida o las emisiones reutilizables también califican como desperdicio.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Este Muda incluye también energía desperdiciada o emisiones que podrían haber sido aprovechadas en otros procesos productivos.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Este Muda incluye también energía desperdiciada o emisiones que podrían haber sido aprovechadas en otros procesos productivos.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Este tipo de desperdicio abarca cualquier emisión o consumo de energía ineficiente que no agrega valor al producto final.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Este tipo de desperdicio abarca cualquier emisión o consumo de energía ineficiente que no agrega valor al producto final.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="12">
+          <div class="q-header">
+            <span class="q-number">Pregunta 13</span>
+            <span class="q-of">/ 27</span>
+          </div>
+          <div class="q-text">¿El aumento del costo al cambiar de proveedor se considera una ventaja del sistema JIT porque asegura lealtad?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piense si la dependencia extrema de un socio comercial facilita o dificulta la toma de decisiones estratégicas.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Es una desventaja operativa, puesto que la estrecha integración requerida hace que la transición a un nuevo proveedor sea compleja y costosa.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Es una desventaja operativa, puesto que la estrecha integración requerida hace que la transición a un nuevo proveedor sea compleja y costosa.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El costo elevado de cambio es una desventaja, ya que reduce la flexibilidad de la empresa para buscar mejores opciones en el mercado.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El costo elevado de cambio es una desventaja, ya que reduce la flexibilidad de la empresa para buscar mejores opciones en el mercado.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="13">
+          <div class="q-header">
+            <span class="q-number">Pregunta 14</span>
+            <span class="q-of">/ 27</span>
+          </div>
+          <div class="q-text">En la analogía del 'río de las existencias', ¿las rocas representan el exceso de inventario que protege a la empresa?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Identifique qué elemento de la analogía oculta a los demás y qué representa el obstáculo real.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="El agua representa las existencias; las rocas simbolizan los problemas ocultos que surgen cuando el nivel del agua disminuye.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El agua representa las existencias; las rocas simbolizan los problemas ocultos que surgen cuando el nivel del agua disminuye.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Las rocas son los problemas fundamentales (defectos, retrasos) que se hacen visibles solo cuando se reduce el inventario innecesario.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Las rocas son los problemas fundamentales (defectos, retrasos) que se hacen visibles solo cuando se reduce el inventario innecesario.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="14">
+          <div class="q-header">
+            <span class="q-number">Pregunta 15</span>
+            <span class="q-of">/ 27</span>
+          </div>
+          <div class="q-text">¿El sistema JIT busca minimizar las pérdidas por causa de suministros obsoletos mediante la reducción de stocks?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Reflexione sobre el impacto que tiene el tiempo de almacenamiento en la frescura o validez técnica de los materiales.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Al mantener niveles bajos de inventario, disminuye drásticamente el riesgo de que el material se dañe o pierda vigencia antes de ser usado.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Al mantener niveles bajos de inventario, disminuye drásticamente el riesgo de que el material se dañe o pierda vigencia antes de ser usado.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Esta es precisamente una de las mayores ventajas del JIT, permitiendo una rotación rápida que evita el almacenamiento prolongado.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esta es precisamente una de las mayores ventajas del JIT, permitiendo una rotación rápida que evita el almacenamiento prolongado.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="15">
+          <div class="q-header">
+            <span class="q-number">Pregunta 16</span>
+            <span class="q-of">/ 27</span>
+          </div>
+          <div class="q-text">¿Consiste el Muda de 'Sobre-procesamiento' en realizar inspecciones de calidad exigidas explícitamente por el cliente?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Evalúe si el trabajo adicional realizado es percibido como un beneficio valioso por el comprador final.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="El sobre-procesamiento se refiere a realizar trabajos más allá del estándar requerido o procesos que no son apreciados por el cliente.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El sobre-procesamiento se refiere a realizar trabajos más allá del estándar requerido o procesos que no son apreciados por el cliente.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Si el cliente lo exige y paga por ello, agrega valor; el sobre-procesamiento ocurre cuando la calidad excede lo solicitado.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Si el cliente lo exige y paga por ello, agrega valor; el sobre-procesamiento ocurre cuando la calidad excede lo solicitado.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="16">
+          <div class="q-header">
+            <span class="q-number">Pregunta 17</span>
+            <span class="q-of">/ 27</span>
+          </div>
+          <div class="q-text">¿El Muri puede ser causado por un pobre diseño de la operación o falta de atención a la ergonomía?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piense en cómo el entorno físico de trabajo influye en el cansancio y la dificultad de las tareas.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Estos factores de diseño afectan directamente la capacidad física del sistema y del personal, generando ineficiencias por agotamiento.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Estos factores de diseño afectan directamente la capacidad física del sistema y del personal, generando ineficiencias por agotamiento.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Las herramientas inadecuadas o posturas difíciles obligan al personal a realizar un esfuerzo excesivo, lo que se clasifica como Muri.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Las herramientas inadecuadas o posturas difíciles obligan al personal a realizar un esfuerzo excesivo, lo que se clasifica como Muri.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="17">
+          <div class="q-header">
+            <span class="q-number">Pregunta 18</span>
+            <span class="q-of">/ 27</span>
+          </div>
+          <div class="q-text">¿El sistema JIT recomienda aumentar las existencias inmediatamente cuando surge un problema en la línea para no detenerla?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Analice si la solución ideal es cubrir el síntoma o eliminar la causa del inconveniente.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Aumentar existencias para tapar problemas es la práctica tradicional que el JIT intenta eliminar para atacar las causas raíz.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aumentar existencias para tapar problemas es la práctica tradicional que el JIT intenta eliminar para atacar las causas raíz.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="El JIT propone bajar el nivel de existencias para sacar los problemas a la luz y resolverlos definitivamente en lugar de ocultarlos.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El JIT propone bajar el nivel de existencias para sacar los problemas a la luz y resolverlos definitivamente en lugar de ocultarlos.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="18">
+          <div class="q-header">
+            <span class="q-number">Pregunta 19</span>
+            <span class="q-of">/ 27</span>
+          </div>
+          <div class="q-text">¿El Muda de 'Inventario' ayuda a disminuir los costos de área y administración al centralizar los materiales?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considere los gastos ocultos asociados a mantener productos guardados durante largos periodos.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="El inventario excesivo aumenta los costos de almacenamiento, cuidado, seguros y espacio físico requerido.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El inventario excesivo aumenta los costos de almacenamiento, cuidado, seguros y espacio físico requerido.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="El inventario innecesario es un desperdicio porque demanda administración, cuidado costoso y puede volverse obsoleto rápidamente.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El inventario innecesario es un desperdicio porque demanda administración, cuidado costoso y puede volverse obsoleto rápidamente.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="19">
+          <div class="q-header">
+            <span class="q-number">Pregunta 20</span>
+            <span class="q-of">/ 27</span>
+          </div>
+          <div class="q-text">¿Es el Takt Time el tiempo máximo permitido para completar un componente para cumplir con el programa de producción?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piense en la necesidad de equilibrar el ritmo de fabricación con los pedidos de los clientes.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Esta medida es crucial para la sincronización; no es un tiempo arbitrario, sino calculado en función del tiempo disponible y la demanda.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esta medida es crucial para la sincronización; no es un tiempo arbitrario, sino calculado en función del tiempo disponible y la demanda.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Representa el 'latido' de la fábrica, marcando la velocidad necesaria para que la oferta coincida exactamente con la demanda.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Representa el 'latido' de la fábrica, marcando la velocidad necesaria para que la oferta coincida exactamente con la demanda.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="20">
+          <div class="q-header">
+            <span class="q-number">Pregunta 21</span>
+            <span class="q-of">/ 27</span>
+          </div>
+          <div class="q-text">¿El uso de sistemas Kanban es una herramienta utilizada en el JIT para enmascarar problemas temporales de suministro?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Reflexione sobre si la señalización visual sirve para ocultar ineficiencias o para reportarlas.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="El Kanban es una herramienta de control visual que ayuda a gestionar el sistema PULL y a evidenciar interrupciones en el flujo.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El Kanban es una herramienta de control visual que ayuda a gestionar el sistema PULL y a evidenciar interrupciones en el flujo.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Los sistemas Kanban tienen el objetivo opuesto: identificar visualmente los flujos y sacar los problemas a la luz para su resolución.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Los sistemas Kanban tienen el objetivo opuesto: identificar visualmente los flujos y sacar los problemas a la luz para su resolución.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="21">
+          <div class="q-header">
+            <span class="q-number">Pregunta 22</span>
+            <span class="q-of">/ 27</span>
+          </div>
+          <div class="q-text">¿El Muda de 'Movimientos innecesarios' se refiere únicamente al transporte de materiales en montacargas de un almacén a otro?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Diferencie entre el desplazamiento de la carga y los movimientos físicos del trabajador en su área.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Se trata de movimientos evitables realizados por las personas, como buscar herramientas o materiales debido a una mala organización del puesto.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Se trata de movimientos evitables realizados por las personas, como buscar herramientas o materiales debido a una mala organización del puesto.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Esa descripción corresponde al Muda de 'Transporte'; los movimientos innecesarios se refieren a los desplazamientos del operario.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esa descripción corresponde al Muda de 'Transporte'; los movimientos innecesarios se refieren a los desplazamientos del operario.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="22">
+          <div class="q-header">
+            <span class="q-number">Pregunta 23</span>
+            <span class="q-of">/ 27</span>
+          </div>
+          <div class="q-text">¿El éxito del Just-in-Time depende de establecer una relación lejana y competitiva con múltiples proveedores ocasionales?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considere el nivel de coordinación necesario para recibir suministros exactamente cuando se necesitan.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="El JIT exige todo lo contrario: una relación muy cercana, de confianza y de largo plazo con proveedores seleccionados.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El JIT exige todo lo contrario: una relación muy cercana, de confianza y de largo plazo con proveedores seleccionados.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="La sincronización extrema del JIT requiere que los proveedores sean casi socios estratégicos para garantizar entregas puntuales y de calidad.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La sincronización extrema del JIT requiere que los proveedores sean casi socios estratégicos para garantizar entregas puntuales y de calidad.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="23">
+          <div class="q-header">
+            <span class="q-number">Pregunta 24</span>
+            <span class="q-of">/ 27</span>
+          </div>
+          <div class="q-text">¿El Muda de 'Esperas' ocurre cuando los operarios deben aguardar a que una máquina termine su ciclo para continuar?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Imagine situaciones donde un trabajador tiene las manos vacías mientras el equipo procesa la pieza.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Cualquier tiempo en el que el personal o el equipo no está agregando valor debido a la falta de material o sincronización es una espera.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Cualquier tiempo en el que el personal o el equipo no está agregando valor debido a la falta de material o sincronización es una espera.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Este es uno de los desperdicios más comunes, donde el recurso humano está disponible pero inactivo por causas del proceso.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Este es uno de los desperdicios más comunes, donde el recurso humano está disponible pero inactivo por causas del proceso.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="24">
+          <div class="q-header">
+            <span class="q-number">Pregunta 25</span>
+            <span class="q-of">/ 27</span>
+          </div>
+          <div class="q-text">¿Los principios principales del Sistema de Producción Toyota (<span class="math">SPT</span>) son mencionados en el libro 'La Manera de Toyota'?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Busque la fuente literaria que describe la cultura y los métodos operativos de esta empresa japonesa.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="El texto mencionado es la referencia estándar para entender los pilares fundamentales que sustentan al $SPT$.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El texto mencionado es la referencia estándar para entender los pilares fundamentales que sustentan al <span class="math">SPT</span>.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Esta obra documenta las filosofías y herramientas de gestión que hicieron de Toyota un referente mundial en manufactura.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esta obra documenta las filosofías y herramientas de gestión que hicieron de Toyota un referente mundial en manufactura.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="25">
+          <div class="q-header">
+            <span class="q-number">Pregunta 26</span>
+            <span class="q-of">/ 27</span>
+          </div>
+          <div class="q-text">¿El JIT permite una mayor flexibilidad para realizar cambios rápidos en la secuencia de producción?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Evalúe si es más fácil cambiar el plan de producción con almacenes llenos o con un flujo de piezas individuales.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Al no tener grandes lotes bloqueando la línea, el sistema puede adaptarse mucho más rápido a cambios en los pedidos del cliente.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Al no tener grandes lotes bloqueando la línea, el sistema puede adaptarse mucho más rápido a cambios en los pedidos del cliente.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="La agilidad es una de las ventajas competitivas del JIT, permitiendo reaccionar a la demanda del mercado sin arrastrar inventarios viejos.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La agilidad es una de las ventajas competitivas del JIT, permitiendo reaccionar a la demanda del mercado sin arrastrar inventarios viejos.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="26">
+          <div class="q-header">
+            <span class="q-number">Pregunta 27</span>
+            <span class="q-of">/ 27</span>
+          </div>
+          <div class="q-text">¿Se considera desperdicio de 'Transporte' cuando el material se mueve a un sitio para un almacenamiento temporal?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piense si el simple hecho de trasladar una caja de un estante a otro añade alguna característica que el cliente valoraría.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Aunque parezca necesario, el almacenamiento temporal es una falla en el flujo que obliga a transportes adicionales, aumentando el riesgo de daños.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aunque parezca necesario, el almacenamiento temporal es una falla en el flujo que obliga a transportes adicionales, aumentando el riesgo de daños.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Cada vez que se mueve un producto sin añadirle valor directo, se consume tiempo y energía innecesariamente.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Cada vez que se mueve un producto sin añadirle valor directo, se consume tiempo y energía innecesariamente.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      </div>
+  <div class="results" id="results">
+    <h2>¡Cuestionario completado!</h2>
+    <div class="score" id="score">0%</div>
+    <div class="score-text" id="score-text"></div>
+    <button class="restart-btn" onclick="restart()">Intentar de nuevo</button>
+  </div>
+</div>
+<script>
+const quizData = [{"question":"¿Es el desperdicio tipo Muda definido como la utilización de recursos superiores a los mínimos requeridos?","hint":"Considere la relación entre los recursos mínimos necesarios y los realmente utilizados en la producción.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"Este concepto se basa en la idea de que cualquier recurso empleado por encima de lo estrictamente necesario para generar valor se considera un desperdicio."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"Esta definición no corresponde a la irregularidad ni al exceso de carga, sino al consumo ineficiente de materiales, tiempo o mano de obra."}]},{"question":"¿El concepto de Mura hace referencia específicamente a trabajar a un ritmo por encima de la capacidad nominal de la línea?","hint":"Diferencie entre la variabilidad en la carga de trabajo y el esfuerzo excesivo del sistema.","options":[{"label":"A","text":"Verdadero","isCorrect":false,"rationale":"El exceso de ritmo o sobrecarga sobre la capacidad nominal es la definición de Muri, no de Mura."},{"label":"B","text":"Falso","isCorrect":true,"rationale":"Mura se define como una irregularidad o desbalance en la carga de trabajo, no necesariamente como un exceso de capacidad."}]},{"question":"¿La sobreproducción es considerada el peor de los Mudas porque genera otros tipos de desperdicios?","hint":"Piense en las consecuencias de fabricar productos antes de que exista una demanda real por parte del cliente.","options":[{"label":"A","text":"Falso","isCorrect":false,"rationale":"Aunque todos los desperdicios son negativos, la sobreproducción tiene un efecto multiplicador sobre las demás ineficiencias del sistema."},{"label":"B","text":"Verdadero","isCorrect":true,"rationale":"Producir más de lo requerido por el cliente oculta problemas y genera inventarios innecesarios y transporte adicional."}]},{"question":"En el ejemplo del montacargas, ¿realizar $2$ viajes de $3000$ kg con una unidad de capacidad de $2000$ kg representa un caso de Muri?","hint":"Compare la carga transportada en cada viaje con la capacidad límite permitida para el equipo.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"Exceder la capacidad nominal de la maquinaria ($2000$ kg) somete al equipo a un estrés indebido y riesgos de seguridad."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"Esta acción no representa un desbalance ni un uso de recursos inferiores a la capacidad, sino una sobrecarga directa del equipo."}]},{"question":"¿El Sistema de Producción Toyota ($TPS$) se considera un precursor del concepto genérico de Lean Manufacturing?","hint":"Recuerde el origen histórico de las metodologías de producción eficientes en la industria automotriz.","options":[{"label":"A","text":"Falso","isCorrect":false,"rationale":"Aunque son conceptos relacionados, el Lean Manufacturing es la evolución global de las prácticas originadas específicamente en el sistema japonés."},{"label":"B","text":"Verdadero","isCorrect":true,"rationale":"Los principios de gestión integral y eliminación de desperdicios desarrollados por Toyota sentaron las bases de lo que hoy se conoce como manufactura esbelta."}]},{"question":"¿El sistema PULL implica producir grandes lotes para asegurar que siempre haya stock disponible para el siguiente proceso?","hint":"Analice si el proceso se activa por una orden de producción externa o por la demanda real del paso siguiente.","options":[{"label":"A","text":"Falso","isCorrect":true,"rationale":"El sistema PULL se basa en solicitar solo las piezas necesarias, en el momento preciso y en la cantidad exacta requerida por el proceso siguiente."},{"label":"B","text":"Verdadero","isCorrect":false,"rationale":"La producción de grandes lotes para stock es característica del sistema PUSH, que es lo opuesto a la filosofía Just-in-Time."}]},{"question":"¿Se define el Takt Time como el tiempo total que tarda una pieza en recorrer toda la línea de producción desde el inicio hasta el fin?","hint":"Considere la diferencia entre el tiempo de proceso individual y el ritmo de salida necesario para el mercado.","options":[{"label":"A","text":"Falso","isCorrect":true,"rationale":"El Takt Time es el ritmo o frecuencia con la que se debe completar un producto para sincronizar la producción con las ventas."},{"label":"B","text":"Verdadero","isCorrect":false,"rationale":"Esa definición corresponde al Lead Time; el Takt Time es la velocidad constante requerida para satisfacer la demanda del cliente."}]},{"question":"¿El flujo continuo busca producir una sola pieza a la vez, eliminando el estancamiento del trabajo entre procesos?","hint":"Piense en el movimiento ideal de una pieza de trabajo a través de una fábrica eficiente.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"El objetivo es que el material se mueva constantemente a través del sistema sin interrupciones ni acumulaciones en forma de inventario en proceso."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"El flujo continuo rechaza el procesamiento por lotes para evitar que las piezas esperen turnos, lo que reduce el tiempo de ciclo total."}]},{"question":"¿En la filosofía JIT, el operario asume la responsabilidad de controlar su propio trabajo para garantizar la calidad a la primera?","hint":"Reflexione sobre quién es el actor principal en la detección de problemas dentro de la estación de trabajo.","options":[{"label":"A","text":"Falso","isCorrect":false,"rationale":"Delegar la calidad a un departamento externo al final de la línea contradice el principio de eliminar desperdicios y procesos de retrabajo."},{"label":"B","text":"Verdadero","isCorrect":true,"rationale":"El autocontrol permite detectar fallas de inmediato, evitando que los defectos se propaguen a las etapas posteriores de la cadena."}]},{"question":"¿Una de las desventajas del JIT es que limita la posibilidad de reducir precios de compra si las adquisiciones se hacen en bajas cantidades?","hint":"Analice el impacto que tiene la frecuencia y el tamaño de los pedidos en los costos unitarios de materia prima.","options":[{"label":"A","text":"Falso","isCorrect":false,"rationale":"Aunque el JIT mejora la eficiencia interna, a menudo sacrifica los descuentos que los proveedores ofrecen por pedidos masivos."},{"label":"B","text":"Verdadero","isCorrect":true,"rationale":"Al comprar solo lo necesario para el corto plazo, se pierde el poder de negociación basado en economías de escala por volumen."}]},{"question":"¿El desperdicio de 'Talento humano mal utilizado' fue uno de los siete desperdicios originales identificados por Taichi Ohno?","hint":"Diferencie entre los desperdicios operativos clásicos y las dimensiones humanas o ambientales agregadas con el tiempo.","options":[{"label":"A","text":"Verdadero","isCorrect":false,"rationale":"Taichi Ohno identificó originalmente $7$ desperdicios; el talento humano y el medio ambiente fueron clasificaciones añadidas posteriormente."},{"label":"B","text":"Falso","isCorrect":true,"rationale":"Aunque es un Muda reconocido actualmente, no formaba parte de la lista inicial de los siete desperdicios clásicos del sistema Toyota."}]},{"question":"¿El desperdicio al medio ambiente se refiere exclusivamente a la contaminación producida por químicos tóxicos?","hint":"Considere si la energía calorífica perdida o las emisiones reutilizables también califican como desperdicio.","options":[{"label":"A","text":"Verdadero","isCorrect":false,"rationale":"Este Muda incluye también energía desperdiciada o emisiones que podrían haber sido aprovechadas en otros procesos productivos."},{"label":"B","text":"Falso","isCorrect":true,"rationale":"Este tipo de desperdicio abarca cualquier emisión o consumo de energía ineficiente que no agrega valor al producto final."}]},{"question":"¿El aumento del costo al cambiar de proveedor se considera una ventaja del sistema JIT porque asegura lealtad?","hint":"Piense si la dependencia extrema de un socio comercial facilita o dificulta la toma de decisiones estratégicas.","options":[{"label":"A","text":"Falso","isCorrect":true,"rationale":"Es una desventaja operativa, puesto que la estrecha integración requerida hace que la transición a un nuevo proveedor sea compleja y costosa."},{"label":"B","text":"Verdadero","isCorrect":false,"rationale":"El costo elevado de cambio es una desventaja, ya que reduce la flexibilidad de la empresa para buscar mejores opciones en el mercado."}]},{"question":"En la analogía del 'río de las existencias', ¿las rocas representan el exceso de inventario que protege a la empresa?","hint":"Identifique qué elemento de la analogía oculta a los demás y qué representa el obstáculo real.","options":[{"label":"A","text":"Verdadero","isCorrect":false,"rationale":"El agua representa las existencias; las rocas simbolizan los problemas ocultos que surgen cuando el nivel del agua disminuye."},{"label":"B","text":"Falso","isCorrect":true,"rationale":"Las rocas son los problemas fundamentales (defectos, retrasos) que se hacen visibles solo cuando se reduce el inventario innecesario."}]},{"question":"¿El sistema JIT busca minimizar las pérdidas por causa de suministros obsoletos mediante la reducción de stocks?","hint":"Reflexione sobre el impacto que tiene el tiempo de almacenamiento en la frescura o validez técnica de los materiales.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"Al mantener niveles bajos de inventario, disminuye drásticamente el riesgo de que el material se dañe o pierda vigencia antes de ser usado."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"Esta es precisamente una de las mayores ventajas del JIT, permitiendo una rotación rápida que evita el almacenamiento prolongado."}]},{"question":"¿Consiste el Muda de 'Sobre-procesamiento' en realizar inspecciones de calidad exigidas explícitamente por el cliente?","hint":"Evalúe si el trabajo adicional realizado es percibido como un beneficio valioso por el comprador final.","options":[{"label":"A","text":"Falso","isCorrect":true,"rationale":"El sobre-procesamiento se refiere a realizar trabajos más allá del estándar requerido o procesos que no son apreciados por el cliente."},{"label":"B","text":"Verdadero","isCorrect":false,"rationale":"Si el cliente lo exige y paga por ello, agrega valor; el sobre-procesamiento ocurre cuando la calidad excede lo solicitado."}]},{"question":"¿El Muri puede ser causado por un pobre diseño de la operación o falta de atención a la ergonomía?","hint":"Piense en cómo el entorno físico de trabajo influye en el cansancio y la dificultad de las tareas.","options":[{"label":"A","text":"Falso","isCorrect":false,"rationale":"Estos factores de diseño afectan directamente la capacidad física del sistema y del personal, generando ineficiencias por agotamiento."},{"label":"B","text":"Verdadero","isCorrect":true,"rationale":"Las herramientas inadecuadas o posturas difíciles obligan al personal a realizar un esfuerzo excesivo, lo que se clasifica como Muri."}]},{"question":"¿El sistema JIT recomienda aumentar las existencias inmediatamente cuando surge un problema en la línea para no detenerla?","hint":"Analice si la solución ideal es cubrir el síntoma o eliminar la causa del inconveniente.","options":[{"label":"A","text":"Verdadero","isCorrect":false,"rationale":"Aumentar existencias para tapar problemas es la práctica tradicional que el JIT intenta eliminar para atacar las causas raíz."},{"label":"B","text":"Falso","isCorrect":true,"rationale":"El JIT propone bajar el nivel de existencias para sacar los problemas a la luz y resolverlos definitivamente en lugar de ocultarlos."}]},{"question":"¿El Muda de 'Inventario' ayuda a disminuir los costos de área y administración al centralizar los materiales?","hint":"Considere los gastos ocultos asociados a mantener productos guardados durante largos periodos.","options":[{"label":"A","text":"Verdadero","isCorrect":false,"rationale":"El inventario excesivo aumenta los costos de almacenamiento, cuidado, seguros y espacio físico requerido."},{"label":"B","text":"Falso","isCorrect":true,"rationale":"El inventario innecesario es un desperdicio porque demanda administración, cuidado costoso y puede volverse obsoleto rápidamente."}]},{"question":"¿Es el Takt Time el tiempo máximo permitido para completar un componente para cumplir con el programa de producción?","hint":"Piense en la necesidad de equilibrar el ritmo de fabricación con los pedidos de los clientes.","options":[{"label":"A","text":"Falso","isCorrect":false,"rationale":"Esta medida es crucial para la sincronización; no es un tiempo arbitrario, sino calculado en función del tiempo disponible y la demanda."},{"label":"B","text":"Verdadero","isCorrect":true,"rationale":"Representa el 'latido' de la fábrica, marcando la velocidad necesaria para que la oferta coincida exactamente con la demanda."}]},{"question":"¿El uso de sistemas Kanban es una herramienta utilizada en el JIT para enmascarar problemas temporales de suministro?","hint":"Reflexione sobre si la señalización visual sirve para ocultar ineficiencias o para reportarlas.","options":[{"label":"A","text":"Falso","isCorrect":true,"rationale":"El Kanban es una herramienta de control visual que ayuda a gestionar el sistema PULL y a evidenciar interrupciones en el flujo."},{"label":"B","text":"Verdadero","isCorrect":false,"rationale":"Los sistemas Kanban tienen el objetivo opuesto: identificar visualmente los flujos y sacar los problemas a la luz para su resolución."}]},{"question":"¿El Muda de 'Movimientos innecesarios' se refiere únicamente al transporte de materiales en montacargas de un almacén a otro?","hint":"Diferencie entre el desplazamiento de la carga y los movimientos físicos del trabajador en su área.","options":[{"label":"A","text":"Falso","isCorrect":true,"rationale":"Se trata de movimientos evitables realizados por las personas, como buscar herramientas o materiales debido a una mala organización del puesto."},{"label":"B","text":"Verdadero","isCorrect":false,"rationale":"Esa descripción corresponde al Muda de 'Transporte'; los movimientos innecesarios se refieren a los desplazamientos del operario."}]},{"question":"¿El éxito del Just-in-Time depende de establecer una relación lejana y competitiva con múltiples proveedores ocasionales?","hint":"Considere el nivel de coordinación necesario para recibir suministros exactamente cuando se necesitan.","options":[{"label":"A","text":"Verdadero","isCorrect":false,"rationale":"El JIT exige todo lo contrario: una relación muy cercana, de confianza y de largo plazo con proveedores seleccionados."},{"label":"B","text":"Falso","isCorrect":true,"rationale":"La sincronización extrema del JIT requiere que los proveedores sean casi socios estratégicos para garantizar entregas puntuales y de calidad."}]},{"question":"¿El Muda de 'Esperas' ocurre cuando los operarios deben aguardar a que una máquina termine su ciclo para continuar?","hint":"Imagine situaciones donde un trabajador tiene las manos vacías mientras el equipo procesa la pieza.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"Cualquier tiempo en el que el personal o el equipo no está agregando valor debido a la falta de material o sincronización es una espera."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"Este es uno de los desperdicios más comunes, donde el recurso humano está disponible pero inactivo por causas del proceso."}]},{"question":"¿Los principios principales del Sistema de Producción Toyota ($SPT$) son mencionados en el libro 'La Manera de Toyota'?","hint":"Busque la fuente literaria que describe la cultura y los métodos operativos de esta empresa japonesa.","options":[{"label":"A","text":"Falso","isCorrect":false,"rationale":"El texto mencionado es la referencia estándar para entender los pilares fundamentales que sustentan al $SPT$."},{"label":"B","text":"Verdadero","isCorrect":true,"rationale":"Esta obra documenta las filosofías y herramientas de gestión que hicieron de Toyota un referente mundial en manufactura."}]},{"question":"¿El JIT permite una mayor flexibilidad para realizar cambios rápidos en la secuencia de producción?","hint":"Evalúe si es más fácil cambiar el plan de producción con almacenes llenos o con un flujo de piezas individuales.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"Al no tener grandes lotes bloqueando la línea, el sistema puede adaptarse mucho más rápido a cambios en los pedidos del cliente."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"La agilidad es una de las ventajas competitivas del JIT, permitiendo reaccionar a la demanda del mercado sin arrastrar inventarios viejos."}]},{"question":"¿Se considera desperdicio de 'Transporte' cuando el material se mueve a un sitio para un almacenamiento temporal?","hint":"Piense si el simple hecho de trasladar una caja de un estante a otro añade alguna característica que el cliente valoraría.","options":[{"label":"A","text":"Falso","isCorrect":false,"rationale":"Aunque parezca necesario, el almacenamiento temporal es una falla en el flujo que obliga a transportes adicionales, aumentando el riesgo de daños."},{"label":"B","text":"Verdadero","isCorrect":true,"rationale":"Cada vez que se mueve un producto sin añadirle valor directo, se consume tiempo y energía innecesariamente."}]}];
+const tr = {"correct":"¡Correcto!","incorrect":"Incorrecto","next":"Siguiente pregunta →","seeResults":"Ver resultados","complete":"¡Cuestionario completado!","scoreText":"Obtuviste {correct} de {total} correctas","tryAgain":"Intentar de nuevo","rightAnswer":"Respuesta correcta","notQuite":"No del todo"};
+let currentQ = 0, correctCount = 0, answered = false;
+
+function init() {
+  document.querySelectorAll('.question').forEach((q, i) => q.classList.toggle('active', i === 0));
+  updateProgress();
+  document.querySelectorAll('.option').forEach(opt => opt.addEventListener('click', () => selectOption(opt)));
+  document.querySelectorAll('.next-btn').forEach(btn => btn.addEventListener('click', nextQuestion));
+}
+
+function selectOption(opt) {
+  if (answered) return;
+  answered = true;
+  const q = opt.closest('.question');
+  const options = q.querySelectorAll('.option');
+  const nextBtn = q.querySelector('.next-btn');
+  const isCorrect = opt.dataset.correct === 'true';
+  
+  // Mark all options as disabled
+  options.forEach(o => o.classList.add('disabled'));
+  
+  // Style selected option
+  opt.classList.add('selected', isCorrect ? 'correct' : 'incorrect');
+  
+  // Show correct answer if wrong
+  if (!isCorrect) {
+    const correctOpt = [...options].find(o => o.dataset.correct === 'true');
+    if (correctOpt) correctOpt.classList.add('show-correct');
+  }
+  
+  if (isCorrect) correctCount++;
+  
+  // Show feedback for ALL options that have rationale
+  options.forEach(o => {
+    const wrapper = o.closest('.option-wrapper');
+    const feedback = wrapper.querySelector('.option-feedback');
+    const rationale = o.dataset.rationale;
+    const isThisCorrect = o.dataset.correct === 'true';
+    
+    if (rationale && rationale.trim()) {
+      feedback.classList.remove('hidden');
+      feedback.classList.add(isThisCorrect ? 'correct-feedback' : 'incorrect-feedback');
+      
+      const statusEl = feedback.querySelector('.feedback-status');
+      statusEl.className = 'feedback-status ' + (isThisCorrect ? 'correct' : 'incorrect');
+      statusEl.innerHTML = isThisCorrect 
+        ? '✓ ' + tr.rightAnswer
+        : '✗ ' + tr.notQuite;
+    }
+  });
+  
+  nextBtn.classList.remove('hidden');
+  if (currentQ === quizData.length - 1) nextBtn.textContent = tr.seeResults;
+}
+
+function nextQuestion() {
+  answered = false;
+  currentQ++;
+  if (currentQ >= quizData.length) { showResults(); return; }
+  document.querySelectorAll('.question').forEach((q, i) => q.classList.toggle('active', i === currentQ));
+  updateProgress();
+}
+
+function updateProgress() {
+  document.querySelector('.progress-fill').style.width = (currentQ / quizData.length * 100) + '%';
+}
+
+function showResults() {
+  document.querySelectorAll('.question').forEach(q => q.classList.remove('active'));
+  document.getElementById('results').classList.add('active');
+  const pct = Math.round((correctCount / quizData.length) * 100);
+  document.getElementById('score').textContent = pct + '%';
+  document.getElementById('score-text').textContent = tr.scoreText.replace('{correct}', correctCount).replace('{total}', quizData.length);
+  document.querySelector('.progress-fill').style.width = '100%';
+}
+
+function restart() {
+  currentQ = 0; correctCount = 0; answered = false;
+  document.getElementById('results').classList.remove('active');
+  document.querySelectorAll('.question').forEach((q, i) => {
+    q.classList.toggle('active', i === 0);
+    q.querySelectorAll('.option').forEach(o => o.classList.remove('selected', 'correct', 'incorrect', 'disabled', 'show-correct'));
+    q.querySelectorAll('.option-feedback').forEach(f => {
+      f.classList.add('hidden');
+      f.classList.remove('correct-feedback', 'incorrect-feedback');
+    });
+    const btn = q.querySelector('.next-btn');
+    btn.classList.add('hidden');
+    btn.textContent = tr.next;
+  });
+  updateProgress();
+}
+
+init();
+</script>
+</body>
+</html>
