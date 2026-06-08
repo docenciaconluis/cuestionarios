@@ -1,0 +1,886 @@
+<!DOCTYPE html>
+<html lang="es" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>S12 GP</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  min-height: 100vh; padding: 20px; color: #333;
+}
+.container { max-width: 700px; margin: 0 auto; }
+.header { text-align: center; color: #fff; padding: 30px 20px; }
+.header h1 { font-size: 28px; font-weight: 700; margin-bottom: 8px; text-shadow: 0 2px 10px rgba(0,0,0,0.2); }
+.header .meta { font-size: 14px; opacity: 0.9; }
+.progress-bar { background: rgba(255,255,255,0.3); border-radius: 10px; height: 8px; margin: 20px 0; overflow: hidden; }
+.progress-fill { background: #fff; height: 100%; width: 0%; transition: width 0.4s ease; border-radius: 10px; }
+.question { background: #fff; border-radius: 16px; padding: 30px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); display: none; }
+.question.active { display: block; }
+.q-header { display: flex; justify-content: space-between; margin-bottom: 20px; font-size: 13px; color: #888; }
+.q-number { font-weight: 600; color: #667eea; }
+.q-text { font-size: 18px; font-weight: 600; line-height: 1.5; margin-bottom: 25px; color: #222; }
+.options { display: flex; flex-direction: column; gap: 12px; }
+.option-wrapper { display: flex; flex-direction: column; }
+.option {
+  display: flex; align-items: flex-start; gap: 14px; padding: 16px 18px;
+  border: 2px solid #e8e8e8; border-radius: 12px; background: #fafafa;
+  cursor: pointer; transition: all 0.2s; text-align: left; font-size: 15px; width: 100%;
+}
+[dir="rtl"] .option { text-align: right; flex-direction: row-reverse; }
+.option:hover:not(.disabled) { border-color: #667eea; background: #f5f3ff; }
+.option.selected { border-color: #667eea; background: #ede9fe; }
+.option.correct { border-color: #22c55e; background: #dcfce7; }
+.option.incorrect { border-color: #ef4444; background: #fee2e2; }
+.option.disabled { cursor: default; }
+.option.show-correct { border-color: #22c55e; background: #dcfce7; }
+.opt-label {
+  display: flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; border-radius: 50%; background: #e8e8e8;
+  font-weight: 700; font-size: 14px; flex-shrink: 0;
+}
+.option.selected .opt-label { background: #667eea; color: #fff; }
+.option.correct .opt-label { background: #22c55e; color: #fff; }
+.option.incorrect .opt-label { background: #ef4444; color: #fff; }
+.option.show-correct .opt-label { background: #22c55e; color: #fff; }
+.opt-text { padding-top: 5px; line-height: 1.5; }
+
+/* Individual option feedback */
+.option-feedback {
+  margin: 8px 0 4px 46px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+[dir="rtl"] .option-feedback { margin-left: 0; margin-right: 46px; }
+.option-feedback.correct-feedback {
+  background: #dcfce7;
+  border-left: 3px solid #22c55e;
+}
+.option-feedback.incorrect-feedback {
+  background: #fef3f2;
+  border-left: 3px solid #fca5a5;
+}
+[dir="rtl"] .option-feedback.correct-feedback,
+[dir="rtl"] .option-feedback.incorrect-feedback {
+  border-left: none;
+  border-right: 3px solid;
+}
+[dir="rtl"] .option-feedback.correct-feedback { border-right-color: #22c55e; }
+[dir="rtl"] .option-feedback.incorrect-feedback { border-right-color: #fca5a5; }
+.feedback-status {
+  font-weight: 600;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.feedback-status.correct { color: #166534; }
+.feedback-status.incorrect { color: #991b1b; }
+.feedback-rationale { color: #444; }
+
+/* Hint box */
+.hint-box {
+  margin: 12px 0;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+}
+.hint-toggle {
+  width: 100%;
+  padding: 10px 16px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  color: #92400e;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.hint-toggle:hover { background: #fef3c7; }
+.hint-content {
+  padding: 0 16px;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s, padding 0.3s;
+  font-size: 14px;
+  color: #78350f;
+  line-height: 1.5;
+}
+.hint-box.show .hint-content {
+  padding: 0 16px 12px;
+  max-height: 200px;
+}
+
+.next-btn {
+  margin-top: 20px; width: 100%; padding: 14px;
+  background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; border: none;
+  border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.next-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(102,126,234,0.4); }
+.hidden { display: none !important; }
+.results { background: #fff; border-radius: 16px; padding: 40px; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.15); display: none; }
+.results.active { display: block; }
+.results h2 { font-size: 28px; margin-bottom: 10px; color: #333; }
+.results .score { font-size: 64px; font-weight: 700; color: #667eea; margin: 20px 0; }
+.results .score-text { font-size: 18px; color: #666; margin-bottom: 30px; }
+.restart-btn {
+  padding: 14px 40px; background: linear-gradient(135deg, #667eea, #764ba2);
+  color: #fff; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer;
+}
+
+/* Math CSS */
+.math, .math-block { font-family: "Cambria Math", "Times New Roman", Times, serif; font-style: italic; }
+.math-block { display: block; text-align: center; margin: 10px 0; font-size: 110%; }
+.frac { display: inline-flex; flex-direction: column; align-items: center; vertical-align: middle; margin: 0 3px; font-size: 0.9em; }
+.frac-num { border-bottom: 1px solid currentColor; padding: 0 4px 2px; line-height: 1.2; }
+.frac-den { padding: 2px 4px 0; line-height: 1.2; }
+.sqrt { white-space: nowrap; }
+.sqrt-content { border-top: 1px solid currentColor; padding: 0 3px; margin-left: 2px; }
+sup, sub { font-size: 0.75em; }
+sup { vertical-align: super; }
+sub { vertical-align: sub; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>S12 GP</h1>
+    <div class="meta">10 preguntas</div>
+    <div class="progress-bar"><div class="progress-fill"></div></div>
+  </div>
+  <div id="quiz-container">
+        <div class="question" data-index="0">
+          <div class="q-header">
+            <span class="q-number">Pregunta 1</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿Cuál es la definición fundamental de los 12 principios del estándar según el PMBOK?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considera si estos elementos actúan como una 'brújula' ética o como un manual de instrucciones técnico.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Los principios se distinguen de los procesos porque no son instrucciones paso a paso, sino guías para el comportamiento.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Son procesos rígidos y obligatorios que dictan cada paso técnico del proyecto.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Los principios se distinguen de los procesos porque no son instrucciones paso a paso, sino guías para el comportamiento.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Aunque guían el éxito, los principios no son métricas cuantitativas, sino normas de comportamiento gerencial.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Son indicadores clave de rendimiento (KPI) que miden el éxito financiero del proyecto.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aunque guían el éxito, los principios no son métricas cuantitativas, sino normas de comportamiento gerencial.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Los principios operan a nivel de valores y conducta, no como herramientas tecnológicas de automatización.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Son herramientas de software diseñadas para automatizar la gestión de cronogramas.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Los principios operan a nivel de valores y conducta, no como herramientas tecnológicas de automatización.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="true" data-rationale="El estándar define los principios como la base filosófica y ética que orienta el actuar de los involucrados en el proyecto.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Son normas fundamentales, verdades y valores que guían la toma de decisiones.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El estándar define los principios como la base filosófica y ética que orienta el actuar de los involucrados en el proyecto.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="1">
+          <div class="q-header">
+            <span class="q-number">Pregunta 2</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">En el contexto del principio 'Pensamiento Sistémico', ¿qué debe reconocer y evaluar el equipo del proyecto?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piensa en el ejemplo de los paneles solares y cómo su instalación afecta el funcionamiento general de un hospital.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Enfocarse solo en la tecnología ignoraría las interacciones humanas y organizacionales que el pensamiento sistémico resalta.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Que la tecnología del proyecto debe ser el único foco de atención del gerente.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Enfocarse solo en la tecnología ignoraría las interacciones humanas y organizacionales que el pensamiento sistémico resalta.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El término 'sistémico' en este principio se refiere a la organización como un sistema, no necesariamente a sistemas informáticos.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Que el sistema de cómputo del proyecto debe ser el más moderno disponible.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El término 'sistémico' en este principio se refiere a la organización como un sistema, no necesariamente a sistemas informáticos.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="El pensamiento sistémico busca justamente lo opuesto: entender las interconexiones y dependencias, no el aislamiento.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Que cada tarea del cronograma debe ser independiente de las demás áreas.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El pensamiento sistémico busca justamente lo opuesto: entender las interconexiones y dependencias, no el aislamiento.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="true" data-rationale="Este principio busca entender cómo el proyecto interactúa y afecta a las operaciones y sistemas globales de la organización.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Que el proyecto es un engranaje dentro de un sistema organizacional más grande.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Este principio busca entender cómo el proyecto interactúa y afecta a las operaciones y sistemas globales de la organización.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="2">
+          <div class="q-header">
+            <span class="q-number">Pregunta 3</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">De acuerdo con la sesión, ¿cuál es el enfoque principal del principio de 'Valor'?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Recuerda que terminar a tiempo un proyecto que nadie usa no se considera un éxito bajo este enfoque.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Cumplir el cronograma es un objetivo de gestión, pero el éxito real se mide por el valor generado, incluso si hay ajustes de tiempo.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Asegurar que el proyecto termine exactamente en la fecha planificada.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Cumplir el cronograma es un objetivo de gestión, pero el éxito real se mide por el valor generado, incluso si hay ajustes de tiempo.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El valor del proyecto se refiere a los beneficios específicos de sus entregables, no necesariamente al valor de mercado de la empresa.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Incrementar el valor de las acciones de la empresa en el mercado bursátil.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El valor del proyecto se refiere a los beneficios específicos de sus entregables, no necesariamente al valor de mercado de la empresa.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="true" data-rationale="Este principio establece que el proyecto debe estar orientado a entregar resultados que aporten utilidad real a los interesados.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Medir el éxito basándose en los beneficios generados y no solo en el cumplimiento del cronograma.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Este principio establece que el proyecto debe estar orientado a entregar resultados que aporten utilidad real a los interesados.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Aunque el costo es importante, el enfoque en el valor va más allá de lo financiero para incluir beneficios y resultados esperados.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Minimizar los costos operativos para aumentar el margen de utilidad neta.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aunque el costo es importante, el enfoque en el valor va más allá de lo financiero para incluir beneficios y resultados esperados.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="3">
+          <div class="q-header">
+            <span class="q-number">Pregunta 4</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">Dentro de una Matriz de Adquisiciones, ¿cuáles son las tres categorías comunes para el 'Tipo de Adquisición'?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Diferencia entre 'qué' se está comprando y 'cómo' se está eligiendo al proveedor.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Estas son categorías contables financieras generales, no categorías específicas de una Matriz de Adquisiciones de proyectos.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Activos fijos, Gastos corrientes y Pasivos operativos.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Estas son categorías contables financieras generales, no categorías específicas de una Matriz de Adquisiciones de proyectos.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Estas categorías estandarizan si se compra un producto físico, se contrata a una empresa o se busca a un experto específico.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Bienes, Servicios de firmas y Consultoría Individual.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Estas categorías estandarizan si se compra un producto físico, se contrata a una empresa o se busca a un experto específico.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Aunque son compras comunes, no representan la clasificación formal de tipos de adquisición mencionada en el estándar.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Software, Hardware y Recursos Humanos.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aunque son compras comunes, no representan la clasificación formal de tipos de adquisición mencionada en el estándar.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Estos términos se refieren a la 'Modalidad' de adquisición, no al tipo de bien o servicio que se adquiere.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Licitación Nacional, Internacional y Directa.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Estos términos se refieren a la 'Modalidad' de adquisición, no al tipo de bien o servicio que se adquiere.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="4">
+          <div class="q-header">
+            <span class="q-number">Pregunta 5</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿Qué utilidad tiene la columna 'Presupuesto Estimado' en la Matriz de Adquisiciones?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piensa en la función de control financiero preventivo antes de firmar un contrato.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="El presupuesto estimado se asigna al bien o servicio a adquirir, no a la remuneración del personal interno del proyecto.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Establecer el salario que recibirá el gerente de adquisiciones por cada compra.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El presupuesto estimado se asigna al bien o servicio a adquirir, no a la remuneración del personal interno del proyecto.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Permite asegurar que existan fondos disponibles y aprobados antes de iniciar procesos de licitación o contratación.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Definir el dinero que ha sido bloqueado y autorizado para efectuar dicha compra.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Permite asegurar que existan fondos disponibles y aprobados antes de iniciar procesos de licitación o contratación.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="La rentabilidad se calcula a nivel de caso de negocio del proyecto, no como una variable directa de la matriz de compras.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Calcular la rentabilidad esperada del proyecto tras la adquisición.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La rentabilidad se calcula a nivel de caso de negocio del proyecto, no como una variable directa de la matriz de compras.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="La matriz es una herramienta de planificación; el costo final solo se conoce al cierre, no durante la planificación de la adquisición.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Indicar el costo total final una vez que el contrato ha terminado.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La matriz es una herramienta de planificación; el costo final solo se conoce al cierre, no durante la planificación de la adquisición.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="5">
+          <div class="q-header">
+            <span class="q-number">Pregunta 6</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">El principio de 'Adaptación' (Tailoring) sugiere que el proyecto debe diseñarse en función de:</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Se relaciona con el concepto de hacer algo 'a la medida' en lugar de usar una talla única para todos.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="El Tailoring implica que no hay una única forma de gestionar; el enfoque debe ser 'a la medida' de la situación.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">El entorno del proyecto, su contexto y su nivel de innovación.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El Tailoring implica que no hay una única forma de gestionar; el enfoque debe ser 'a la medida' de la situación.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="La adaptación busca justamente evitar la rigidez, ajustando los procesos según las necesidades específicas.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">El manual de procedimientos de la empresa de forma estricta y sin cambios.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La adaptación busca justamente evitar la rigidez, ajustando los procesos según las necesidades específicas.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Repetir modelos anteriores ignorando el contexto actual va en contra del principio de adaptación estratégica.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Los estándares de proyectos anteriores sin importar los cambios tecnológicos.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Repetir modelos anteriores ignorando el contexto actual va en contra del principio de adaptación estratégica.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Adaptar el proyecto requiere considerar múltiples factores del contexto, no solo el deseo de una de las partes.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">La opinión exclusiva del cliente sin considerar al equipo técnico.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Adaptar el proyecto requiere considerar múltiples factores del contexto, no solo el deseo de una de las partes.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="6">
+          <div class="q-header">
+            <span class="q-number">Pregunta 7</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">Al estructurar una Matriz de Adquisiciones a partir de la EDT, ¿es estrictamente necesario llegar hasta el nivel de 'Paquete de Trabajo'?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considera que a veces se subcontrata la construcción de una casa entera (entregable) y no solo la compra de ladrillos (paquete).</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="La matriz debe nacer de la EDT para asegurar que todas las compras estén justificadas por el alcance del proyecto.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">No, la Matriz de Adquisiciones es independiente de la estructura de la EDT.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La matriz debe nacer de la EDT para asegurar que todas las compras estén justificadas por el alcance del proyecto.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="No existe tal prohibición; la gestión de adquisiciones permite flexibilidad según la naturaleza del contrato.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Sí, el estándar prohíbe contratar a niveles superiores de la EDT.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">No existe tal prohibición; la gestión de adquisiciones permite flexibilidad según la naturaleza del contrato.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Se pueden asignar presupuestos globales a entregables de alto nivel sin necesidad de desagregación máxima.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Sí, porque de lo contrario no se podría asignar un presupuesto estimado.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Se pueden asignar presupuestos globales a entregables de alto nivel sin necesidad de desagregación máxima.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="true" data-rationale="A veces es más eficiente contratar un entregable completo a un solo proveedor en lugar de dividirlo en pequeños paquetes de trabajo.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">No, se puede planificar la contratación a nivel de Producto o Entregable.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">A veces es más eficiente contratar un entregable completo a un solo proveedor en lugar de dividirlo en pequeños paquetes de trabajo.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="7">
+          <div class="q-header">
+            <span class="q-number">Pregunta 8</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">En el principio de 'Liderazgo', el PMBOK destaca que el gerente debe influir y guiar:</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Este principio se enfoca en la diferencia entre ser 'el jefe' y ser un líder que motiva.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="El liderazgo efectivo va más allá del cargo jerárquico; depende de la capacidad de inspirar y motivar.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Basándose únicamente en la autoridad formal otorgada por la organización.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El liderazgo efectivo va más allá del cargo jerárquico; depende de la capacidad de inspirar y motivar.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El liderazgo se enfoca en guiar y fomentar la colaboración, mientras que las sanciones son mecanismos de control punitivo.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Imponiendo sanciones estrictas ante cualquier desviación del plan original.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El liderazgo se enfoca en guiar y fomentar la colaboración, mientras que las sanciones son mecanismos de control punitivo.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="true" data-rationale="El liderazgo se demuestra a través del comportamiento, la motivación y la guía del equipo, independientemente del rango oficial.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Sin depender exclusivamente de la autoridad jerárquica.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El liderazgo se demuestra a través del comportamiento, la motivación y la guía del equipo, independientemente del rango oficial.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Liderar implica asumir la responsabilidad de la toma de decisiones, no evadirlas mediante la delegación total.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Delegando todas las decisiones difíciles a los interesados externos.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Liderar implica asumir la responsabilidad de la toma de decisiones, no evadirlas mediante la delegación total.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="8">
+          <div class="q-header">
+            <span class="q-number">Pregunta 9</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿Cuál es la modalidad de adquisición recomendada cuando se busca elegir un proveedor a través de una competencia abierta entre empresas de distintos países?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Fíjate en las siglas del tipo de licitación que mencionan la escala geográfica.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="La LPN se limita a proveedores dentro del territorio nacional, no incluye la participación abierta internacional.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Licitación Pública Nacional (LPN).</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La LPN se limita a proveedores dentro del territorio nacional, no incluye la participación abierta internacional.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="La LPI permite la concurrencia de ofertas globales, asegurando mayor competencia y transparencia en mercados internacionales.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Licitación Pública Internacional (LPI).</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La LPI permite la concurrencia de ofertas globales, asegurando mayor competencia y transparencia en mercados internacionales.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="La contratación directa evita la competencia y selecciona un proveedor específico por razones justificadas, no es una licitación abierta.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Contratación Directa.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La contratación directa evita la competencia y selecciona un proveedor específico por razones justificadas, no es una licitación abierta.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Este método se suele usar para compras menores y rápidas, no para licitaciones complejas de alcance internacional.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Comparación de Precios.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Este método se suele usar para compras menores y rápidas, no para licitaciones complejas de alcance internacional.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="9">
+          <div class="q-header">
+            <span class="q-number">Pregunta 10</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">El principio de 'Navegar por la Complejidad' se enfoca en manejar tres elementos clave:</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considera los factores 'invisibles' que hacen que un proyecto sea difícil de predecir.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Estas son etapas o grupos de procesos, no los factores de complejidad que el gerente debe navegar.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Inicio, Ejecución y Cierre del proyecto.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Estas son etapas o grupos de procesos, no los factores de complejidad que el gerente debe navegar.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Estos son componentes técnicos que, aunque difíciles, no definen la complejidad sistémica y humana de la gestión.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Hardware, Software y Conectividad de red.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Estos son componentes técnicos que, aunque difíciles, no definen la complejidad sistémica y humana de la gestión.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Estos son elementos financieros, no las dimensiones de la complejidad del entorno del proyecto.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Costos fijos, Costos variables y Gastos administrativos.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Estos son elementos financieros, no las dimensiones de la complejidad del entorno del proyecto.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="true" data-rationale="La complejidad nace de no saber qué pasará (incertidumbre), falta de claridad (ambigüedad) y las reacciones de las personas.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Incertidumbre, ambigüedad y comportamiento humano.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La complejidad nace de no saber qué pasará (incertidumbre), falta de claridad (ambigüedad) y las reacciones de las personas.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      </div>
+  <div class="results" id="results">
+    <h2>¡Cuestionario completado!</h2>
+    <div class="score" id="score">0%</div>
+    <div class="score-text" id="score-text"></div>
+    <button class="restart-btn" onclick="restart()">Intentar de nuevo</button>
+  </div>
+</div>
+<script>
+const quizData = [{"question":"¿Cuál es la definición fundamental de los 12 principios del estándar según el PMBOK?","hint":"Considera si estos elementos actúan como una 'brújula' ética o como un manual de instrucciones técnico.","options":[{"label":"A","text":"Son procesos rígidos y obligatorios que dictan cada paso técnico del proyecto.","isCorrect":false,"rationale":"Los principios se distinguen de los procesos porque no son instrucciones paso a paso, sino guías para el comportamiento."},{"label":"B","text":"Son indicadores clave de rendimiento (KPI) que miden el éxito financiero del proyecto.","isCorrect":false,"rationale":"Aunque guían el éxito, los principios no son métricas cuantitativas, sino normas de comportamiento gerencial."},{"label":"C","text":"Son herramientas de software diseñadas para automatizar la gestión de cronogramas.","isCorrect":false,"rationale":"Los principios operan a nivel de valores y conducta, no como herramientas tecnológicas de automatización."},{"label":"D","text":"Son normas fundamentales, verdades y valores que guían la toma de decisiones.","isCorrect":true,"rationale":"El estándar define los principios como la base filosófica y ética que orienta el actuar de los involucrados en el proyecto."}]},{"question":"En el contexto del principio 'Pensamiento Sistémico', ¿qué debe reconocer y evaluar el equipo del proyecto?","hint":"Piensa en el ejemplo de los paneles solares y cómo su instalación afecta el funcionamiento general de un hospital.","options":[{"label":"A","text":"Que la tecnología del proyecto debe ser el único foco de atención del gerente.","isCorrect":false,"rationale":"Enfocarse solo en la tecnología ignoraría las interacciones humanas y organizacionales que el pensamiento sistémico resalta."},{"label":"B","text":"Que el sistema de cómputo del proyecto debe ser el más moderno disponible.","isCorrect":false,"rationale":"El término 'sistémico' en este principio se refiere a la organización como un sistema, no necesariamente a sistemas informáticos."},{"label":"C","text":"Que cada tarea del cronograma debe ser independiente de las demás áreas.","isCorrect":false,"rationale":"El pensamiento sistémico busca justamente lo opuesto: entender las interconexiones y dependencias, no el aislamiento."},{"label":"D","text":"Que el proyecto es un engranaje dentro de un sistema organizacional más grande.","isCorrect":true,"rationale":"Este principio busca entender cómo el proyecto interactúa y afecta a las operaciones y sistemas globales de la organización."}]},{"question":"De acuerdo con la sesión, ¿cuál es el enfoque principal del principio de 'Valor'?","hint":"Recuerda que terminar a tiempo un proyecto que nadie usa no se considera un éxito bajo este enfoque.","options":[{"label":"A","text":"Asegurar que el proyecto termine exactamente en la fecha planificada.","isCorrect":false,"rationale":"Cumplir el cronograma es un objetivo de gestión, pero el éxito real se mide por el valor generado, incluso si hay ajustes de tiempo."},{"label":"B","text":"Incrementar el valor de las acciones de la empresa en el mercado bursátil.","isCorrect":false,"rationale":"El valor del proyecto se refiere a los beneficios específicos de sus entregables, no necesariamente al valor de mercado de la empresa."},{"label":"C","text":"Medir el éxito basándose en los beneficios generados y no solo en el cumplimiento del cronograma.","isCorrect":true,"rationale":"Este principio establece que el proyecto debe estar orientado a entregar resultados que aporten utilidad real a los interesados."},{"label":"D","text":"Minimizar los costos operativos para aumentar el margen de utilidad neta.","isCorrect":false,"rationale":"Aunque el costo es importante, el enfoque en el valor va más allá de lo financiero para incluir beneficios y resultados esperados."}]},{"question":"Dentro de una Matriz de Adquisiciones, ¿cuáles son las tres categorías comunes para el 'Tipo de Adquisición'?","hint":"Diferencia entre 'qué' se está comprando y 'cómo' se está eligiendo al proveedor.","options":[{"label":"A","text":"Activos fijos, Gastos corrientes y Pasivos operativos.","isCorrect":false,"rationale":"Estas son categorías contables financieras generales, no categorías específicas de una Matriz de Adquisiciones de proyectos."},{"label":"B","text":"Bienes, Servicios de firmas y Consultoría Individual.","isCorrect":true,"rationale":"Estas categorías estandarizan si se compra un producto físico, se contrata a una empresa o se busca a un experto específico."},{"label":"C","text":"Software, Hardware y Recursos Humanos.","isCorrect":false,"rationale":"Aunque son compras comunes, no representan la clasificación formal de tipos de adquisición mencionada en el estándar."},{"label":"D","text":"Licitación Nacional, Internacional y Directa.","isCorrect":false,"rationale":"Estos términos se refieren a la 'Modalidad' de adquisición, no al tipo de bien o servicio que se adquiere."}]},{"question":"¿Qué utilidad tiene la columna 'Presupuesto Estimado' en la Matriz de Adquisiciones?","hint":"Piensa en la función de control financiero preventivo antes de firmar un contrato.","options":[{"label":"A","text":"Establecer el salario que recibirá el gerente de adquisiciones por cada compra.","isCorrect":false,"rationale":"El presupuesto estimado se asigna al bien o servicio a adquirir, no a la remuneración del personal interno del proyecto."},{"label":"B","text":"Definir el dinero que ha sido bloqueado y autorizado para efectuar dicha compra.","isCorrect":true,"rationale":"Permite asegurar que existan fondos disponibles y aprobados antes de iniciar procesos de licitación o contratación."},{"label":"C","text":"Calcular la rentabilidad esperada del proyecto tras la adquisición.","isCorrect":false,"rationale":"La rentabilidad se calcula a nivel de caso de negocio del proyecto, no como una variable directa de la matriz de compras."},{"label":"D","text":"Indicar el costo total final una vez que el contrato ha terminado.","isCorrect":false,"rationale":"La matriz es una herramienta de planificación; el costo final solo se conoce al cierre, no durante la planificación de la adquisición."}]},{"question":"El principio de 'Adaptación' (Tailoring) sugiere que el proyecto debe diseñarse en función de:","hint":"Se relaciona con el concepto de hacer algo 'a la medida' en lugar de usar una talla única para todos.","options":[{"label":"A","text":"El entorno del proyecto, su contexto y su nivel de innovación.","isCorrect":true,"rationale":"El Tailoring implica que no hay una única forma de gestionar; el enfoque debe ser 'a la medida' de la situación."},{"label":"B","text":"El manual de procedimientos de la empresa de forma estricta y sin cambios.","isCorrect":false,"rationale":"La adaptación busca justamente evitar la rigidez, ajustando los procesos según las necesidades específicas."},{"label":"C","text":"Los estándares de proyectos anteriores sin importar los cambios tecnológicos.","isCorrect":false,"rationale":"Repetir modelos anteriores ignorando el contexto actual va en contra del principio de adaptación estratégica."},{"label":"D","text":"La opinión exclusiva del cliente sin considerar al equipo técnico.","isCorrect":false,"rationale":"Adaptar el proyecto requiere considerar múltiples factores del contexto, no solo el deseo de una de las partes."}]},{"question":"Al estructurar una Matriz de Adquisiciones a partir de la EDT, ¿es estrictamente necesario llegar hasta el nivel de 'Paquete de Trabajo'?","hint":"Considera que a veces se subcontrata la construcción de una casa entera (entregable) y no solo la compra de ladrillos (paquete).","options":[{"label":"A","text":"No, la Matriz de Adquisiciones es independiente de la estructura de la EDT.","isCorrect":false,"rationale":"La matriz debe nacer de la EDT para asegurar que todas las compras estén justificadas por el alcance del proyecto."},{"label":"B","text":"Sí, el estándar prohíbe contratar a niveles superiores de la EDT.","isCorrect":false,"rationale":"No existe tal prohibición; la gestión de adquisiciones permite flexibilidad según la naturaleza del contrato."},{"label":"C","text":"Sí, porque de lo contrario no se podría asignar un presupuesto estimado.","isCorrect":false,"rationale":"Se pueden asignar presupuestos globales a entregables de alto nivel sin necesidad de desagregación máxima."},{"label":"D","text":"No, se puede planificar la contratación a nivel de Producto o Entregable.","isCorrect":true,"rationale":"A veces es más eficiente contratar un entregable completo a un solo proveedor en lugar de dividirlo en pequeños paquetes de trabajo."}]},{"question":"En el principio de 'Liderazgo', el PMBOK destaca que el gerente debe influir y guiar:","hint":"Este principio se enfoca en la diferencia entre ser 'el jefe' y ser un líder que motiva.","options":[{"label":"A","text":"Basándose únicamente en la autoridad formal otorgada por la organización.","isCorrect":false,"rationale":"El liderazgo efectivo va más allá del cargo jerárquico; depende de la capacidad de inspirar y motivar."},{"label":"B","text":"Imponiendo sanciones estrictas ante cualquier desviación del plan original.","isCorrect":false,"rationale":"El liderazgo se enfoca en guiar y fomentar la colaboración, mientras que las sanciones son mecanismos de control punitivo."},{"label":"C","text":"Sin depender exclusivamente de la autoridad jerárquica.","isCorrect":true,"rationale":"El liderazgo se demuestra a través del comportamiento, la motivación y la guía del equipo, independientemente del rango oficial."},{"label":"D","text":"Delegando todas las decisiones difíciles a los interesados externos.","isCorrect":false,"rationale":"Liderar implica asumir la responsabilidad de la toma de decisiones, no evadirlas mediante la delegación total."}]},{"question":"¿Cuál es la modalidad de adquisición recomendada cuando se busca elegir un proveedor a través de una competencia abierta entre empresas de distintos países?","hint":"Fíjate en las siglas del tipo de licitación que mencionan la escala geográfica.","options":[{"label":"A","text":"Licitación Pública Nacional (LPN).","isCorrect":false,"rationale":"La LPN se limita a proveedores dentro del territorio nacional, no incluye la participación abierta internacional."},{"label":"B","text":"Licitación Pública Internacional (LPI).","isCorrect":true,"rationale":"La LPI permite la concurrencia de ofertas globales, asegurando mayor competencia y transparencia en mercados internacionales."},{"label":"C","text":"Contratación Directa.","isCorrect":false,"rationale":"La contratación directa evita la competencia y selecciona un proveedor específico por razones justificadas, no es una licitación abierta."},{"label":"D","text":"Comparación de Precios.","isCorrect":false,"rationale":"Este método se suele usar para compras menores y rápidas, no para licitaciones complejas de alcance internacional."}]},{"question":"El principio de 'Navegar por la Complejidad' se enfoca en manejar tres elementos clave:","hint":"Considera los factores 'invisibles' que hacen que un proyecto sea difícil de predecir.","options":[{"label":"A","text":"Inicio, Ejecución y Cierre del proyecto.","isCorrect":false,"rationale":"Estas son etapas o grupos de procesos, no los factores de complejidad que el gerente debe navegar."},{"label":"B","text":"Hardware, Software y Conectividad de red.","isCorrect":false,"rationale":"Estos son componentes técnicos que, aunque difíciles, no definen la complejidad sistémica y humana de la gestión."},{"label":"C","text":"Costos fijos, Costos variables y Gastos administrativos.","isCorrect":false,"rationale":"Estos son elementos financieros, no las dimensiones de la complejidad del entorno del proyecto."},{"label":"D","text":"Incertidumbre, ambigüedad y comportamiento humano.","isCorrect":true,"rationale":"La complejidad nace de no saber qué pasará (incertidumbre), falta de claridad (ambigüedad) y las reacciones de las personas."}]}];
+const tr = {"correct":"¡Correcto!","incorrect":"Incorrecto","next":"Siguiente pregunta →","seeResults":"Ver resultados","complete":"¡Cuestionario completado!","scoreText":"Obtuviste {correct} de {total} correctas","tryAgain":"Intentar de nuevo","rightAnswer":"Respuesta correcta","notQuite":"No del todo"};
+let currentQ = 0, correctCount = 0, answered = false;
+
+function init() {
+  document.querySelectorAll('.question').forEach((q, i) => q.classList.toggle('active', i === 0));
+  updateProgress();
+  document.querySelectorAll('.option').forEach(opt => opt.addEventListener('click', () => selectOption(opt)));
+  document.querySelectorAll('.next-btn').forEach(btn => btn.addEventListener('click', nextQuestion));
+}
+
+function selectOption(opt) {
+  if (answered) return;
+  answered = true;
+  const q = opt.closest('.question');
+  const options = q.querySelectorAll('.option');
+  const nextBtn = q.querySelector('.next-btn');
+  const isCorrect = opt.dataset.correct === 'true';
+  
+  // Mark all options as disabled
+  options.forEach(o => o.classList.add('disabled'));
+  
+  // Style selected option
+  opt.classList.add('selected', isCorrect ? 'correct' : 'incorrect');
+  
+  // Show correct answer if wrong
+  if (!isCorrect) {
+    const correctOpt = [...options].find(o => o.dataset.correct === 'true');
+    if (correctOpt) correctOpt.classList.add('show-correct');
+  }
+  
+  if (isCorrect) correctCount++;
+  
+  // Show feedback for ALL options that have rationale
+  options.forEach(o => {
+    const wrapper = o.closest('.option-wrapper');
+    const feedback = wrapper.querySelector('.option-feedback');
+    const rationale = o.dataset.rationale;
+    const isThisCorrect = o.dataset.correct === 'true';
+    
+    if (rationale && rationale.trim()) {
+      feedback.classList.remove('hidden');
+      feedback.classList.add(isThisCorrect ? 'correct-feedback' : 'incorrect-feedback');
+      
+      const statusEl = feedback.querySelector('.feedback-status');
+      statusEl.className = 'feedback-status ' + (isThisCorrect ? 'correct' : 'incorrect');
+      statusEl.innerHTML = isThisCorrect 
+        ? '✓ ' + tr.rightAnswer
+        : '✗ ' + tr.notQuite;
+    }
+  });
+  
+  nextBtn.classList.remove('hidden');
+  if (currentQ === quizData.length - 1) nextBtn.textContent = tr.seeResults;
+}
+
+function nextQuestion() {
+  answered = false;
+  currentQ++;
+  if (currentQ >= quizData.length) { showResults(); return; }
+  document.querySelectorAll('.question').forEach((q, i) => q.classList.toggle('active', i === currentQ));
+  updateProgress();
+}
+
+function updateProgress() {
+  document.querySelector('.progress-fill').style.width = (currentQ / quizData.length * 100) + '%';
+}
+
+function showResults() {
+  document.querySelectorAll('.question').forEach(q => q.classList.remove('active'));
+  document.getElementById('results').classList.add('active');
+  const pct = Math.round((correctCount / quizData.length) * 100);
+  document.getElementById('score').textContent = pct + '%';
+  document.getElementById('score-text').textContent = tr.scoreText.replace('{correct}', correctCount).replace('{total}', quizData.length);
+  document.querySelector('.progress-fill').style.width = '100%';
+}
+
+function restart() {
+  currentQ = 0; correctCount = 0; answered = false;
+  document.getElementById('results').classList.remove('active');
+  document.querySelectorAll('.question').forEach((q, i) => {
+    q.classList.toggle('active', i === 0);
+    q.querySelectorAll('.option').forEach(o => o.classList.remove('selected', 'correct', 'incorrect', 'disabled', 'show-correct'));
+    q.querySelectorAll('.option-feedback').forEach(f => {
+      f.classList.add('hidden');
+      f.classList.remove('correct-feedback', 'incorrect-feedback');
+    });
+    const btn = q.querySelector('.next-btn');
+    btn.classList.add('hidden');
+    btn.textContent = tr.next;
+  });
+  updateProgress();
+}
+
+init();
+</script>
+</body>
+</html>
