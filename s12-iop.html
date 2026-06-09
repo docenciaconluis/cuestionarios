@@ -1,0 +1,1306 @@
+<!DOCTYPE html>
+<html lang="es" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>S12 IOP</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  min-height: 100vh; padding: 20px; color: #333;
+}
+.container { max-width: 700px; margin: 0 auto; }
+.header { text-align: center; color: #fff; padding: 30px 20px; }
+.header h1 { font-size: 28px; font-weight: 700; margin-bottom: 8px; text-shadow: 0 2px 10px rgba(0,0,0,0.2); }
+.header .meta { font-size: 14px; opacity: 0.9; }
+.progress-bar { background: rgba(255,255,255,0.3); border-radius: 10px; height: 8px; margin: 20px 0; overflow: hidden; }
+.progress-fill { background: #fff; height: 100%; width: 0%; transition: width 0.4s ease; border-radius: 10px; }
+.question { background: #fff; border-radius: 16px; padding: 30px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); display: none; }
+.question.active { display: block; }
+.q-header { display: flex; justify-content: space-between; margin-bottom: 20px; font-size: 13px; color: #888; }
+.q-number { font-weight: 600; color: #667eea; }
+.q-text { font-size: 18px; font-weight: 600; line-height: 1.5; margin-bottom: 25px; color: #222; }
+.options { display: flex; flex-direction: column; gap: 12px; }
+.option-wrapper { display: flex; flex-direction: column; }
+.option {
+  display: flex; align-items: flex-start; gap: 14px; padding: 16px 18px;
+  border: 2px solid #e8e8e8; border-radius: 12px; background: #fafafa;
+  cursor: pointer; transition: all 0.2s; text-align: left; font-size: 15px; width: 100%;
+}
+[dir="rtl"] .option { text-align: right; flex-direction: row-reverse; }
+.option:hover:not(.disabled) { border-color: #667eea; background: #f5f3ff; }
+.option.selected { border-color: #667eea; background: #ede9fe; }
+.option.correct { border-color: #22c55e; background: #dcfce7; }
+.option.incorrect { border-color: #ef4444; background: #fee2e2; }
+.option.disabled { cursor: default; }
+.option.show-correct { border-color: #22c55e; background: #dcfce7; }
+.opt-label {
+  display: flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; border-radius: 50%; background: #e8e8e8;
+  font-weight: 700; font-size: 14px; flex-shrink: 0;
+}
+.option.selected .opt-label { background: #667eea; color: #fff; }
+.option.correct .opt-label { background: #22c55e; color: #fff; }
+.option.incorrect .opt-label { background: #ef4444; color: #fff; }
+.option.show-correct .opt-label { background: #22c55e; color: #fff; }
+.opt-text { padding-top: 5px; line-height: 1.5; }
+
+/* Individual option feedback */
+.option-feedback {
+  margin: 8px 0 4px 46px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+[dir="rtl"] .option-feedback { margin-left: 0; margin-right: 46px; }
+.option-feedback.correct-feedback {
+  background: #dcfce7;
+  border-left: 3px solid #22c55e;
+}
+.option-feedback.incorrect-feedback {
+  background: #fef3f2;
+  border-left: 3px solid #fca5a5;
+}
+[dir="rtl"] .option-feedback.correct-feedback,
+[dir="rtl"] .option-feedback.incorrect-feedback {
+  border-left: none;
+  border-right: 3px solid;
+}
+[dir="rtl"] .option-feedback.correct-feedback { border-right-color: #22c55e; }
+[dir="rtl"] .option-feedback.incorrect-feedback { border-right-color: #fca5a5; }
+.feedback-status {
+  font-weight: 600;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.feedback-status.correct { color: #166534; }
+.feedback-status.incorrect { color: #991b1b; }
+.feedback-rationale { color: #444; }
+
+/* Hint box */
+.hint-box {
+  margin: 12px 0;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+}
+.hint-toggle {
+  width: 100%;
+  padding: 10px 16px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  color: #92400e;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.hint-toggle:hover { background: #fef3c7; }
+.hint-content {
+  padding: 0 16px;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s, padding 0.3s;
+  font-size: 14px;
+  color: #78350f;
+  line-height: 1.5;
+}
+.hint-box.show .hint-content {
+  padding: 0 16px 12px;
+  max-height: 200px;
+}
+
+.next-btn {
+  margin-top: 20px; width: 100%; padding: 14px;
+  background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; border: none;
+  border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.next-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(102,126,234,0.4); }
+.hidden { display: none !important; }
+.results { background: #fff; border-radius: 16px; padding: 40px; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.15); display: none; }
+.results.active { display: block; }
+.results h2 { font-size: 28px; margin-bottom: 10px; color: #333; }
+.results .score { font-size: 64px; font-weight: 700; color: #667eea; margin: 20px 0; }
+.results .score-text { font-size: 18px; color: #666; margin-bottom: 30px; }
+.restart-btn {
+  padding: 14px 40px; background: linear-gradient(135deg, #667eea, #764ba2);
+  color: #fff; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer;
+}
+
+/* Math CSS */
+.math, .math-block { font-family: "Cambria Math", "Times New Roman", Times, serif; font-style: italic; }
+.math-block { display: block; text-align: center; margin: 10px 0; font-size: 110%; }
+.frac { display: inline-flex; flex-direction: column; align-items: center; vertical-align: middle; margin: 0 3px; font-size: 0.9em; }
+.frac-num { border-bottom: 1px solid currentColor; padding: 0 4px 2px; line-height: 1.2; }
+.frac-den { padding: 2px 4px 0; line-height: 1.2; }
+.sqrt { white-space: nowrap; }
+.sqrt-content { border-top: 1px solid currentColor; padding: 0 3px; margin-left: 2px; }
+sup, sub { font-size: 0.75em; }
+sup { vertical-align: super; }
+sub { vertical-align: sub; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>S12 IOP</h1>
+    <div class="meta">26 preguntas</div>
+    <div class="progress-bar"><div class="progress-fill"></div></div>
+  </div>
+  <div id="quiz-container">
+        <div class="question" data-index="0">
+          <div class="q-header">
+            <span class="q-number">Pregunta 1</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿Es correcto afirmar que en un modelo de transbordo la sumatoria de productos que ingresan a un almacén desde las plantas debe ser estrictamente mayor a la sumatoria de productos que salen hacia las tiendas?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Revise el concepto de la ecuación de balance para nodos intermedios.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="La ecuación de balance en el almacén establece que la sumatoria de ingresos debe ser exactamente igual ($=$) a la sumatoria de salidas.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La ecuación de balance en el almacén establece que la sumatoria de ingresos debe ser exactamente igual (<span class="math">=</span>) a la sumatoria de salidas.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Esta condición rompería el equilibrio logístico; el modelo exige una igualdad estricta entre entradas y salidas en los puntos de transbordo.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esta condición rompería el equilibrio logístico; el modelo exige una igualdad estricta entre entradas y salidas en los puntos de transbordo.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="1">
+          <div class="q-header">
+            <span class="q-number">Pregunta 2</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">En el Nivel 2 de modelos de asignación, ¿el uso de una penalización con un valor artificialmente alto (como <span class="math">999</span>) en la matriz tiene como fin que el algoritmo seleccione obligatoriamente dicha tarea?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piense en cómo reacciona un modelo de minimización ante costos extremadamente elevados.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Un valor de costo muy alto busca el efecto opuesto: que el optimizador descarte esa opción por no ser económicamente viable.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Un valor de costo muy alto busca el efecto opuesto: que el optimizador descarte esa opción por no ser económicamente viable.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Se utiliza para penalizar intersecciones prohibidas o no aptas, logrando que el algoritmo las descarte automáticamente al buscar minimizar costos.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Se utiliza para penalizar intersecciones prohibidas o no aptas, logrando que el algoritmo las descarte automáticamente al buscar minimizar costos.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="2">
+          <div class="q-header">
+            <span class="q-number">Pregunta 3</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿El modelo de asignación se considera técnicamente una variante especializada del modelo de transporte?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considere la jerarquía de los modelos de optimización de redes.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Aunque tienen aplicaciones distintas, el modelo de asignación hereda la base matemática y lógica de las redes de transporte.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aunque tienen aplicaciones distintas, el modelo de asignación hereda la base matemática y lógica de las redes de transporte.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="La teoría establece que todo modelo de asignación es un tipo especial del modelo de transporte, compartiendo estructuras de flujo similares.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La teoría establece que todo modelo de asignación es un tipo especial del modelo de transporte, compartiendo estructuras de flujo similares.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="3">
+          <div class="q-header">
+            <span class="q-number">Pregunta 4</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">En la programación en LINGO, ¿la función <span class="math">@OLE</span> se utiliza exclusivamente para la visualización de resultados en la pantalla del software?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Identifique la herramienta que permite la integración bidireccional entre LINGO y Excel.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Se emplea para automatizar la carga de datos desde Excel y exportar los resultados finales de vuelta a la hoja de cálculo.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Se emplea para automatizar la carga de datos desde Excel y exportar los resultados finales de vuelta a la hoja de cálculo.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="La función $@OLE$ no es para visualización interna, sino para establecer un vínculo de intercambio de datos con archivos externos de Excel.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La función <span class="math">@OLE</span> no es para visualización interna, sino para establecer un vínculo de intercambio de datos con archivos externos de Excel.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="4">
+          <div class="q-header">
+            <span class="q-number">Pregunta 5</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">De acuerdo con el material, ¿los costos de transporte se mantienen constantes sin importar la distancia o el volumen transportado?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Recuerde los factores que afectan la variabilidad de los fletes.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Los costos de transporte varían según el vehículo, la distancia recorrida y tienden a disminuir a medida que aumenta el volumen transportado.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Los costos de transporte varían según el vehículo, la distancia recorrida y tienden a disminuir a medida que aumenta el volumen transportado.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="En la realidad logística, los costos son dinámicos y se ven influenciados tanto por la distancia como por las economías de escala de volumen.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">En la realidad logística, los costos son dinámicos y se ven influenciados tanto por la distancia como por las economías de escala de volumen.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="5">
+          <div class="q-header">
+            <span class="q-number">Pregunta 6</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">En un modelo de asignación de Nivel 2, ¿es posible utilizar la restricción <span class="math">∑ x<sub>i,j</sub> ≥ 1</span> para asegurar que un empleado realice al menos una tarea?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Analice el operador lógico necesario para garantizar una participación mínima.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Cambiar la igualdad por una desigualdad de tipo mayor o igual permite flexibilizar el modelo para que nadie quede sin carga laboral.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Cambiar la igualdad por una desigualdad de tipo mayor o igual permite flexibilizar el modelo para que nadie quede sin carga laboral.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Esta es precisamente la forma matemática de forzar una asignación mínima por gestor en modelos asimétricos.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esta es precisamente la forma matemática de forzar una asignación mínima por gestor en modelos asimétricos.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="6">
+          <div class="q-header">
+            <span class="q-number">Pregunta 7</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿Las plantas de producción en una red logística se caracterizan principalmente por su capacidad de almacenaje y precio de venta al público?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Diferencie las responsabilidades operativas de cada nodo de la red.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Las plantas se definen por sus costos de producción y su capacidad máxima de fabricación, no por el precio de venta final.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Las plantas se definen por sus costos de producción y su capacidad máxima de fabricación, no por el precio de venta final.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Esas características corresponden a los distribuidores y tiendas finales; las plantas se rigen por costos y capacidades de producción.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esas características corresponden a los distribuidores y tiendas finales; las plantas se rigen por costos y capacidades de producción.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="7">
+          <div class="q-header">
+            <span class="q-number">Pregunta 8</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">En el modelamiento de transbordo, ¿la restricción para las plantas indica que lo que sale de ellas debe ser menor o igual (<span class="math">≤</span>) a su capacidad máxima?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considere el límite físico de la oferta en el origen.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Matemáticamente, no se puede enviar más producto del que la planta tiene capacidad física de producir.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Matemáticamente, no se puede enviar más producto del que la planta tiene capacidad física de producir.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="La restricción de capacidad es un límite superior, por lo que el flujo de salida siempre debe ser menor o igual a dicho tope.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La restricción de capacidad es un límite superior, por lo que el flujo de salida siempre debe ser menor o igual a dicho tope.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="8">
+          <div class="q-header">
+            <span class="q-number">Pregunta 9</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿Un modelo de asignación de Nivel 1 se caracteriza por manejar matrices asimétricas donde, por ejemplo, hay 5 tareas para 4 empleados?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Diferencie entre la complejidad básica y avanzada de la asignación.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="El Nivel 1 requiere una relación simétrica ($1$ a $1$), mientras que el Nivel 2 gestiona casos con diferente número de tareas y empleados.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El Nivel 1 requiere una relación simétrica (<span class="math">1</span> a <span class="math">1</span>), mientras que el Nivel 2 gestiona casos con diferente número de tareas y empleados.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Esa asimetría es propia del Nivel 2; el Nivel 1 se basa en relaciones simétricas de uno a uno ($1$ a $1$).">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esa asimetría es propia del Nivel 2; el Nivel 1 se basa en relaciones simétricas de uno a uno (<span class="math">1</span> a <span class="math">1</span>).</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="9">
+          <div class="q-header">
+            <span class="q-number">Pregunta 10</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">En LINGO, ¿la sección <span class="math">SETS</span> es el lugar donde se deben ingresar los valores numéricos específicos de los costos y demandas?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Recuerde la estructura jerárquica de un código en LINGO.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="La sección $SETS$ define la estructura lógica y los atributos; los valores numéricos pertenecen a la sección $DATA$.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La sección <span class="math">SETS</span> define la estructura lógica y los atributos; los valores numéricos pertenecen a la sección <span class="math">DATA</span>.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Los valores numéricos se declaran en la sección $DATA$, mientras que $SETS$ se utiliza para definir los nodos y variables de cruce.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Los valores numéricos se declaran en la sección <span class="math">DATA</span>, mientras que <span class="math">SETS</span> se utiliza para definir los nodos y variables de cruce.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="10">
+          <div class="q-header">
+            <span class="q-number">Pregunta 11</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">Para maximizar ganancias en un modelo de transbordo, ¿la función objetivo debe restar los costos de transporte y producción a los ingresos generados?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piense en la ecuación contable básica para hallar la utilidad.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="La utilidad neta se calcula restando todos los egresos (transporte en ambos niveles y producción) del ingreso total por ventas.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La utilidad neta se calcula restando todos los egresos (transporte en ambos niveles y producción) del ingreso total por ventas.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Omitir los costos de producción o transporte daría un resultado de beneficio irreal y matemáticamente incorrecto.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Omitir los costos de producción o transporte daría un resultado de beneficio irreal y matemáticamente incorrecto.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="11">
+          <div class="q-header">
+            <span class="q-number">Pregunta 12</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿Es indispensable que el archivo Excel esté perfectamente formulado antes de ejecutar LINGO porque la programación es una transcripción literal de los datos?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considere la dependencia entre el motor de cálculo y la fuente de datos.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="La integración depende críticamente de la exactitud del Excel, ya que LINGO actúa como un procesador de la información allí contenida.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La integración depende críticamente de la exactitud del Excel, ya que LINGO actúa como un procesador de la información allí contenida.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="LINGO lee los rangos de Excel de forma directa; cualquier error de formato o celda en el origen invalidará la solución optimizada.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">LINGO lee los rangos de Excel de forma directa; cualquier error de formato o celda en el origen invalidará la solución optimizada.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="12">
+          <div class="q-header">
+            <span class="q-number">Pregunta 13</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">En una red de transbordo, ¿el flujo total implica mapear exclusivamente el flete desde los almacenes hacia las tiendas finales?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piense en el camino completo que recorre el producto.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Se deben considerar dos fletes distintos: el transporte del nivel de origen (planta-almacén) y el del nivel de destino (almacén-tienda).">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Se deben considerar dos fletes distintos: el transporte del nivel de origen (planta-almacén) y el del nivel de destino (almacén-tienda).</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El transbordo requiere por definición dos etapas de flete: de la planta al almacén y del almacén a la tienda.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El transbordo requiere por definición dos etapas de flete: de la planta al almacén y del almacén a la tienda.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="13">
+          <div class="q-header">
+            <span class="q-number">Pregunta 14</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿La restricción <span class="math">@FOR(tarea(j): @SUM(emp(i): x(i,j)) = 1)</span> garantiza que una misma tarea pueda ser realizada por varios empleados simultáneamente?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Analice el impacto del signo de igualdad en la asignación de recursos.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="La igualdad a $1$ asegura exclusividad; si fuera compartida, la suma podría ser mayor a $1$.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La igualdad a <span class="math">1</span> asegura exclusividad; si fuera compartida, la suma podría ser mayor a <span class="math">1</span>.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Esta restricción asegura que cada tarea sea asignada exactamente a un solo gestor, evitando que las tareas se compartan.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esta restricción asegura que cada tarea sea asignada exactamente a un solo gestor, evitando que las tareas se compartan.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="14">
+          <div class="q-header">
+            <span class="q-number">Pregunta 15</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">De acuerdo con el texto, ¿los distribuidores o almacenes generan ingresos directos mediante un precio de venta al público?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Ubique en qué punto de la cadena de suministro se produce el intercambio económico con el cliente.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Los almacenes actúan como centros de acopio con restricciones de capacidad; el precio de venta y los ingresos se gestionan en las tiendas finales.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Los almacenes actúan como centros de acopio con restricciones de capacidad; el precio de venta y los ingresos se gestionan en las tiendas finales.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="La generación de ingresos por ventas es responsabilidad exclusiva de las tiendas finales, no de los almacenes intermedios.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La generación de ingresos por ventas es responsabilidad exclusiva de las tiendas finales, no de los almacenes intermedios.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="15">
+          <div class="q-header">
+            <span class="q-number">Pregunta 16</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">En la evolución de los modelos, ¿pasar de un sistema de transporte básico a uno de transbordo implica aumentar la complejidad estructural de la red?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considere la adición de puntos de consolidación en la red.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="El escalamiento a transbordo añade capas adicionales de decisión y restricciones que no existen en el transporte básico.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El escalamiento a transbordo añade capas adicionales de decisión y restricciones que no existen en el transporte básico.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="El transbordo introduce nodos intermedios y ecuaciones de balance, lo que lo hace más complejo que el transporte directo punto a punto.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El transbordo introduce nodos intermedios y ecuaciones de balance, lo que lo hace más complejo que el transporte directo punto a punto.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="16">
+          <div class="q-header">
+            <span class="q-number">Pregunta 17</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿El objetivo principal de delegar tareas mediante modelos de asignación es garantizar decisiones matemáticamente respaldadas que minimicen el margen de ganancia?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Reflexione sobre el propósito financiero de la optimización empresarial.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="El objetivo es maximizar o proteger el margen de ganancia, no minimizarlo.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El objetivo es maximizar o proteger el margen de ganancia, no minimizarlo.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="La optimización busca proteger y maximizar el margen de ganancia al asignar recursos de la manera más eficiente posible.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La optimización busca proteger y maximizar el margen de ganancia al asignar recursos de la manera más eficiente posible.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="17">
+          <div class="q-header">
+            <span class="q-number">Pregunta 18</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">En el modelamiento en LINGO, ¿es imperativo definir las variables de cruce con sus atributos dentro de la sección <span class="math">SETS</span>?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piense en cómo se estructuran las matrices de decisión en el código.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Para que LINGO entienda la relación entre nodos (como planta y almacén), se deben declarar estas intersecciones en los $SETS$.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Para que LINGO entienda la relación entre nodos (como planta y almacén), se deben declarar estas intersecciones en los <span class="math">SETS</span>.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Sin la definición de atributos en los conjuntos, LINGO no puede procesar las variables de decisión para las rutas de transporte.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Sin la definición de atributos en los conjuntos, LINGO no puede procesar las variables de decisión para las rutas de transporte.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="18">
+          <div class="q-header">
+            <span class="q-number">Pregunta 19</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿Un modelo de asignación de Nivel 2 permite manejar reglas corporativas como la falta de capacitación de un empleado para una tarea específica?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considere cómo se representan las limitaciones operativas en la matriz.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Gracias a las penalizaciones de costo, el modelo de Nivel 2 puede incorporar restricciones cualitativas del entorno real.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Gracias a las penalizaciones de costo, el modelo de Nivel 2 puede incorporar restricciones cualitativas del entorno real.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="La versatilidad del Nivel 2 radica precisamente en su capacidad para modelar situaciones asimétricas y restricciones de exclusión.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La versatilidad del Nivel 2 radica precisamente en su capacidad para modelar situaciones asimétricas y restricciones de exclusión.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="19">
+          <div class="q-header">
+            <span class="q-number">Pregunta 20</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">En la ecuación de flujo de las tiendas finales, ¿lo que llega debe satisfacer la demanda, representándose esto frecuentemente como una inecuación menor o igual (<span class="math">≤</span>)?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Revise la sección de Teoría a Profundidad sobre inecuaciones de flujo.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Según el material, el flujo hacia las tiendas debe satisfacer la demanda, utilizándose la relación $\le$ para controlar el cumplimiento del pedido.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Según el material, el flujo hacia las tiendas debe satisfacer la demanda, utilizándose la relación <span class="math">≤</span> para controlar el cumplimiento del pedido.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El texto especifica que el cumplimiento de la demanda en las tiendas se rige por la inecuación $\le$.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El texto especifica que el cumplimiento de la demanda en las tiendas se rige por la inecuación <span class="math">≤</span>.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="20">
+          <div class="q-header">
+            <span class="q-number">Pregunta 21</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿El modelo de transbordo se limita únicamente a redes con un máximo de 2 plantas y 2 tiendas?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Evalúe la escalabilidad de los modelos matemáticos.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="El modelo de transbordo es versátil y puede estructurar redes de cualquier tamaño, superando el ejemplo básico propuesto en clase.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El modelo de transbordo es versátil y puede estructurar redes de cualquier tamaño, superando el ejemplo básico propuesto en clase.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El ejemplo de $2$ plantas y $2$ tiendas es solo una ilustración; el modelo es escalable a cualquier número de nodos.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El ejemplo de <span class="math">2</span> plantas y <span class="math">2</span> tiendas es solo una ilustración; el modelo es escalable a cualquier número de nodos.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="21">
+          <div class="q-header">
+            <span class="q-number">Pregunta 22</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">En LINGO, ¿el comando filtrado <span class="math">@FOR</span> se utiliza para aplicar restricciones de manera masiva a los elementos de un conjunto?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Recuerde la función de los iteradores en programación de optimización.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Es la herramienta fundamental en LINGO para replicar restricciones a través de múltiples variables sin escribirlas una por una.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Es la herramienta fundamental en LINGO para replicar restricciones a través de múltiples variables sin escribirlas una por una.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="El $@FOR$ recorre los conjuntos definidos para imponer la misma lógica restrictiva a cada miembro (empleado, tarea, etc.).">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El <span class="math">@FOR</span> recorre los conjuntos definidos para imponer la misma lógica restrictiva a cada miembro (empleado, tarea, etc.).</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="22">
+          <div class="q-header">
+            <span class="q-number">Pregunta 23</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿Se afirma que los costos de transporte (moneda por unidad) son fijos e independientes del tipo de vehículo?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considere las variables que afectan el flete unitario.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="La variabilidad del costo unitario según el medio de transporte es un factor clave en la utilidad de estos modelos.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La variabilidad del costo unitario según el medio de transporte es un factor clave en la utilidad de estos modelos.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El texto aclara explícitamente que los costos no son fijos y que varían sustancialmente según el vehículo utilizado.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El texto aclara explícitamente que los costos no son fijos y que varían sustancialmente según el vehículo utilizado.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="23">
+          <div class="q-header">
+            <span class="q-number">Pregunta 24</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">En un modelo de asignación donde hay más tareas que empleados, ¿es matemáticamente posible forzar a que todas las tareas se completen?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piense en la restricción sobre la demanda de las tareas.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Mediante restricciones de sumatoria en las columnas (tareas) iguales a $1$, se asegura que cada tarea reciba un ejecutor.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Mediante restricciones de sumatoria en las columnas (tareas) iguales a <span class="math">1</span>, se asegura que cada tarea reciba un ejecutor.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Aun con asimetría, las restricciones del modelo pueden configurarse para garantizar la cobertura total de las necesidades operativas.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aun con asimetría, las restricciones del modelo pueden configurarse para garantizar la cobertura total de las necesidades operativas.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="24">
+          <div class="q-header">
+            <span class="q-number">Pregunta 25</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿El logro de la sesión implica que los estudiantes solo resuelvan modelos en papel sin utilizar herramientas digitales?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Lea el apartado de Logro de sesión respecto a las herramientas tecnológicas.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="La competencia busca que el estudiante use activamente el software LINGO para delegar la carga operativa de resolución matemática.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La competencia busca que el estudiante use activamente el software LINGO para delegar la carga operativa de resolución matemática.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El logro destaca específicamente la integración de LINGO con Excel para resolver modelos con precisión.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El logro destaca específicamente la integración de LINGO con Excel para resolver modelos con precisión.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="25">
+          <div class="q-header">
+            <span class="q-number">Pregunta 26</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">En el modelo de asignación, ¿la meta siempre es exclusivamente minimizar los costos totales?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considere la flexibilidad de la Función Objetivo.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Si bien es común minimizar costos, el modelo también puede configurarse para maximizar beneficios según el contexto.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Si bien es común minimizar costos, el modelo también puede configurarse para maximizar beneficios según el contexto.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Dependiendo del objetivo empresarial, el modelo puede orientarse tanto a la minimización de egresos como a la maximización de beneficios.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Dependiendo del objetivo empresarial, el modelo puede orientarse tanto a la minimización de egresos como a la maximización de beneficios.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      </div>
+  <div class="results" id="results">
+    <h2>¡Cuestionario completado!</h2>
+    <div class="score" id="score">0%</div>
+    <div class="score-text" id="score-text"></div>
+    <button class="restart-btn" onclick="restart()">Intentar de nuevo</button>
+  </div>
+</div>
+<script>
+const quizData = [{"question":"¿Es correcto afirmar que en un modelo de transbordo la sumatoria de productos que ingresan a un almacén desde las plantas debe ser estrictamente mayor a la sumatoria de productos que salen hacia las tiendas?","hint":"Revise el concepto de la ecuación de balance para nodos intermedios.","options":[{"label":"A","text":"Falso","isCorrect":true,"rationale":"La ecuación de balance en el almacén establece que la sumatoria de ingresos debe ser exactamente igual ($=$) a la sumatoria de salidas."},{"label":"B","text":"Verdadero","isCorrect":false,"rationale":"Esta condición rompería el equilibrio logístico; el modelo exige una igualdad estricta entre entradas y salidas en los puntos de transbordo."}]},{"question":"En el Nivel 2 de modelos de asignación, ¿el uso de una penalización con un valor artificialmente alto (como $999$) en la matriz tiene como fin que el algoritmo seleccione obligatoriamente dicha tarea?","hint":"Piense en cómo reacciona un modelo de minimización ante costos extremadamente elevados.","options":[{"label":"A","text":"Verdadero","isCorrect":false,"rationale":"Un valor de costo muy alto busca el efecto opuesto: que el optimizador descarte esa opción por no ser económicamente viable."},{"label":"B","text":"Falso","isCorrect":true,"rationale":"Se utiliza para penalizar intersecciones prohibidas o no aptas, logrando que el algoritmo las descarte automáticamente al buscar minimizar costos."}]},{"question":"¿El modelo de asignación se considera técnicamente una variante especializada del modelo de transporte?","hint":"Considere la jerarquía de los modelos de optimización de redes.","options":[{"label":"A","text":"Falso","isCorrect":false,"rationale":"Aunque tienen aplicaciones distintas, el modelo de asignación hereda la base matemática y lógica de las redes de transporte."},{"label":"B","text":"Verdadero","isCorrect":true,"rationale":"La teoría establece que todo modelo de asignación es un tipo especial del modelo de transporte, compartiendo estructuras de flujo similares."}]},{"question":"En la programación en LINGO, ¿la función $@OLE$ se utiliza exclusivamente para la visualización de resultados en la pantalla del software?","hint":"Identifique la herramienta que permite la integración bidireccional entre LINGO y Excel.","options":[{"label":"A","text":"Falso","isCorrect":true,"rationale":"Se emplea para automatizar la carga de datos desde Excel y exportar los resultados finales de vuelta a la hoja de cálculo."},{"label":"B","text":"Verdadero","isCorrect":false,"rationale":"La función $@OLE$ no es para visualización interna, sino para establecer un vínculo de intercambio de datos con archivos externos de Excel."}]},{"question":"De acuerdo con el material, ¿los costos de transporte se mantienen constantes sin importar la distancia o el volumen transportado?","hint":"Recuerde los factores que afectan la variabilidad de los fletes.","options":[{"label":"A","text":"Falso","isCorrect":true,"rationale":"Los costos de transporte varían según el vehículo, la distancia recorrida y tienden a disminuir a medida que aumenta el volumen transportado."},{"label":"B","text":"Verdadero","isCorrect":false,"rationale":"En la realidad logística, los costos son dinámicos y se ven influenciados tanto por la distancia como por las economías de escala de volumen."}]},{"question":"En un modelo de asignación de Nivel 2, ¿es posible utilizar la restricción $\\sum x_{i,j} \\ge 1$ para asegurar que un empleado realice al menos una tarea?","hint":"Analice el operador lógico necesario para garantizar una participación mínima.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"Cambiar la igualdad por una desigualdad de tipo mayor o igual permite flexibilizar el modelo para que nadie quede sin carga laboral."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"Esta es precisamente la forma matemática de forzar una asignación mínima por gestor en modelos asimétricos."}]},{"question":"¿Las plantas de producción en una red logística se caracterizan principalmente por su capacidad de almacenaje y precio de venta al público?","hint":"Diferencie las responsabilidades operativas de cada nodo de la red.","options":[{"label":"A","text":"Falso","isCorrect":true,"rationale":"Las plantas se definen por sus costos de producción y su capacidad máxima de fabricación, no por el precio de venta final."},{"label":"B","text":"Verdadero","isCorrect":false,"rationale":"Esas características corresponden a los distribuidores y tiendas finales; las plantas se rigen por costos y capacidades de producción."}]},{"question":"En el modelamiento de transbordo, ¿la restricción para las plantas indica que lo que sale de ellas debe ser menor o igual ($\\le$) a su capacidad máxima?","hint":"Considere el límite físico de la oferta en el origen.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"Matemáticamente, no se puede enviar más producto del que la planta tiene capacidad física de producir."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"La restricción de capacidad es un límite superior, por lo que el flujo de salida siempre debe ser menor o igual a dicho tope."}]},{"question":"¿Un modelo de asignación de Nivel 1 se caracteriza por manejar matrices asimétricas donde, por ejemplo, hay 5 tareas para 4 empleados?","hint":"Diferencie entre la complejidad básica y avanzada de la asignación.","options":[{"label":"A","text":"Falso","isCorrect":true,"rationale":"El Nivel 1 requiere una relación simétrica ($1$ a $1$), mientras que el Nivel 2 gestiona casos con diferente número de tareas y empleados."},{"label":"B","text":"Verdadero","isCorrect":false,"rationale":"Esa asimetría es propia del Nivel 2; el Nivel 1 se basa en relaciones simétricas de uno a uno ($1$ a $1$)."}]},{"question":"En LINGO, ¿la sección $SETS$ es el lugar donde se deben ingresar los valores numéricos específicos de los costos y demandas?","hint":"Recuerde la estructura jerárquica de un código en LINGO.","options":[{"label":"A","text":"Verdadero","isCorrect":false,"rationale":"La sección $SETS$ define la estructura lógica y los atributos; los valores numéricos pertenecen a la sección $DATA$."},{"label":"B","text":"Falso","isCorrect":true,"rationale":"Los valores numéricos se declaran en la sección $DATA$, mientras que $SETS$ se utiliza para definir los nodos y variables de cruce."}]},{"question":"Para maximizar ganancias en un modelo de transbordo, ¿la función objetivo debe restar los costos de transporte y producción a los ingresos generados?","hint":"Piense en la ecuación contable básica para hallar la utilidad.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"La utilidad neta se calcula restando todos los egresos (transporte en ambos niveles y producción) del ingreso total por ventas."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"Omitir los costos de producción o transporte daría un resultado de beneficio irreal y matemáticamente incorrecto."}]},{"question":"¿Es indispensable que el archivo Excel esté perfectamente formulado antes de ejecutar LINGO porque la programación es una transcripción literal de los datos?","hint":"Considere la dependencia entre el motor de cálculo y la fuente de datos.","options":[{"label":"A","text":"Falso","isCorrect":false,"rationale":"La integración depende críticamente de la exactitud del Excel, ya que LINGO actúa como un procesador de la información allí contenida."},{"label":"B","text":"Verdadero","isCorrect":true,"rationale":"LINGO lee los rangos de Excel de forma directa; cualquier error de formato o celda en el origen invalidará la solución optimizada."}]},{"question":"En una red de transbordo, ¿el flujo total implica mapear exclusivamente el flete desde los almacenes hacia las tiendas finales?","hint":"Piense en el camino completo que recorre el producto.","options":[{"label":"A","text":"Falso","isCorrect":true,"rationale":"Se deben considerar dos fletes distintos: el transporte del nivel de origen (planta-almacén) y el del nivel de destino (almacén-tienda)."},{"label":"B","text":"Verdadero","isCorrect":false,"rationale":"El transbordo requiere por definición dos etapas de flete: de la planta al almacén y del almacén a la tienda."}]},{"question":"¿La restricción $@FOR(tarea(j): @SUM(emp(i): x(i,j)) = 1)$ garantiza que una misma tarea pueda ser realizada por varios empleados simultáneamente?","hint":"Analice el impacto del signo de igualdad en la asignación de recursos.","options":[{"label":"A","text":"Verdadero","isCorrect":false,"rationale":"La igualdad a $1$ asegura exclusividad; si fuera compartida, la suma podría ser mayor a $1$."},{"label":"B","text":"Falso","isCorrect":true,"rationale":"Esta restricción asegura que cada tarea sea asignada exactamente a un solo gestor, evitando que las tareas se compartan."}]},{"question":"De acuerdo con el texto, ¿los distribuidores o almacenes generan ingresos directos mediante un precio de venta al público?","hint":"Ubique en qué punto de la cadena de suministro se produce el intercambio económico con el cliente.","options":[{"label":"A","text":"Falso","isCorrect":true,"rationale":"Los almacenes actúan como centros de acopio con restricciones de capacidad; el precio de venta y los ingresos se gestionan en las tiendas finales."},{"label":"B","text":"Verdadero","isCorrect":false,"rationale":"La generación de ingresos por ventas es responsabilidad exclusiva de las tiendas finales, no de los almacenes intermedios."}]},{"question":"En la evolución de los modelos, ¿pasar de un sistema de transporte básico a uno de transbordo implica aumentar la complejidad estructural de la red?","hint":"Considere la adición de puntos de consolidación en la red.","options":[{"label":"A","text":"Falso","isCorrect":false,"rationale":"El escalamiento a transbordo añade capas adicionales de decisión y restricciones que no existen en el transporte básico."},{"label":"B","text":"Verdadero","isCorrect":true,"rationale":"El transbordo introduce nodos intermedios y ecuaciones de balance, lo que lo hace más complejo que el transporte directo punto a punto."}]},{"question":"¿El objetivo principal de delegar tareas mediante modelos de asignación es garantizar decisiones matemáticamente respaldadas que minimicen el margen de ganancia?","hint":"Reflexione sobre el propósito financiero de la optimización empresarial.","options":[{"label":"A","text":"Verdadero","isCorrect":false,"rationale":"El objetivo es maximizar o proteger el margen de ganancia, no minimizarlo."},{"label":"B","text":"Falso","isCorrect":true,"rationale":"La optimización busca proteger y maximizar el margen de ganancia al asignar recursos de la manera más eficiente posible."}]},{"question":"En el modelamiento en LINGO, ¿es imperativo definir las variables de cruce con sus atributos dentro de la sección $SETS$?","hint":"Piense en cómo se estructuran las matrices de decisión en el código.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"Para que LINGO entienda la relación entre nodos (como planta y almacén), se deben declarar estas intersecciones en los $SETS$."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"Sin la definición de atributos en los conjuntos, LINGO no puede procesar las variables de decisión para las rutas de transporte."}]},{"question":"¿Un modelo de asignación de Nivel 2 permite manejar reglas corporativas como la falta de capacitación de un empleado para una tarea específica?","hint":"Considere cómo se representan las limitaciones operativas en la matriz.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"Gracias a las penalizaciones de costo, el modelo de Nivel 2 puede incorporar restricciones cualitativas del entorno real."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"La versatilidad del Nivel 2 radica precisamente en su capacidad para modelar situaciones asimétricas y restricciones de exclusión."}]},{"question":"En la ecuación de flujo de las tiendas finales, ¿lo que llega debe satisfacer la demanda, representándose esto frecuentemente como una inecuación menor o igual ($\\le$)?","hint":"Revise la sección de Teoría a Profundidad sobre inecuaciones de flujo.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"Según el material, el flujo hacia las tiendas debe satisfacer la demanda, utilizándose la relación $\\le$ para controlar el cumplimiento del pedido."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"El texto especifica que el cumplimiento de la demanda en las tiendas se rige por la inecuación $\\le$."}]},{"question":"¿El modelo de transbordo se limita únicamente a redes con un máximo de 2 plantas y 2 tiendas?","hint":"Evalúe la escalabilidad de los modelos matemáticos.","options":[{"label":"A","text":"Falso","isCorrect":true,"rationale":"El modelo de transbordo es versátil y puede estructurar redes de cualquier tamaño, superando el ejemplo básico propuesto en clase."},{"label":"B","text":"Verdadero","isCorrect":false,"rationale":"El ejemplo de $2$ plantas y $2$ tiendas es solo una ilustración; el modelo es escalable a cualquier número de nodos."}]},{"question":"En LINGO, ¿el comando filtrado $@FOR$ se utiliza para aplicar restricciones de manera masiva a los elementos de un conjunto?","hint":"Recuerde la función de los iteradores en programación de optimización.","options":[{"label":"A","text":"Falso","isCorrect":false,"rationale":"Es la herramienta fundamental en LINGO para replicar restricciones a través de múltiples variables sin escribirlas una por una."},{"label":"B","text":"Verdadero","isCorrect":true,"rationale":"El $@FOR$ recorre los conjuntos definidos para imponer la misma lógica restrictiva a cada miembro (empleado, tarea, etc.)."}]},{"question":"¿Se afirma que los costos de transporte (moneda por unidad) son fijos e independientes del tipo de vehículo?","hint":"Considere las variables que afectan el flete unitario.","options":[{"label":"A","text":"Falso","isCorrect":true,"rationale":"La variabilidad del costo unitario según el medio de transporte es un factor clave en la utilidad de estos modelos."},{"label":"B","text":"Verdadero","isCorrect":false,"rationale":"El texto aclara explícitamente que los costos no son fijos y que varían sustancialmente según el vehículo utilizado."}]},{"question":"En un modelo de asignación donde hay más tareas que empleados, ¿es matemáticamente posible forzar a que todas las tareas se completen?","hint":"Piense en la restricción sobre la demanda de las tareas.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"Mediante restricciones de sumatoria en las columnas (tareas) iguales a $1$, se asegura que cada tarea reciba un ejecutor."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"Aun con asimetría, las restricciones del modelo pueden configurarse para garantizar la cobertura total de las necesidades operativas."}]},{"question":"¿El logro de la sesión implica que los estudiantes solo resuelvan modelos en papel sin utilizar herramientas digitales?","hint":"Lea el apartado de Logro de sesión respecto a las herramientas tecnológicas.","options":[{"label":"A","text":"Falso","isCorrect":true,"rationale":"La competencia busca que el estudiante use activamente el software LINGO para delegar la carga operativa de resolución matemática."},{"label":"B","text":"Verdadero","isCorrect":false,"rationale":"El logro destaca específicamente la integración de LINGO con Excel para resolver modelos con precisión."}]},{"question":"En el modelo de asignación, ¿la meta siempre es exclusivamente minimizar los costos totales?","hint":"Considere la flexibilidad de la Función Objetivo.","options":[{"label":"A","text":"Verdadero","isCorrect":false,"rationale":"Si bien es común minimizar costos, el modelo también puede configurarse para maximizar beneficios según el contexto."},{"label":"B","text":"Falso","isCorrect":true,"rationale":"Dependiendo del objetivo empresarial, el modelo puede orientarse tanto a la minimización de egresos como a la maximización de beneficios."}]}];
+const tr = {"correct":"¡Correcto!","incorrect":"Incorrecto","next":"Siguiente pregunta →","seeResults":"Ver resultados","complete":"¡Cuestionario completado!","scoreText":"Obtuviste {correct} de {total} correctas","tryAgain":"Intentar de nuevo","rightAnswer":"Respuesta correcta","notQuite":"No del todo"};
+let currentQ = 0, correctCount = 0, answered = false;
+
+function init() {
+  document.querySelectorAll('.question').forEach((q, i) => q.classList.toggle('active', i === 0));
+  updateProgress();
+  document.querySelectorAll('.option').forEach(opt => opt.addEventListener('click', () => selectOption(opt)));
+  document.querySelectorAll('.next-btn').forEach(btn => btn.addEventListener('click', nextQuestion));
+}
+
+function selectOption(opt) {
+  if (answered) return;
+  answered = true;
+  const q = opt.closest('.question');
+  const options = q.querySelectorAll('.option');
+  const nextBtn = q.querySelector('.next-btn');
+  const isCorrect = opt.dataset.correct === 'true';
+  
+  // Mark all options as disabled
+  options.forEach(o => o.classList.add('disabled'));
+  
+  // Style selected option
+  opt.classList.add('selected', isCorrect ? 'correct' : 'incorrect');
+  
+  // Show correct answer if wrong
+  if (!isCorrect) {
+    const correctOpt = [...options].find(o => o.dataset.correct === 'true');
+    if (correctOpt) correctOpt.classList.add('show-correct');
+  }
+  
+  if (isCorrect) correctCount++;
+  
+  // Show feedback for ALL options that have rationale
+  options.forEach(o => {
+    const wrapper = o.closest('.option-wrapper');
+    const feedback = wrapper.querySelector('.option-feedback');
+    const rationale = o.dataset.rationale;
+    const isThisCorrect = o.dataset.correct === 'true';
+    
+    if (rationale && rationale.trim()) {
+      feedback.classList.remove('hidden');
+      feedback.classList.add(isThisCorrect ? 'correct-feedback' : 'incorrect-feedback');
+      
+      const statusEl = feedback.querySelector('.feedback-status');
+      statusEl.className = 'feedback-status ' + (isThisCorrect ? 'correct' : 'incorrect');
+      statusEl.innerHTML = isThisCorrect 
+        ? '✓ ' + tr.rightAnswer
+        : '✗ ' + tr.notQuite;
+    }
+  });
+  
+  nextBtn.classList.remove('hidden');
+  if (currentQ === quizData.length - 1) nextBtn.textContent = tr.seeResults;
+}
+
+function nextQuestion() {
+  answered = false;
+  currentQ++;
+  if (currentQ >= quizData.length) { showResults(); return; }
+  document.querySelectorAll('.question').forEach((q, i) => q.classList.toggle('active', i === currentQ));
+  updateProgress();
+}
+
+function updateProgress() {
+  document.querySelector('.progress-fill').style.width = (currentQ / quizData.length * 100) + '%';
+}
+
+function showResults() {
+  document.querySelectorAll('.question').forEach(q => q.classList.remove('active'));
+  document.getElementById('results').classList.add('active');
+  const pct = Math.round((correctCount / quizData.length) * 100);
+  document.getElementById('score').textContent = pct + '%';
+  document.getElementById('score-text').textContent = tr.scoreText.replace('{correct}', correctCount).replace('{total}', quizData.length);
+  document.querySelector('.progress-fill').style.width = '100%';
+}
+
+function restart() {
+  currentQ = 0; correctCount = 0; answered = false;
+  document.getElementById('results').classList.remove('active');
+  document.querySelectorAll('.question').forEach((q, i) => {
+    q.classList.toggle('active', i === 0);
+    q.querySelectorAll('.option').forEach(o => o.classList.remove('selected', 'correct', 'incorrect', 'disabled', 'show-correct'));
+    q.querySelectorAll('.option-feedback').forEach(f => {
+      f.classList.add('hidden');
+      f.classList.remove('correct-feedback', 'incorrect-feedback');
+    });
+    const btn = q.querySelector('.next-btn');
+    btn.classList.add('hidden');
+    btn.textContent = tr.next;
+  });
+  updateProgress();
+}
+
+init();
+</script>
+</body>
+</html>
