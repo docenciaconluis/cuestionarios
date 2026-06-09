@@ -1,0 +1,1466 @@
+<!DOCTYPE html>
+<html lang="es" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Robótica Cuestionario</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  min-height: 100vh; padding: 20px; color: #333;
+}
+.container { max-width: 700px; margin: 0 auto; }
+.header { text-align: center; color: #fff; padding: 30px 20px; }
+.header h1 { font-size: 28px; font-weight: 700; margin-bottom: 8px; text-shadow: 0 2px 10px rgba(0,0,0,0.2); }
+.header .meta { font-size: 14px; opacity: 0.9; }
+.progress-bar { background: rgba(255,255,255,0.3); border-radius: 10px; height: 8px; margin: 20px 0; overflow: hidden; }
+.progress-fill { background: #fff; height: 100%; width: 0%; transition: width 0.4s ease; border-radius: 10px; }
+.question { background: #fff; border-radius: 16px; padding: 30px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); display: none; }
+.question.active { display: block; }
+.q-header { display: flex; justify-content: space-between; margin-bottom: 20px; font-size: 13px; color: #888; }
+.q-number { font-weight: 600; color: #667eea; }
+.q-text { font-size: 18px; font-weight: 600; line-height: 1.5; margin-bottom: 25px; color: #222; }
+.options { display: flex; flex-direction: column; gap: 12px; }
+.option-wrapper { display: flex; flex-direction: column; }
+.option {
+  display: flex; align-items: flex-start; gap: 14px; padding: 16px 18px;
+  border: 2px solid #e8e8e8; border-radius: 12px; background: #fafafa;
+  cursor: pointer; transition: all 0.2s; text-align: left; font-size: 15px; width: 100%;
+}
+[dir="rtl"] .option { text-align: right; flex-direction: row-reverse; }
+.option:hover:not(.disabled) { border-color: #667eea; background: #f5f3ff; }
+.option.selected { border-color: #667eea; background: #ede9fe; }
+.option.correct { border-color: #22c55e; background: #dcfce7; }
+.option.incorrect { border-color: #ef4444; background: #fee2e2; }
+.option.disabled { cursor: default; }
+.option.show-correct { border-color: #22c55e; background: #dcfce7; }
+.opt-label {
+  display: flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; border-radius: 50%; background: #e8e8e8;
+  font-weight: 700; font-size: 14px; flex-shrink: 0;
+}
+.option.selected .opt-label { background: #667eea; color: #fff; }
+.option.correct .opt-label { background: #22c55e; color: #fff; }
+.option.incorrect .opt-label { background: #ef4444; color: #fff; }
+.option.show-correct .opt-label { background: #22c55e; color: #fff; }
+.opt-text { padding-top: 5px; line-height: 1.5; }
+
+/* Individual option feedback */
+.option-feedback {
+  margin: 8px 0 4px 46px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+[dir="rtl"] .option-feedback { margin-left: 0; margin-right: 46px; }
+.option-feedback.correct-feedback {
+  background: #dcfce7;
+  border-left: 3px solid #22c55e;
+}
+.option-feedback.incorrect-feedback {
+  background: #fef3f2;
+  border-left: 3px solid #fca5a5;
+}
+[dir="rtl"] .option-feedback.correct-feedback,
+[dir="rtl"] .option-feedback.incorrect-feedback {
+  border-left: none;
+  border-right: 3px solid;
+}
+[dir="rtl"] .option-feedback.correct-feedback { border-right-color: #22c55e; }
+[dir="rtl"] .option-feedback.incorrect-feedback { border-right-color: #fca5a5; }
+.feedback-status {
+  font-weight: 600;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.feedback-status.correct { color: #166534; }
+.feedback-status.incorrect { color: #991b1b; }
+.feedback-rationale { color: #444; }
+
+/* Hint box */
+.hint-box {
+  margin: 12px 0;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+}
+.hint-toggle {
+  width: 100%;
+  padding: 10px 16px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  color: #92400e;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.hint-toggle:hover { background: #fef3c7; }
+.hint-content {
+  padding: 0 16px;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s, padding 0.3s;
+  font-size: 14px;
+  color: #78350f;
+  line-height: 1.5;
+}
+.hint-box.show .hint-content {
+  padding: 0 16px 12px;
+  max-height: 200px;
+}
+
+.next-btn {
+  margin-top: 20px; width: 100%; padding: 14px;
+  background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; border: none;
+  border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.next-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(102,126,234,0.4); }
+.hidden { display: none !important; }
+.results { background: #fff; border-radius: 16px; padding: 40px; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.15); display: none; }
+.results.active { display: block; }
+.results h2 { font-size: 28px; margin-bottom: 10px; color: #333; }
+.results .score { font-size: 64px; font-weight: 700; color: #667eea; margin: 20px 0; }
+.results .score-text { font-size: 18px; color: #666; margin-bottom: 30px; }
+.restart-btn {
+  padding: 14px 40px; background: linear-gradient(135deg, #667eea, #764ba2);
+  color: #fff; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer;
+}
+
+/* Math CSS */
+.math, .math-block { font-family: "Cambria Math", "Times New Roman", Times, serif; font-style: italic; }
+.math-block { display: block; text-align: center; margin: 10px 0; font-size: 110%; }
+.frac { display: inline-flex; flex-direction: column; align-items: center; vertical-align: middle; margin: 0 3px; font-size: 0.9em; }
+.frac-num { border-bottom: 1px solid currentColor; padding: 0 4px 2px; line-height: 1.2; }
+.frac-den { padding: 2px 4px 0; line-height: 1.2; }
+.sqrt { white-space: nowrap; }
+.sqrt-content { border-top: 1px solid currentColor; padding: 0 3px; margin-left: 2px; }
+sup, sub { font-size: 0.75em; }
+sup { vertical-align: super; }
+sub { vertical-align: sub; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>Robótica Cuestionario</h1>
+    <div class="meta">30 preguntas</div>
+    <div class="progress-bar"><div class="progress-fill"></div></div>
+  </div>
+  <div id="quiz-container">
+        <div class="question" data-index="0">
+          <div class="q-header">
+            <span class="q-number">Pregunta 1</span>
+            <span class="q-of">/ 30</span>
+          </div>
+          <div class="q-text">El montaje y ensamblaje robótico se limita exclusivamente a la producción de vehículos motorizados.</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Recuerda que la precisión y productividad son útiles en múltiples tipos de productos de consumo masivo.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Aunque es un uso común, el material indica que también se aplican en la fabricación de electrodomésticos para asegurar calidad.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aunque es un uso común, el material indica que también se aplican en la fabricación de electrodomésticos para asegurar calidad.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="La robótica industrial en ensamblaje abarca diversos sectores, incluyendo electrodomésticos, para mejorar la productividad.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La robótica industrial en ensamblaje abarca diversos sectores, incluyendo electrodomésticos, para mejorar la productividad.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="1">
+          <div class="q-header">
+            <span class="q-number">Pregunta 2</span>
+            <span class="q-of">/ 30</span>
+          </div>
+          <div class="q-text">La soldadura por resistencia es uno de los métodos utilizados en la robótica industrial manufacturera.</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considera las tres categorías principales de soldadura mencionadas en el proceso de transformación.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Este método es ampliamente utilizado, especialmente en la industria automotriz y la construcción de maquinaria pesada.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Este método es ampliamente utilizado, especialmente en la industria automotriz y la construcción de maquinaria pesada.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Este tipo de soldadura es una de las tres técnicas mencionadas explícitamente como aplicaciones robóticas en la industria.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Este tipo de soldadura es una de las tres técnicas mencionadas explícitamente como aplicaciones robóticas en la industria.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="2">
+          <div class="q-header">
+            <span class="q-number">Pregunta 3</span>
+            <span class="q-of">/ 30</span>
+          </div>
+          <div class="q-text">Las siglas MIG en el contexto de soldadura robótica corresponden a 'Metal Integrated Gas'.</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piensa en el tipo de gas que se utiliza para proteger la zona de soldadura de la contaminación atmosférica.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="El término correcto utiliza la palabra 'Inert' para describir la naturaleza del gas utilizado en el proceso.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El término correcto utiliza la palabra 'Inert' para describir la naturaleza del gas utilizado en el proceso.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="MIG significa 'Metal Inert Gas', haciendo referencia al uso de un gas inerte para proteger el arco de soldadura.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">MIG significa 'Metal Inert Gas', haciendo referencia al uso de un gas inerte para proteger el arco de soldadura.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="3">
+          <div class="q-header">
+            <span class="q-number">Pregunta 4</span>
+            <span class="q-of">/ 30</span>
+          </div>
+          <div class="q-text">El uso de robots en la aplicación de pintura tiene como uno de sus beneficios principales la reducción del desperdicio de materiales.</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Reflexiona sobre cómo la precisión mecánica influye en el uso eficiente de los recursos líquidos.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Al aplicar la pintura de forma uniforme, los robots evitan el exceso de capas y minimizan la pérdida de material.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Al aplicar la pintura de forma uniforme, los robots evitan el exceso de capas y minimizan la pérdida de material.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="La precisión y uniformidad del robot permiten optimizar el uso de los insumos en comparación con los métodos manuales.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La precisión y uniformidad del robot permiten optimizar el uso de los insumos en comparación con los métodos manuales.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="4">
+          <div class="q-header">
+            <span class="q-number">Pregunta 5</span>
+            <span class="q-of">/ 30</span>
+          </div>
+          <div class="q-text">La manipulación de materiales por robots contribuye directamente a la reducción de lesiones laborales.</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Analiza el impacto de automatizar tareas que implican cargar objetos pesados o movimientos repetitivos.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Al encargarse del transporte y apilamiento, los robots evitan que los trabajadores realicen esfuerzos físicos peligrosos.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Al encargarse del transporte y apilamiento, los robots evitan que los trabajadores realicen esfuerzos físicos peligrosos.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Uno de los objetivos de la automatización en manipulación es mejorar la seguridad ocupacional mediante la ergonomía robótica.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Uno de los objetivos de la automatización en manipulación es mejorar la seguridad ocupacional mediante la ergonomía robótica.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="5">
+          <div class="q-header">
+            <span class="q-number">Pregunta 6</span>
+            <span class="q-of">/ 30</span>
+          </div>
+          <div class="q-text">Los robots de inspección dependen exclusivamente de sensores de contacto para detectar defectos en los productos.</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piensa en qué dispositivos permiten a un robot 'ver' irregularidades en una línea de producción rápida.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="La inspección automática suele basarse en sistemas de visión artificial (cámaras) y sensores para garantizar estándares de calidad.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La inspección automática suele basarse en sistemas de visión artificial (cámaras) y sensores para garantizar estándares de calidad.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El material destaca que estos robots están equipados principalmente con cámaras y sensores de visión para el control de calidad.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El material destaca que estos robots están equipados principalmente con cámaras y sensores de visión para el control de calidad.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="6">
+          <div class="q-header">
+            <span class="q-number">Pregunta 7</span>
+            <span class="q-of">/ 30</span>
+          </div>
+          <div class="q-text">El corte robótico es una aplicación técnica que solo puede ejecutarse sobre materiales metálicos.</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considera si otras industrias, como la del mueble o juguetería, podrían beneficiarse de cortes automatizados.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="La versatilidad de los robots especializados les permite trabajar con una amplia gama de materiales más allá del metal.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La versatilidad de los robots especializados les permite trabajar con una amplia gama de materiales más allá del metal.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Los robots industriales realizan cortes precisos en materiales diversos como metal, plástico y también madera.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Los robots industriales realizan cortes precisos en materiales diversos como metal, plástico y también madera.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="7">
+          <div class="q-header">
+            <span class="q-number">Pregunta 8</span>
+            <span class="q-of">/ 30</span>
+          </div>
+          <div class="q-text">En el Perú, actualmente no existe ninguna empresa que utilice robots en sus procesos industriales.</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Diferencia entre la ausencia total de tecnología y la existencia de una brecha comparativa con otros países.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="El material afirma la existencia de empresas peruanas con procesos robotizados, señalando la brecha como el problema principal.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El material afirma la existencia de empresas peruanas con procesos robotizados, señalando la brecha como el problema principal.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Las conclusiones indican que ya hay empresas en el país usándolos, aunque todavía persiste una brecha tecnológica.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Las conclusiones indican que ya hay empresas en el país usándolos, aunque todavía persiste una brecha tecnológica.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="8">
+          <div class="q-header">
+            <span class="q-number">Pregunta 9</span>
+            <span class="q-of">/ 30</span>
+          </div>
+          <div class="q-text">El paletizado se refiere al proceso de organizar y apilar productos sobre plataformas para su transporte.</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Relaciona este término con la preparación de mercancías para su envío en almacenes industriales.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Esta función es clave en el final de la línea de producción para optimizar el flujo logístico y de almacenamiento.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esta función es clave en el final de la línea de producción para optimizar el flujo logístico y de almacenamiento.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El paletizado es precisamente la acción de colocar cargas sobre palés de forma ordenada mediante sistemas automáticos.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El paletizado es precisamente la acción de colocar cargas sobre palés de forma ordenada mediante sistemas automáticos.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="9">
+          <div class="q-header">
+            <span class="q-number">Pregunta 10</span>
+            <span class="q-of">/ 30</span>
+          </div>
+          <div class="q-text">La soldadura TIG utiliza un electrodo de tungsteno para realizar el proceso de unión de materiales.</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Asocia la primera letra de la sigla con el elemento químico del electrodo.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="La 'T' en TIG proviene de 'Tungsten', material del electrodo no consumible utilizado en esta técnica.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La 'T' en TIG proviene de 'Tungsten', material del electrodo no consumible utilizado en esta técnica.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Esta técnica se define por el uso de tungsteno y un gas inerte para crear soldaduras de alta calidad.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esta técnica se define por el uso de tungsteno y un gas inerte para crear soldaduras de alta calidad.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="10">
+          <div class="q-header">
+            <span class="q-number">Pregunta 11</span>
+            <span class="q-of">/ 30</span>
+          </div>
+          <div class="q-text">Uno de los objetivos del aprendizaje de la sesión es que el estudiante diseñe físicamente un brazo robótico.</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Revisa el 'Logro de aprendizaje' presentado al inicio de la sesión.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="El logro de la sesión se centra en conocer los tipos de aplicaciones industriales, no en el diseño de hardware.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El logro de la sesión se centra en conocer los tipos de aplicaciones industriales, no en el diseño de hardware.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="El objetivo principal es que el estudiante sea capaz de identificar y conocer las diversas aplicaciones en la industria.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El objetivo principal es que el estudiante sea capaz de identificar y conocer las diversas aplicaciones en la industria.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="11">
+          <div class="q-header">
+            <span class="q-number">Pregunta 12</span>
+            <span class="q-of">/ 30</span>
+          </div>
+          <div class="q-text">El mecanizado robótico contribuye a mejorar la calidad del producto final mediante la precisión de sus movimientos.</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piensa en cómo la consistencia mecánica afecta el acabado de una pieza comparado con el trabajo manual.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="El mecanizado automatizado busca precisamente eliminar el error humano para elevar el estándar del producto.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El mecanizado automatizado busca precisamente eliminar el error humano para elevar el estándar del producto.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="La alta repetibilidad de los robots asegura que cada pieza mecanizada cumpla con las tolerancias exactas requeridas.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La alta repetibilidad de los robots asegura que cada pieza mecanizada cumpla con las tolerancias exactas requeridas.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="12">
+          <div class="q-header">
+            <span class="q-number">Pregunta 13</span>
+            <span class="q-of">/ 30</span>
+          </div>
+          <div class="q-text">La robótica aplicada al embalaje se utiliza en el sector de e-commerce para el empaquetado de pedidos.</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Observa las imágenes presentadas en la sección de 'Utilidad del tema'.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Las imágenes de utilidad muestran robots trabajando en el empaquetado de pedidos para el comercio electrónico.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Las imágenes de utilidad muestran robots trabajando en el empaquetado de pedidos para el comercio electrónico.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El embalaje robótico es fundamental en el e-commerce para manejar altos volúmenes de pedidos con eficiencia.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El embalaje robótico es fundamental en el e-commerce para manejar altos volúmenes de pedidos con eficiencia.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="13">
+          <div class="q-header">
+            <span class="q-number">Pregunta 14</span>
+            <span class="q-of">/ 30</span>
+          </div>
+          <div class="q-text">La uniformidad en la pintura robótica es un factor que mejora el acabado estético de los productos.</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considera por qué los acabados de los automóviles modernos suelen ser tan perfectos y constantes.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Al mantener una distancia y velocidad constantes, el robot evita imperfecciones como chorreaduras o zonas sin cubrir.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Al mantener una distancia y velocidad constantes, el robot evita imperfecciones como chorreaduras o zonas sin cubrir.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Un acabado uniforme es uno de los resultados directos de la precisión programada en los brazos robóticos de pintura.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Un acabado uniforme es uno de los resultados directos de la precisión programada en los brazos robóticos de pintura.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="14">
+          <div class="q-header">
+            <span class="q-number">Pregunta 15</span>
+            <span class="q-of">/ 30</span>
+          </div>
+          <div class="q-text">La industria automotriz es el único sector donde la soldadura robótica es ampliamente utilizada.</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Recuerda los otros sectores industriales mencionados además del automotriz en la diapositiva de soldadura.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Además de la automotriz, sectores como la construcción de maquinaria pesada dependen fuertemente de esta tecnología.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Además de la automotriz, sectores como la construcción de maquinaria pesada dependen fuertemente de esta tecnología.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El material menciona que también es fundamental en la construcción de maquinaria diversa.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El material menciona que también es fundamental en la construcción de maquinaria diversa.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="15">
+          <div class="q-header">
+            <span class="q-number">Pregunta 16</span>
+            <span class="q-of">/ 30</span>
+          </div>
+          <div class="q-text">Los robots de manipulación organizan materiales en las fábricas para optimizar el flujo de trabajo.</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Reflexiona sobre el impacto de la logística interna en la eficiencia global de una planta.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="La organización lógica de los materiales por robots minimiza tiempos muertos y cuellos de botella en la producción.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La organización lógica de los materiales por robots minimiza tiempos muertos y cuellos de botella en la producción.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="La optimización del flujo es un beneficio clave de tener materiales correctamente transportados y organizados.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La optimización del flujo es un beneficio clave de tener materiales correctamente transportados y organizados.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="16">
+          <div class="q-header">
+            <span class="q-number">Pregunta 17</span>
+            <span class="q-of">/ 30</span>
+          </div>
+          <div class="q-text">La inspección robótica automática ayuda a garantizar los estándares de calidad de una empresa.</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piensa en el rol del control de calidad para mantener la reputación de una marca.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Al detectar defectos de forma constante, se evita que productos defectuosos lleguen al cliente final.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Al detectar defectos de forma constante, se evita que productos defectuosos lleguen al cliente final.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="La garantía de calidad es el propósito central de integrar visión artificial en las líneas de inspección.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La garantía de calidad es el propósito central de integrar visión artificial en las líneas de inspección.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="17">
+          <div class="q-header">
+            <span class="q-number">Pregunta 18</span>
+            <span class="q-of">/ 30</span>
+          </div>
+          <div class="q-text">El material sugiere que no existen brechas tecnológicas importantes en el uso de robots en el Perú.</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Busca la palabra 'brecha' en la sección de conclusiones del material.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="La existencia de una brecha tecnológica es uno de los puntos clave destacados en el cierre de la sesión.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La existencia de una brecha tecnológica es uno de los puntos clave destacados en el cierre de la sesión.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Las conclusiones mencionan explícitamente que aún existe una brecha importante que debe cerrarse.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Las conclusiones mencionan explícitamente que aún existe una brecha importante que debe cerrarse.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="18">
+          <div class="q-header">
+            <span class="q-number">Pregunta 19</span>
+            <span class="q-of">/ 30</span>
+          </div>
+          <div class="q-text">En la soldadura TIG, el gas utilizado suele ser de tipo reactivo para acelerar el proceso.</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Analiza el significado de la palabra 'Inert' en el nombre de la técnica.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="TIG significa 'Tungsten Inert Gas', lo que implica que el gas debe ser inerte, no reactivo.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">TIG significa 'Tungsten Inert Gas', lo que implica que el gas debe ser inerte, no reactivo.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="El proceso requiere gases inertes (como el argón) para proteger el electrodo y la pileta líquida de la oxidación.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El proceso requiere gases inertes (como el argón) para proteger el electrodo y la pileta líquida de la oxidación.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="19">
+          <div class="q-header">
+            <span class="q-number">Pregunta 20</span>
+            <span class="q-of">/ 30</span>
+          </div>
+          <div class="q-text">El ensamblaje robótico garantiza una mayor productividad en comparación con los métodos puramente manuales.</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Compara la capacidad de trabajo continuo de una máquina frente a la de un ser humano.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Los robots operan a velocidades constantes y sin fatiga, lo que eleva significativamente el volumen de producción.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Los robots operan a velocidades constantes y sin fatiga, lo que eleva significativamente el volumen de producción.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="La mejora de la productividad es una de las razones fundamentales para la inversión en automatización de montaje.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La mejora de la productividad es una de las razones fundamentales para la inversión en automatización de montaje.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="20">
+          <div class="q-header">
+            <span class="q-number">Pregunta 21</span>
+            <span class="q-of">/ 30</span>
+          </div>
+          <div class="q-text">La técnica de soldadura MIG utiliza un gas inerte en su proceso.</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Asocia la letra 'I' en MIG con la propiedad química del gas empleado.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="La sigla misma describe el uso de un gas inerte para proteger el metal durante la soldadura.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La sigla misma describe el uso de un gas inerte para proteger el metal durante la soldadura.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Al igual que la TIG, la técnica MIG (Metal Inert Gas) depende de un escudo de gas inerte.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Al igual que la TIG, la técnica MIG (Metal Inert Gas) depende de un escudo de gas inerte.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="21">
+          <div class="q-header">
+            <span class="q-number">Pregunta 22</span>
+            <span class="q-of">/ 30</span>
+          </div>
+          <div class="q-text">Los robots industriales solo pueden realizar tareas en un orden secuencial fijo y no pueden ser reprogramados.</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considera la definición general de un robot industrial en términos de flexibilidad.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Una característica esencial de la robótica industrial es su capacidad de ser reprogramada para diferentes tareas.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Una característica esencial de la robótica industrial es su capacidad de ser reprogramada para diferentes tareas.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="La flexibilidad y versatilidad para realizar diversas aplicaciones mencionadas depende de su programabilidad.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La flexibilidad y versatilidad para realizar diversas aplicaciones mencionadas depende de su programabilidad.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="22">
+          <div class="q-header">
+            <span class="q-number">Pregunta 23</span>
+            <span class="q-of">/ 30</span>
+          </div>
+          <div class="q-text">La aplicación de robots permite mejorar la calidad en los procesos industriales.</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Evalúa si la consistencia de las máquinas ayuda o perjudica el estándar del producto final.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="La mejora de la calidad es un beneficio transversal mencionado en las conclusiones para todas las aplicaciones.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La mejora de la calidad es un beneficio transversal mencionado en las conclusiones para todas las aplicaciones.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="La precisión y repetibilidad robótica minimizan variaciones que afectan negativamente la calidad.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La precisión y repetibilidad robótica minimizan variaciones que afectan negativamente la calidad.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="23">
+          <div class="q-header">
+            <span class="q-number">Pregunta 24</span>
+            <span class="q-of">/ 30</span>
+          </div>
+          <div class="q-text">El transporte de materiales pesados dentro de una fábrica es una tarea adecuada para los robots de manipulación.</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Relaciona el transporte con la prevención de lesiones mencionada en las diapositivas.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="El material indica que transportan productos para optimizar flujos y reducir riesgos físicos a humanos.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El material indica que transportan productos para optimizar flujos y reducir riesgos físicos a humanos.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El transporte automatizado es una función core de los sistemas robóticos de manipulación de materiales.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El transporte automatizado es una función core de los sistemas robóticos de manipulación de materiales.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="24">
+          <div class="q-header">
+            <span class="q-number">Pregunta 25</span>
+            <span class="q-of">/ 30</span>
+          </div>
+          <div class="q-text">Los robots de corte están especializados únicamente en materiales de alta dureza como el acero.</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Busca la lista de materiales compatibles en la diapositiva de 'Corte y mecanizado'.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="La especialización del robot le permite adaptarse a la resistencia de distintos materiales, incluyendo madera.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La especialización del robot le permite adaptarse a la resistencia de distintos materiales, incluyendo madera.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Se menciona que también trabajan con materiales de menor dureza como plástico y madera.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Se menciona que también trabajan con materiales de menor dureza como plástico y madera.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="25">
+          <div class="q-header">
+            <span class="q-number">Pregunta 26</span>
+            <span class="q-of">/ 30</span>
+          </div>
+          <div class="q-text">La comparativa entre México y Perú se usa para ilustrar la diferencia en la densidad de robots en la producción automotriz.</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Revisa los datos numéricos presentados en la sección de 'Utilidad del tema'.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="El ejemplo de los 35 autos/hora con 115 robots resalta la importancia de la automatización en la utilidad del tema.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El ejemplo de los 35 autos/hora con 115 robots resalta la importancia de la automatización en la utilidad del tema.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Esta comparación sirve para mostrar el impacto real de la robótica en la eficiencia industrial a nivel regional.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esta comparación sirve para mostrar el impacto real de la robótica en la eficiencia industrial a nivel regional.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="26">
+          <div class="q-header">
+            <span class="q-number">Pregunta 27</span>
+            <span class="q-of">/ 30</span>
+          </div>
+          <div class="q-text">Los sistemas de control de calidad robóticos detectan defectos de forma manual.</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Cuestiona si el término 'manual' es coherente con el concepto de 'automatización'.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Estos sistemas son automáticos y utilizan tecnología de sensores para eliminar la subjetividad humana.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Estos sistemas son automáticos y utilizan tecnología de sensores para eliminar la subjetividad humana.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="El material describe la inspección como 'automática', utilizando cámaras y sensores para el control.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El material describe la inspección como 'automática', utilizando cámaras y sensores para el control.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="27">
+          <div class="q-header">
+            <span class="q-number">Pregunta 28</span>
+            <span class="q-of">/ 30</span>
+          </div>
+          <div class="q-text">El embalaje y paletizado son procesos que ocurren generalmente al inicio de la cadena de transformación.</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piensa en el orden lógico: ¿se empaca el producto antes o después de fabricarlo?</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="El embalaje y paletizado se ubican en la etapa final de salida para preparar el producto para su distribución.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El embalaje y paletizado se ubican en la etapa final de salida para preparar el producto para su distribución.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Estos procesos son finales; ocurren después de que el producto ha sido fabricado e inspeccionado.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Estos procesos son finales; ocurren después de que el producto ha sido fabricado e inspeccionado.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="28">
+          <div class="q-header">
+            <span class="q-number">Pregunta 29</span>
+            <span class="q-of">/ 30</span>
+          </div>
+          <div class="q-text">La sesión práctica invita a analizar qué sectores en el Perú deberían tener prioridad en la implementación de robots.</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Observa las preguntas propuestas en la diapositiva de 'Espacio Práctico'.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="El espacio práctico busca que el estudiante reflexione sobre la priorización de la automatización en el contexto local.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El espacio práctico busca que el estudiante reflexione sobre la priorización de la automatización en el contexto local.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Esta es una de las preguntas clave diseñadas para fomentar el análisis crítico sobre la realidad nacional.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esta es una de las preguntas clave diseñadas para fomentar el análisis crítico sobre la realidad nacional.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="29">
+          <div class="q-header">
+            <span class="q-number">Pregunta 30</span>
+            <span class="q-of">/ 30</span>
+          </div>
+          <div class="q-text">Los robots de pintura aumentan la eficiencia al reducir el tiempo de secado de los materiales.</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Identifica cuáles son los beneficios específicos de la pintura robótica listados en el texto.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="La eficiencia robótica se mide en la aplicación uniforme y el ahorro de insumos, no en las propiedades químicas de secado.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La eficiencia robótica se mide en la aplicación uniforme y el ahorro de insumos, no en las propiedades químicas de secado.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El material no menciona el tiempo de secado, sino la eficiencia en la aplicación y reducción de desperdicio.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El material no menciona el tiempo de secado, sino la eficiencia en la aplicación y reducción de desperdicio.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      </div>
+  <div class="results" id="results">
+    <h2>¡Cuestionario completado!</h2>
+    <div class="score" id="score">0%</div>
+    <div class="score-text" id="score-text"></div>
+    <button class="restart-btn" onclick="restart()">Intentar de nuevo</button>
+  </div>
+</div>
+<script>
+const quizData = [{"question":"El montaje y ensamblaje robótico se limita exclusivamente a la producción de vehículos motorizados.","hint":"Recuerda que la precisión y productividad son útiles en múltiples tipos de productos de consumo masivo.","options":[{"label":"A","text":"Verdadero","isCorrect":false,"rationale":"Aunque es un uso común, el material indica que también se aplican en la fabricación de electrodomésticos para asegurar calidad."},{"label":"B","text":"Falso","isCorrect":true,"rationale":"La robótica industrial en ensamblaje abarca diversos sectores, incluyendo electrodomésticos, para mejorar la productividad."}]},{"question":"La soldadura por resistencia es uno de los métodos utilizados en la robótica industrial manufacturera.","hint":"Considera las tres categorías principales de soldadura mencionadas en el proceso de transformación.","options":[{"label":"A","text":"Falso","isCorrect":false,"rationale":"Este método es ampliamente utilizado, especialmente en la industria automotriz y la construcción de maquinaria pesada."},{"label":"B","text":"Verdadero","isCorrect":true,"rationale":"Este tipo de soldadura es una de las tres técnicas mencionadas explícitamente como aplicaciones robóticas en la industria."}]},{"question":"Las siglas MIG en el contexto de soldadura robótica corresponden a 'Metal Integrated Gas'.","hint":"Piensa en el tipo de gas que se utiliza para proteger la zona de soldadura de la contaminación atmosférica.","options":[{"label":"A","text":"Verdadero","isCorrect":false,"rationale":"El término correcto utiliza la palabra 'Inert' para describir la naturaleza del gas utilizado en el proceso."},{"label":"B","text":"Falso","isCorrect":true,"rationale":"MIG significa 'Metal Inert Gas', haciendo referencia al uso de un gas inerte para proteger el arco de soldadura."}]},{"question":"El uso de robots en la aplicación de pintura tiene como uno de sus beneficios principales la reducción del desperdicio de materiales.","hint":"Reflexiona sobre cómo la precisión mecánica influye en el uso eficiente de los recursos líquidos.","options":[{"label":"A","text":"Falso","isCorrect":false,"rationale":"Al aplicar la pintura de forma uniforme, los robots evitan el exceso de capas y minimizan la pérdida de material."},{"label":"B","text":"Verdadero","isCorrect":true,"rationale":"La precisión y uniformidad del robot permiten optimizar el uso de los insumos en comparación con los métodos manuales."}]},{"question":"La manipulación de materiales por robots contribuye directamente a la reducción de lesiones laborales.","hint":"Analiza el impacto de automatizar tareas que implican cargar objetos pesados o movimientos repetitivos.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"Al encargarse del transporte y apilamiento, los robots evitan que los trabajadores realicen esfuerzos físicos peligrosos."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"Uno de los objetivos de la automatización en manipulación es mejorar la seguridad ocupacional mediante la ergonomía robótica."}]},{"question":"Los robots de inspección dependen exclusivamente de sensores de contacto para detectar defectos en los productos.","hint":"Piensa en qué dispositivos permiten a un robot 'ver' irregularidades en una línea de producción rápida.","options":[{"label":"A","text":"Falso","isCorrect":true,"rationale":"La inspección automática suele basarse en sistemas de visión artificial (cámaras) y sensores para garantizar estándares de calidad."},{"label":"B","text":"Verdadero","isCorrect":false,"rationale":"El material destaca que estos robots están equipados principalmente con cámaras y sensores de visión para el control de calidad."}]},{"question":"El corte robótico es una aplicación técnica que solo puede ejecutarse sobre materiales metálicos.","hint":"Considera si otras industrias, como la del mueble o juguetería, podrían beneficiarse de cortes automatizados.","options":[{"label":"A","text":"Verdadero","isCorrect":false,"rationale":"La versatilidad de los robots especializados les permite trabajar con una amplia gama de materiales más allá del metal."},{"label":"B","text":"Falso","isCorrect":true,"rationale":"Los robots industriales realizan cortes precisos en materiales diversos como metal, plástico y también madera."}]},{"question":"En el Perú, actualmente no existe ninguna empresa que utilice robots en sus procesos industriales.","hint":"Diferencia entre la ausencia total de tecnología y la existencia de una brecha comparativa con otros países.","options":[{"label":"A","text":"Falso","isCorrect":true,"rationale":"El material afirma la existencia de empresas peruanas con procesos robotizados, señalando la brecha como el problema principal."},{"label":"B","text":"Verdadero","isCorrect":false,"rationale":"Las conclusiones indican que ya hay empresas en el país usándolos, aunque todavía persiste una brecha tecnológica."}]},{"question":"El paletizado se refiere al proceso de organizar y apilar productos sobre plataformas para su transporte.","hint":"Relaciona este término con la preparación de mercancías para su envío en almacenes industriales.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"Esta función es clave en el final de la línea de producción para optimizar el flujo logístico y de almacenamiento."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"El paletizado es precisamente la acción de colocar cargas sobre palés de forma ordenada mediante sistemas automáticos."}]},{"question":"La soldadura TIG utiliza un electrodo de tungsteno para realizar el proceso de unión de materiales.","hint":"Asocia la primera letra de la sigla con el elemento químico del electrodo.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"La 'T' en TIG proviene de 'Tungsten', material del electrodo no consumible utilizado en esta técnica."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"Esta técnica se define por el uso de tungsteno y un gas inerte para crear soldaduras de alta calidad."}]},{"question":"Uno de los objetivos del aprendizaje de la sesión es que el estudiante diseñe físicamente un brazo robótico.","hint":"Revisa el 'Logro de aprendizaje' presentado al inicio de la sesión.","options":[{"label":"A","text":"Verdadero","isCorrect":false,"rationale":"El logro de la sesión se centra en conocer los tipos de aplicaciones industriales, no en el diseño de hardware."},{"label":"B","text":"Falso","isCorrect":true,"rationale":"El objetivo principal es que el estudiante sea capaz de identificar y conocer las diversas aplicaciones en la industria."}]},{"question":"El mecanizado robótico contribuye a mejorar la calidad del producto final mediante la precisión de sus movimientos.","hint":"Piensa en cómo la consistencia mecánica afecta el acabado de una pieza comparado con el trabajo manual.","options":[{"label":"A","text":"Falso","isCorrect":false,"rationale":"El mecanizado automatizado busca precisamente eliminar el error humano para elevar el estándar del producto."},{"label":"B","text":"Verdadero","isCorrect":true,"rationale":"La alta repetibilidad de los robots asegura que cada pieza mecanizada cumpla con las tolerancias exactas requeridas."}]},{"question":"La robótica aplicada al embalaje se utiliza en el sector de e-commerce para el empaquetado de pedidos.","hint":"Observa las imágenes presentadas en la sección de 'Utilidad del tema'.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"Las imágenes de utilidad muestran robots trabajando en el empaquetado de pedidos para el comercio electrónico."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"El embalaje robótico es fundamental en el e-commerce para manejar altos volúmenes de pedidos con eficiencia."}]},{"question":"La uniformidad en la pintura robótica es un factor que mejora el acabado estético de los productos.","hint":"Considera por qué los acabados de los automóviles modernos suelen ser tan perfectos y constantes.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"Al mantener una distancia y velocidad constantes, el robot evita imperfecciones como chorreaduras o zonas sin cubrir."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"Un acabado uniforme es uno de los resultados directos de la precisión programada en los brazos robóticos de pintura."}]},{"question":"La industria automotriz es el único sector donde la soldadura robótica es ampliamente utilizada.","hint":"Recuerda los otros sectores industriales mencionados además del automotriz en la diapositiva de soldadura.","options":[{"label":"A","text":"Falso","isCorrect":true,"rationale":"Además de la automotriz, sectores como la construcción de maquinaria pesada dependen fuertemente de esta tecnología."},{"label":"B","text":"Verdadero","isCorrect":false,"rationale":"El material menciona que también es fundamental en la construcción de maquinaria diversa."}]},{"question":"Los robots de manipulación organizan materiales en las fábricas para optimizar el flujo de trabajo.","hint":"Reflexiona sobre el impacto de la logística interna en la eficiencia global de una planta.","options":[{"label":"A","text":"Falso","isCorrect":false,"rationale":"La organización lógica de los materiales por robots minimiza tiempos muertos y cuellos de botella en la producción."},{"label":"B","text":"Verdadero","isCorrect":true,"rationale":"La optimización del flujo es un beneficio clave de tener materiales correctamente transportados y organizados."}]},{"question":"La inspección robótica automática ayuda a garantizar los estándares de calidad de una empresa.","hint":"Piensa en el rol del control de calidad para mantener la reputación de una marca.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"Al detectar defectos de forma constante, se evita que productos defectuosos lleguen al cliente final."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"La garantía de calidad es el propósito central de integrar visión artificial en las líneas de inspección."}]},{"question":"El material sugiere que no existen brechas tecnológicas importantes en el uso de robots en el Perú.","hint":"Busca la palabra 'brecha' en la sección de conclusiones del material.","options":[{"label":"A","text":"Falso","isCorrect":true,"rationale":"La existencia de una brecha tecnológica es uno de los puntos clave destacados en el cierre de la sesión."},{"label":"B","text":"Verdadero","isCorrect":false,"rationale":"Las conclusiones mencionan explícitamente que aún existe una brecha importante que debe cerrarse."}]},{"question":"En la soldadura TIG, el gas utilizado suele ser de tipo reactivo para acelerar el proceso.","hint":"Analiza el significado de la palabra 'Inert' en el nombre de la técnica.","options":[{"label":"A","text":"Verdadero","isCorrect":false,"rationale":"TIG significa 'Tungsten Inert Gas', lo que implica que el gas debe ser inerte, no reactivo."},{"label":"B","text":"Falso","isCorrect":true,"rationale":"El proceso requiere gases inertes (como el argón) para proteger el electrodo y la pileta líquida de la oxidación."}]},{"question":"El ensamblaje robótico garantiza una mayor productividad en comparación con los métodos puramente manuales.","hint":"Compara la capacidad de trabajo continuo de una máquina frente a la de un ser humano.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"Los robots operan a velocidades constantes y sin fatiga, lo que eleva significativamente el volumen de producción."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"La mejora de la productividad es una de las razones fundamentales para la inversión en automatización de montaje."}]},{"question":"La técnica de soldadura MIG utiliza un gas inerte en su proceso.","hint":"Asocia la letra 'I' en MIG con la propiedad química del gas empleado.","options":[{"label":"A","text":"Falso","isCorrect":false,"rationale":"La sigla misma describe el uso de un gas inerte para proteger el metal durante la soldadura."},{"label":"B","text":"Verdadero","isCorrect":true,"rationale":"Al igual que la TIG, la técnica MIG (Metal Inert Gas) depende de un escudo de gas inerte."}]},{"question":"Los robots industriales solo pueden realizar tareas en un orden secuencial fijo y no pueden ser reprogramados.","hint":"Considera la definición general de un robot industrial en términos de flexibilidad.","options":[{"label":"A","text":"Verdadero","isCorrect":false,"rationale":"Una característica esencial de la robótica industrial es su capacidad de ser reprogramada para diferentes tareas."},{"label":"B","text":"Falso","isCorrect":true,"rationale":"La flexibilidad y versatilidad para realizar diversas aplicaciones mencionadas depende de su programabilidad."}]},{"question":"La aplicación de robots permite mejorar la calidad en los procesos industriales.","hint":"Evalúa si la consistencia de las máquinas ayuda o perjudica el estándar del producto final.","options":[{"label":"A","text":"Falso","isCorrect":false,"rationale":"La mejora de la calidad es un beneficio transversal mencionado en las conclusiones para todas las aplicaciones."},{"label":"B","text":"Verdadero","isCorrect":true,"rationale":"La precisión y repetibilidad robótica minimizan variaciones que afectan negativamente la calidad."}]},{"question":"El transporte de materiales pesados dentro de una fábrica es una tarea adecuada para los robots de manipulación.","hint":"Relaciona el transporte con la prevención de lesiones mencionada en las diapositivas.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"El material indica que transportan productos para optimizar flujos y reducir riesgos físicos a humanos."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"El transporte automatizado es una función core de los sistemas robóticos de manipulación de materiales."}]},{"question":"Los robots de corte están especializados únicamente en materiales de alta dureza como el acero.","hint":"Busca la lista de materiales compatibles en la diapositiva de 'Corte y mecanizado'.","options":[{"label":"A","text":"Falso","isCorrect":true,"rationale":"La especialización del robot le permite adaptarse a la resistencia de distintos materiales, incluyendo madera."},{"label":"B","text":"Verdadero","isCorrect":false,"rationale":"Se menciona que también trabajan con materiales de menor dureza como plástico y madera."}]},{"question":"La comparativa entre México y Perú se usa para ilustrar la diferencia en la densidad de robots en la producción automotriz.","hint":"Revisa los datos numéricos presentados en la sección de 'Utilidad del tema'.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"El ejemplo de los 35 autos/hora con 115 robots resalta la importancia de la automatización en la utilidad del tema."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"Esta comparación sirve para mostrar el impacto real de la robótica en la eficiencia industrial a nivel regional."}]},{"question":"Los sistemas de control de calidad robóticos detectan defectos de forma manual.","hint":"Cuestiona si el término 'manual' es coherente con el concepto de 'automatización'.","options":[{"label":"A","text":"Verdadero","isCorrect":false,"rationale":"Estos sistemas son automáticos y utilizan tecnología de sensores para eliminar la subjetividad humana."},{"label":"B","text":"Falso","isCorrect":true,"rationale":"El material describe la inspección como 'automática', utilizando cámaras y sensores para el control."}]},{"question":"El embalaje y paletizado son procesos que ocurren generalmente al inicio de la cadena de transformación.","hint":"Piensa en el orden lógico: ¿se empaca el producto antes o después de fabricarlo?","options":[{"label":"A","text":"Falso","isCorrect":true,"rationale":"El embalaje y paletizado se ubican en la etapa final de salida para preparar el producto para su distribución."},{"label":"B","text":"Verdadero","isCorrect":false,"rationale":"Estos procesos son finales; ocurren después de que el producto ha sido fabricado e inspeccionado."}]},{"question":"La sesión práctica invita a analizar qué sectores en el Perú deberían tener prioridad en la implementación de robots.","hint":"Observa las preguntas propuestas en la diapositiva de 'Espacio Práctico'.","options":[{"label":"A","text":"Falso","isCorrect":false,"rationale":"El espacio práctico busca que el estudiante reflexione sobre la priorización de la automatización en el contexto local."},{"label":"B","text":"Verdadero","isCorrect":true,"rationale":"Esta es una de las preguntas clave diseñadas para fomentar el análisis crítico sobre la realidad nacional."}]},{"question":"Los robots de pintura aumentan la eficiencia al reducir el tiempo de secado de los materiales.","hint":"Identifica cuáles son los beneficios específicos de la pintura robótica listados en el texto.","options":[{"label":"A","text":"Falso","isCorrect":true,"rationale":"La eficiencia robótica se mide en la aplicación uniforme y el ahorro de insumos, no en las propiedades químicas de secado."},{"label":"B","text":"Verdadero","isCorrect":false,"rationale":"El material no menciona el tiempo de secado, sino la eficiencia en la aplicación y reducción de desperdicio."}]}];
+const tr = {"correct":"¡Correcto!","incorrect":"Incorrecto","next":"Siguiente pregunta →","seeResults":"Ver resultados","complete":"¡Cuestionario completado!","scoreText":"Obtuviste {correct} de {total} correctas","tryAgain":"Intentar de nuevo","rightAnswer":"Respuesta correcta","notQuite":"No del todo"};
+let currentQ = 0, correctCount = 0, answered = false;
+
+function init() {
+  document.querySelectorAll('.question').forEach((q, i) => q.classList.toggle('active', i === 0));
+  updateProgress();
+  document.querySelectorAll('.option').forEach(opt => opt.addEventListener('click', () => selectOption(opt)));
+  document.querySelectorAll('.next-btn').forEach(btn => btn.addEventListener('click', nextQuestion));
+}
+
+function selectOption(opt) {
+  if (answered) return;
+  answered = true;
+  const q = opt.closest('.question');
+  const options = q.querySelectorAll('.option');
+  const nextBtn = q.querySelector('.next-btn');
+  const isCorrect = opt.dataset.correct === 'true';
+  
+  // Mark all options as disabled
+  options.forEach(o => o.classList.add('disabled'));
+  
+  // Style selected option
+  opt.classList.add('selected', isCorrect ? 'correct' : 'incorrect');
+  
+  // Show correct answer if wrong
+  if (!isCorrect) {
+    const correctOpt = [...options].find(o => o.dataset.correct === 'true');
+    if (correctOpt) correctOpt.classList.add('show-correct');
+  }
+  
+  if (isCorrect) correctCount++;
+  
+  // Show feedback for ALL options that have rationale
+  options.forEach(o => {
+    const wrapper = o.closest('.option-wrapper');
+    const feedback = wrapper.querySelector('.option-feedback');
+    const rationale = o.dataset.rationale;
+    const isThisCorrect = o.dataset.correct === 'true';
+    
+    if (rationale && rationale.trim()) {
+      feedback.classList.remove('hidden');
+      feedback.classList.add(isThisCorrect ? 'correct-feedback' : 'incorrect-feedback');
+      
+      const statusEl = feedback.querySelector('.feedback-status');
+      statusEl.className = 'feedback-status ' + (isThisCorrect ? 'correct' : 'incorrect');
+      statusEl.innerHTML = isThisCorrect 
+        ? '✓ ' + tr.rightAnswer
+        : '✗ ' + tr.notQuite;
+    }
+  });
+  
+  nextBtn.classList.remove('hidden');
+  if (currentQ === quizData.length - 1) nextBtn.textContent = tr.seeResults;
+}
+
+function nextQuestion() {
+  answered = false;
+  currentQ++;
+  if (currentQ >= quizData.length) { showResults(); return; }
+  document.querySelectorAll('.question').forEach((q, i) => q.classList.toggle('active', i === currentQ));
+  updateProgress();
+}
+
+function updateProgress() {
+  document.querySelector('.progress-fill').style.width = (currentQ / quizData.length * 100) + '%';
+}
+
+function showResults() {
+  document.querySelectorAll('.question').forEach(q => q.classList.remove('active'));
+  document.getElementById('results').classList.add('active');
+  const pct = Math.round((correctCount / quizData.length) * 100);
+  document.getElementById('score').textContent = pct + '%';
+  document.getElementById('score-text').textContent = tr.scoreText.replace('{correct}', correctCount).replace('{total}', quizData.length);
+  document.querySelector('.progress-fill').style.width = '100%';
+}
+
+function restart() {
+  currentQ = 0; correctCount = 0; answered = false;
+  document.getElementById('results').classList.remove('active');
+  document.querySelectorAll('.question').forEach((q, i) => {
+    q.classList.toggle('active', i === 0);
+    q.querySelectorAll('.option').forEach(o => o.classList.remove('selected', 'correct', 'incorrect', 'disabled', 'show-correct'));
+    q.querySelectorAll('.option-feedback').forEach(f => {
+      f.classList.add('hidden');
+      f.classList.remove('correct-feedback', 'incorrect-feedback');
+    });
+    const btn = q.querySelector('.next-btn');
+    btn.classList.add('hidden');
+    btn.textContent = tr.next;
+  });
+  updateProgress();
+}
+
+init();
+</script>
+</body>
+</html>
