@@ -1,0 +1,1830 @@
+<!DOCTYPE html>
+<html lang="es" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>S12 - GCA</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  min-height: 100vh; padding: 20px; color: #333;
+}
+.container { max-width: 700px; margin: 0 auto; }
+.header { text-align: center; color: #fff; padding: 30px 20px; }
+.header h1 { font-size: 28px; font-weight: 700; margin-bottom: 8px; text-shadow: 0 2px 10px rgba(0,0,0,0.2); }
+.header .meta { font-size: 14px; opacity: 0.9; }
+.progress-bar { background: rgba(255,255,255,0.3); border-radius: 10px; height: 8px; margin: 20px 0; overflow: hidden; }
+.progress-fill { background: #fff; height: 100%; width: 0%; transition: width 0.4s ease; border-radius: 10px; }
+.question { background: #fff; border-radius: 16px; padding: 30px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); display: none; }
+.question.active { display: block; }
+.q-header { display: flex; justify-content: space-between; margin-bottom: 20px; font-size: 13px; color: #888; }
+.q-number { font-weight: 600; color: #667eea; }
+.q-text { font-size: 18px; font-weight: 600; line-height: 1.5; margin-bottom: 25px; color: #222; }
+.options { display: flex; flex-direction: column; gap: 12px; }
+.option-wrapper { display: flex; flex-direction: column; }
+.option {
+  display: flex; align-items: flex-start; gap: 14px; padding: 16px 18px;
+  border: 2px solid #e8e8e8; border-radius: 12px; background: #fafafa;
+  cursor: pointer; transition: all 0.2s; text-align: left; font-size: 15px; width: 100%;
+}
+[dir="rtl"] .option { text-align: right; flex-direction: row-reverse; }
+.option:hover:not(.disabled) { border-color: #667eea; background: #f5f3ff; }
+.option.selected { border-color: #667eea; background: #ede9fe; }
+.option.correct { border-color: #22c55e; background: #dcfce7; }
+.option.incorrect { border-color: #ef4444; background: #fee2e2; }
+.option.disabled { cursor: default; }
+.option.show-correct { border-color: #22c55e; background: #dcfce7; }
+.opt-label {
+  display: flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; border-radius: 50%; background: #e8e8e8;
+  font-weight: 700; font-size: 14px; flex-shrink: 0;
+}
+.option.selected .opt-label { background: #667eea; color: #fff; }
+.option.correct .opt-label { background: #22c55e; color: #fff; }
+.option.incorrect .opt-label { background: #ef4444; color: #fff; }
+.option.show-correct .opt-label { background: #22c55e; color: #fff; }
+.opt-text { padding-top: 5px; line-height: 1.5; }
+
+/* Individual option feedback */
+.option-feedback {
+  margin: 8px 0 4px 46px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+[dir="rtl"] .option-feedback { margin-left: 0; margin-right: 46px; }
+.option-feedback.correct-feedback {
+  background: #dcfce7;
+  border-left: 3px solid #22c55e;
+}
+.option-feedback.incorrect-feedback {
+  background: #fef3f2;
+  border-left: 3px solid #fca5a5;
+}
+[dir="rtl"] .option-feedback.correct-feedback,
+[dir="rtl"] .option-feedback.incorrect-feedback {
+  border-left: none;
+  border-right: 3px solid;
+}
+[dir="rtl"] .option-feedback.correct-feedback { border-right-color: #22c55e; }
+[dir="rtl"] .option-feedback.incorrect-feedback { border-right-color: #fca5a5; }
+.feedback-status {
+  font-weight: 600;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.feedback-status.correct { color: #166534; }
+.feedback-status.incorrect { color: #991b1b; }
+.feedback-rationale { color: #444; }
+
+/* Hint box */
+.hint-box {
+  margin: 12px 0;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+}
+.hint-toggle {
+  width: 100%;
+  padding: 10px 16px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  color: #92400e;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.hint-toggle:hover { background: #fef3c7; }
+.hint-content {
+  padding: 0 16px;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s, padding 0.3s;
+  font-size: 14px;
+  color: #78350f;
+  line-height: 1.5;
+}
+.hint-box.show .hint-content {
+  padding: 0 16px 12px;
+  max-height: 200px;
+}
+
+.next-btn {
+  margin-top: 20px; width: 100%; padding: 14px;
+  background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; border: none;
+  border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.next-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(102,126,234,0.4); }
+.hidden { display: none !important; }
+.results { background: #fff; border-radius: 16px; padding: 40px; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.15); display: none; }
+.results.active { display: block; }
+.results h2 { font-size: 28px; margin-bottom: 10px; color: #333; }
+.results .score { font-size: 64px; font-weight: 700; color: #667eea; margin: 20px 0; }
+.results .score-text { font-size: 18px; color: #666; margin-bottom: 30px; }
+.restart-btn {
+  padding: 14px 40px; background: linear-gradient(135deg, #667eea, #764ba2);
+  color: #fff; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer;
+}
+
+/* Math CSS */
+.math, .math-block { font-family: "Cambria Math", "Times New Roman", Times, serif; font-style: italic; }
+.math-block { display: block; text-align: center; margin: 10px 0; font-size: 110%; }
+.frac { display: inline-flex; flex-direction: column; align-items: center; vertical-align: middle; margin: 0 3px; font-size: 0.9em; }
+.frac-num { border-bottom: 1px solid currentColor; padding: 0 4px 2px; line-height: 1.2; }
+.frac-den { padding: 2px 4px 0; line-height: 1.2; }
+.sqrt { white-space: nowrap; }
+.sqrt-content { border-top: 1px solid currentColor; padding: 0 3px; margin-left: 2px; }
+sup, sub { font-size: 0.75em; }
+sup { vertical-align: super; }
+sub { vertical-align: sub; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>S12 - GCA</h1>
+    <div class="meta">27 preguntas</div>
+    <div class="progress-bar"><div class="progress-fill"></div></div>
+  </div>
+  <div id="quiz-container">
+        <div class="question" data-index="0">
+          <div class="q-header">
+            <span class="q-number">Pregunta 1</span>
+            <span class="q-of">/ 27</span>
+          </div>
+          <div class="q-text">¿Cuál es la característica principal que define el flujo de la logística inversa en comparación con la logística tradicional?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considere la dirección en la que se desplaza el bien una vez que llega a manos del usuario.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Esta dirección de flujo inverso busca recuperar el valor del producto o asegurar su eliminación adecuada, cerrando el ciclo de la cadena de suministro.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">El retorno de materiales o productos desde el consumidor final hacia el fabricante o distribuidor.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esta dirección de flujo inverso busca recuperar el valor del producto o asegurar su eliminación adecuada, cerrando el ciclo de la cadena de suministro.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El almacenamiento es una función logística estándar, pero no define la naturaleza inversa de la recuperación de productos desde el cliente.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">El almacenamiento prolongado de productos terminados en centros de distribución minoristas.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El almacenamiento es una función logística estándar, pero no define la naturaleza inversa de la recuperación de productos desde el cliente.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Aunque el manejo de residuos es parte de la logística inversa, esta no se limita únicamente a desechos biológicos ni solo a la fase de manufactura.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">La gestión exclusiva de residuos biológicos generados en procesos de manufactura industrial.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aunque el manejo de residuos es parte de la logística inversa, esta no se limita únicamente a desechos biológicos ni solo a la fase de manufactura.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Este concepto describe la logística directa o de entrada, enfocada en el abastecimiento inicial y no en el retorno de productos post-consumo.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">La distribución acelerada de materias primas desde los proveedores hacia las plantas de fabricación.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Este concepto describe la logística directa o de entrada, enfocada en el abastecimiento inicial y no en el retorno de productos post-consumo.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="1">
+          <div class="q-header">
+            <span class="q-number">Pregunta 2</span>
+            <span class="q-of">/ 27</span>
+          </div>
+          <div class="q-text">Dentro de los objetivos estratégicos de la logística inversa, ¿qué implica específicamente la 'sustitución de materiales'?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piense en cómo el diseño del producto puede facilitar su reintegración al ciclo productivo.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Esto describe un proceso de garantía o servicio post-venta, pero la sustitución de materiales como objetivo se refiere a la composición física del insumo.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Intercambiar productos defectuosos por unidades nuevas para mantener la satisfacción del cliente.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esto describe un proceso de garantía o servicio post-venta, pero la sustitución de materiales como objetivo se refiere a la composición física del insumo.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="La eliminación total es poco factible en la mayoría de industrias; el objetivo suele ser la reducción o el uso de materiales alternativos más sostenibles.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Eliminar por completo el uso de empaques para evitar la generación de cualquier residuo sólido.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La eliminación total es poco factible en la mayoría de industrias; el objetivo suele ser la reducción o el uso de materiales alternativos más sostenibles.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="La selección de proveedores es una decisión de compras estratégicas, no necesariamente vinculada a la mejora del ciclo inverso del producto.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Cambiar proveedores locales por internacionales para reducir costos de materia prima natural.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La selección de proveedores es una decisión de compras estratégicas, no necesariamente vinculada a la mejora del ciclo inverso del producto.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="true" data-rationale="Este objetivo busca mejorar la sostenibilidad del producto desde su diseño, facilitando procesos posteriores de reciclaje o reutilización.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Reemplazar componentes por otros que tengan un menor impacto ambiental o sean más fáciles de recuperar.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Este objetivo busca mejorar la sostenibilidad del producto desde su diseño, facilitando procesos posteriores de reciclaje o reutilización.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="2">
+          <div class="q-header">
+            <span class="q-number">Pregunta 3</span>
+            <span class="q-of">/ 27</span>
+          </div>
+          <div class="q-text">¿Cómo se clasifican los actores que ejecutan específicamente procesos de transporte de logística inversa o recicladores?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Se refiere a entidades que tienen una función técnica y dirigida exclusivamente a la logística inversa.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Aunque regulan el proceso, no se clasifican como ejecutores operativos de reciclaje o transporte especializado dentro de la terminología del material.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Actores Gubernamentales</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aunque regulan el proceso, no se clasifican como ejecutores operativos de reciclaje o transporte especializado dentro de la terminología del material.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Estos actores poseen la infraestructura y conocimientos técnicos necesarios para tareas específicas de recuperación y procesamiento de materiales.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Actores Especializados</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Estos actores poseen la infraestructura y conocimientos técnicos necesarios para tareas específicas de recuperación y procesamiento de materiales.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Este grupo suele incluir a entidades externas como ONGs o grupos ambientalistas que influyen en la percepción, pero no ejecutan la operación logística directa.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Actores Relacionados</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Este grupo suele incluir a entidades externas como ONGs o grupos ambientalistas que influyen en la percepción, pero no ejecutan la operación logística directa.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Los actores principales son los eslabones estándar de la cadena (productor, minorista, cliente), mientras que estos realizan funciones de soporte técnico.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Actores Principales</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Los actores principales son los eslabones estándar de la cadena (productor, minorista, cliente), mientras que estos realizan funciones de soporte técnico.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="3">
+          <div class="q-header">
+            <span class="q-number">Pregunta 4</span>
+            <span class="q-of">/ 27</span>
+          </div>
+          <div class="q-text">Verdadero o Falso: La gestión de devoluciones debe diseñarse únicamente para minimizar las pérdidas económicas de la empresa fabricante.</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Analice si el proceso tiene un enfoque unilateral o bilateral entre los involucrados.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="El material indica que el sistema de gestión de devoluciones debe servir equilibradamente tanto al cliente como a la empresa.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El material indica que el sistema de gestión de devoluciones debe servir equilibradamente tanto al cliente como a la empresa.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Enfocarse solo en la empresa ignoraría la satisfacción del cliente, lo cual es crítico para la competitividad a largo plazo.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Enfocarse solo en la empresa ignoraría la satisfacción del cliente, lo cual es crítico para la competitividad a largo plazo.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="4">
+          <div class="q-header">
+            <span class="q-number">Pregunta 5</span>
+            <span class="q-of">/ 27</span>
+          </div>
+          <div class="q-text">En el contexto de la logística inversa, ¿cuál es la diferencia fundamental entre un 'residuo' y un producto en proceso de 'reciclaje'?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considere la noción de 'valor' y 'utilidad' mencionada en las definiciones del material.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="El reciclaje es una intervención activa para recuperar valor, mientras que el residuo es el estado final de una sustancia que se considera sin provecho.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">El residuo carece de utilidad o valor inmediato y se desecha, mientras que el reciclaje busca aprovechar el material residual.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El reciclaje es una intervención activa para recuperar valor, mientras que el residuo es el estado final de una sustancia que se considera sin provecho.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Tanto residuos como materiales para reciclaje pueden ser naturales o artificiales; la distinción radica en su gestión y valor potencial.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">El residuo es siempre de origen natural, mientras que los materiales reciclados son exclusivamente sintéticos.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Tanto residuos como materiales para reciclaje pueden ser naturales o artificiales; la distinción radica en su gestión y valor potencial.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Muchos residuos terminan en disposición final (vertederos) sin pasar por reciclaje debido a limitaciones técnicas o económicas.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">No existe diferencia, ya que todos los residuos son automáticamente considerados materia prima para el reciclaje.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Muchos residuos terminan en disposición final (vertederos) sin pasar por reciclaje debido a limitaciones técnicas o económicas.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="La reparación es 'recuperación', mientras que el reciclaje implica procesar el material para crear algo nuevo, no solo arreglarlo.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">El reciclaje se refiere solo a la reparación del producto, mientras que el residuo se refiere a su destrucción total.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La reparación es 'recuperación', mientras que el reciclaje implica procesar el material para crear algo nuevo, no solo arreglarlo.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="5">
+          <div class="q-header">
+            <span class="q-number">Pregunta 6</span>
+            <span class="q-of">/ 27</span>
+          </div>
+          <div class="q-text">¿Cuál de las siguientes causas de devolución se considera un error interno de la cadena de suministro previo a la entrega?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piense en situaciones donde el producto entregado no coincide con lo solicitado por el comprador.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Aunque genera logística inversa, se considera gestión de inventario u obsolescencia, no un error de entrega específico.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Caducidad natural de un producto que no fue vendido por el minorista.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aunque genera logística inversa, se considera gestión de inventario u obsolescencia, no un error de entrega específico.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Si el daño ocurre después de la entrega y por mal uso, no se clasifica como una causa de logística inversa imputable al proceso de entrega.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Daños ocurridos exclusivamente durante el uso del producto por el usuario final.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Si el daño ocurre después de la entrega y por mal uso, no se clasifica como una causa de logística inversa imputable al proceso de entrega.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="true" data-rationale="Este es un fallo operativo directo en el proceso de despacho y distribución que genera la necesidad de un flujo inverso.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Entrega errónea de los productos.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Este es un fallo operativo directo en el proceso de despacho y distribución que genera la necesidad de un flujo inverso.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Esta es una causa externa basada en la percepción del consumidor, no necesariamente en un fallo procedimental de la empresa.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Cambio de opinión del cliente.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esta es una causa externa basada en la percepción del consumidor, no necesariamente en un fallo procedimental de la empresa.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="6">
+          <div class="q-header">
+            <span class="q-number">Pregunta 7</span>
+            <span class="q-of">/ 27</span>
+          </div>
+          <div class="q-text">En el caso de la planta CopenHill, ¿cuál es el beneficio principal que aporta a la ciudad además del procesamiento de residuos?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Reflexione sobre la utilidad pública mencionada en las palabras clave del video de Copenhague.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Aunque es un edificio 'verde', su función principal es industrial y recreativa (pista de esquí), no es una reserva natural protegida.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">La creación de una reserva natural para la protección de especies en peligro.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aunque es un edificio 'verde', su función principal es industrial y recreativa (pista de esquí), no es una reserva natural protegida.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El material destaca la generación de energía y el procesamiento de residuos, no menciona la fertilización como su aporte principal.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">La producción masiva de fertilizantes orgánicos para la agricultura local.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El material destaca la generación de energía y el procesamiento de residuos, no menciona la fertilización como su aporte principal.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="true" data-rationale="La planta utiliza turbinas para generar energía ($63\text{ MWh}$), transformando la basura en un recurso valioso para la comunidad.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Generación de energía limpia para atender a cientos de miles de personas.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La planta utiliza turbinas para generar energía (<span class="math">63text MWh</span>), transformando la basura en un recurso valioso para la comunidad.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="CopenHill se enfoca en la conversión de residuos en energía, no en la manufactura de piezas industriales de metal.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">La fabricación de componentes metálicos reciclados para la industria automotriz.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">CopenHill se enfoca en la conversión de residuos en energía, no en la manufactura de piezas industriales de metal.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="7">
+          <div class="q-header">
+            <span class="q-number">Pregunta 8</span>
+            <span class="q-of">/ 27</span>
+          </div>
+          <div class="q-text">¿Cuál es un beneficio directo del reciclaje según los conceptos de sostenibilidad presentados?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piense en las ventajas a nivel macro-ambiental que conlleva el aprovechamiento de residuos.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="El reciclaje trata sobre el fin del ciclo de vida; no influye directamente en la calidad intrínseca del proceso de ensamblaje de nuevos productos.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Garantía de que los productos nunca presentarán defectos de fabricación.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El reciclaje trata sobre el fin del ciclo de vida; no influye directamente en la calidad intrínseca del proceso de ensamblaje de nuevos productos.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Aunque puede generar ingresos, el reciclaje a menudo conlleva costos operativos altos que no garantizan un aumento inmediato de márgenes.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Aumento inmediato de los márgenes de ganancia bruta por la venta de chatarra.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aunque puede generar ingresos, el reciclaje a menudo conlleva costos operativos altos que no garantizan un aumento inmediato de márgenes.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="El material reciclado aún requiere transporte hacia las plantas procesadoras, por lo que la logística sigue siendo necesaria.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Eliminación total de la necesidad de transporte de larga distancia.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El material reciclado aún requiere transporte hacia las plantas procesadoras, por lo que la logística sigue siendo necesaria.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="true" data-rationale="Al recuperar materiales, se reduce la necesidad de extraer nueva materia prima y se consumen menos recursos energéticos en comparación con la producción desde cero.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Ahorro de energía y preservación de recursos naturales.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Al recuperar materiales, se reduce la necesidad de extraer nueva materia prima y se consumen menos recursos energéticos en comparación con la producción desde cero.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="8">
+          <div class="q-header">
+            <span class="q-number">Pregunta 9</span>
+            <span class="q-of">/ 27</span>
+          </div>
+          <div class="q-text">De acuerdo con el ciclo de la logística inversa, ¿qué actividad sucede inmediatamente después del 'Fin del ciclo de vida del producto'?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Visualice el diagrama circular de la sesión; identifique el paso que conecta al usuario con la empresa.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Aunque es una opción, la 'recogida' es el paso logístico fundamental necesario para cualquier destino posterior tras el fin de vida.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Venta en mercados secundarios.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aunque es una opción, la 'recogida' es el paso logístico fundamental necesario para cualquier destino posterior tras el fin de vida.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Para reutilizar o fabricar algo nuevo, primero se debe haber recolectado y clasificado el producto antiguo.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Reutilización y fabricación.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Para reutilizar o fabricar algo nuevo, primero se debe haber recolectado y clasificado el producto antiguo.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Esta es la fase de la logística directa que ocurre cuando el producto ya está listo para el consumidor, no cuando termina su vida.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Comercialización y distribución.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esta es la fase de la logística directa que ocurre cuando el producto ya está listo para el consumidor, no cuando termina su vida.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="true" data-rationale="Una vez que el producto termina su vida útil, debe ser recolectado y agrupado para ser enviado a las fases de procesamiento o eliminación.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Recogida y consolidación.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Una vez que el producto termina su vida útil, debe ser recolectado y agrupado para ser enviado a las fases de procesamiento o eliminación.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="9">
+          <div class="q-header">
+            <span class="q-number">Pregunta 10</span>
+            <span class="q-of">/ 27</span>
+          </div>
+          <div class="q-text">¿Qué objetivo de la logística inversa se enfoca en la etapa inicial de adquisición de suministros?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Busque el primer punto de la lista de los 5 objetivos de la logística inversa.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Este objetivo asegura que desde el origen se elijan insumos que permitan una gestión inversa más eficiente y menos contaminante.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Compras responsables.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Este objetivo asegura que desde el origen se elijan insumos que permitan una gestión inversa más eficiente y menos contaminante.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Aunque está relacionado, las 'compras responsables' es el término específico para la estrategia de adquisición consciente.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Reducción de insumos en estado natural.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aunque está relacionado, las 'compras responsables' es el término específico para la estrategia de adquisición consciente.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="La gestión de residuos se enfoca principalmente en la fase final del proceso, no en la adquisición inicial.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Gestión de residuos.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La gestión de residuos se enfoca principalmente en la fase final del proceso, no en la adquisición inicial.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="La sustitución es un cambio en el diseño o composición, mientras que las compras responsables se refieren al acto de suministro.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Sustitución de materiales.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La sustitución es un cambio en el diseño o composición, mientras que las compras responsables se refieren al acto de suministro.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="10">
+          <div class="q-header">
+            <span class="q-number">Pregunta 11</span>
+            <span class="q-of">/ 27</span>
+          </div>
+          <div class="q-text">Verdadero o Falso: Los vertederos controlados se consideran la opción de 'Disposición Final' más deseable dentro de una estrategia de economía circular ideal.</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considere si enviar materiales a un vertedero permite 'maximizar su valor' como dice el logro de la sesión.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Aunque es una forma de manejo, la meta de la logística inversa es maximizar el valor y minimizar el desperdicio, lo cual contradice el entierro de desechos.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aunque es una forma de manejo, la meta de la logística inversa es maximizar el valor y minimizar el desperdicio, lo cual contradice el entierro de desechos.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="En la jerarquía de sostenibilidad, el reciclaje y la reutilización son preferibles a la disposición final en vertederos, que es el último recurso.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">En la jerarquía de sostenibilidad, el reciclaje y la reutilización son preferibles a la disposición final en vertederos, que es el último recurso.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="11">
+          <div class="q-header">
+            <span class="q-number">Pregunta 12</span>
+            <span class="q-of">/ 27</span>
+          </div>
+          <div class="q-text">¿Cuál es la función de los 'Actores Relacionados' en el ecosistema de la logística inversa?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Recuerde los ejemplos dados (ONGs, ambientalistas) y qué tipo de impacto tienen en el proceso.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Este actor actuaría como un minorista de segunda mano o gestor de recuperación, integrándose más a la fase operativa que a la de influencia ambiental.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Comprar productos usados para su posterior reventa en mercados de pulgas.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Este actor actuaría como un minorista de segunda mano o gestor de recuperación, integrándose más a la fase operativa que a la de influencia ambiental.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Esta es una función técnica de soporte que realizaría un proveedor de servicios especializados, no un actor 'relacionado' como una ONG.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Gestionar el software de seguimiento de devoluciones para el minorista.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esta es una función técnica de soporte que realizaría un proveedor de servicios especializados, no un actor 'relacionado' como una ONG.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Los fabricantes de empaques son proveedores, categorizados generalmente como actores principales en la cadena de suministro.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Fabricar los empaques biodegradables que utiliza el productor principal.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Los fabricantes de empaques son proveedores, categorizados generalmente como actores principales en la cadena de suministro.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="true" data-rationale="Entidades como ONGs presionan a las empresas para adoptar prácticas sostenibles, aunque no participen en el transporte de la mercancía.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Influir en la responsabilidad social y ambiental a través de la vigilancia y el activismo.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Entidades como ONGs presionan a las empresas para adoptar prácticas sostenibles, aunque no participen en el transporte de la mercancía.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="12">
+          <div class="q-header">
+            <span class="q-number">Pregunta 13</span>
+            <span class="q-of">/ 27</span>
+          </div>
+          <div class="q-text">El proyecto de H&amp;M mencionado en clase utiliza máquinas para convertir ropa usada en prendas nuevas. ¿Cuál es la escala aproximada de producción de ropa que se menciona como contexto del problema?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Busque el número específico asociado a las 'palabras clave' en la diapositiva sobre reciclaje de ropa.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Esta cantidad subestima el volumen de producción que motiva la implementación de tecnologías de recuperación en esta empresa.">
+            <span class="opt-label">A</span>
+            <span class="opt-text"><span class="math">50,000</span> toneladas.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esta cantidad subestima el volumen de producción que motiva la implementación de tecnologías de recuperación en esta empresa.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Esta cifra ilustra la magnitud del desafío de la 'moda rápida' y la necesidad de sistemas de reciclaje de circuito cerrado.">
+            <span class="opt-label">B</span>
+            <span class="opt-text"><span class="math">100,000</span> toneladas.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esta cifra ilustra la magnitud del desafío de la 'moda rápida' y la necesidad de sistemas de reciclaje de circuito cerrado.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Aunque la industria es vasta, el dato específico resaltado en las palabras clave del material apunta a las cien mil toneladas.">
+            <span class="opt-label">C</span>
+            <span class="opt-text"><span class="math">1,000,000</span> toneladas.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aunque la industria es vasta, el dato específico resaltado en las palabras clave del material apunta a las cien mil toneladas.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Esta cifra es significativamente menor al impacto real descrito en el material sobre la industria de la confección.">
+            <span class="opt-label">D</span>
+            <span class="opt-text"><span class="math">10,000</span> toneladas.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esta cifra es significativamente menor al impacto real descrito en el material sobre la industria de la confección.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="13">
+          <div class="q-header">
+            <span class="q-number">Pregunta 14</span>
+            <span class="q-of">/ 27</span>
+          </div>
+          <div class="q-text">¿Qué elemento es fundamental para que la implementación de la logística inversa sea exitosa según las conclusiones de la sesión?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Revise la última diapositiva de conclusiones y recomendaciones.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="El material afirma que estos factores, junto con los costos, determinan la viabilidad y profundidad de los procesos logísticos inversos.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Las regulaciones gubernamentales y la responsabilidad social.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El material afirma que estos factores, junto con los costos, determinan la viabilidad y profundidad de los procesos logísticos inversos.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Los minoristas son actores clave para la recolección; eliminarlos dificultaría el retorno de productos por parte del cliente.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">La eliminación absoluta de todos los distribuidores minoristas.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Los minoristas son actores clave para la recolección; eliminarlos dificultaría el retorno de productos por parte del cliente.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="El tipo de energía no es un requisito determinante para la logística inversa en sí; se busca eficiencia energética en general.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">El uso exclusivo de energía nuclear en las plantas de reciclaje.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El tipo de energía no es un requisito determinante para la logística inversa en sí; se busca eficiencia energética en general.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Al contrario, la responsabilidad social y la presión de grupos ambientales son motores que impulsan a las empresas a ser más eficientes.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Ignorar las preferencias de los ambientalistas para reducir costos operativos.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Al contrario, la responsabilidad social y la presión de grupos ambientales son motores que impulsan a las empresas a ser más eficientes.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="14">
+          <div class="q-header">
+            <span class="q-number">Pregunta 15</span>
+            <span class="q-of">/ 27</span>
+          </div>
+          <div class="q-text">¿Cuál es un motivo común de devolución que NO implica una falla en la calidad física del producto?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considere qué factor de devolución depende exclusivamente de la voluntad del cliente.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Esto constituye una falla de calidad de fabricación que invalida el estado óptimo del bien físico.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Defectos de origen detectados al desempacar.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esto constituye una falla de calidad de fabricación que invalida el estado óptimo del bien físico.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El daño físico durante el traslado afecta la integridad del producto, siendo una falla logística tangible.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Daños severos durante el transporte.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El daño físico durante el traslado afecta la integridad del producto, siendo una falla logística tangible.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="true" data-rationale="El producto puede estar en perfectas condiciones, pero el cliente decide que ya no lo quiere, activando el flujo inverso por motivos subjetivos.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Cambio de opinión del consumidor.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El producto puede estar en perfectas condiciones, pero el cliente decide que ya no lo quiere, activando el flujo inverso por motivos subjetivos.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Cualquier problema técnico o de funcionamiento se categoriza como un defecto físico o de diseño.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Funcionamiento intermitente de los circuitos electrónicos.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Cualquier problema técnico o de funcionamiento se categoriza como un defecto físico o de diseño.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="15">
+          <div class="q-header">
+            <span class="q-number">Pregunta 16</span>
+            <span class="q-of">/ 27</span>
+          </div>
+          <div class="q-text">Dentro del ciclo de la logística inversa, ¿en qué etapa se encuentra la actividad de 'Inspección y Clasificación'?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piense en el momento en que se recibe el producto de vuelta y se debe decidir su destino.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="La inspección en esta fase es de control de calidad de salida, no de clasificación para recuperación post-consumo.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Comercialización y distribución inicial.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La inspección en esta fase es de control de calidad de salida, no de clasificación para recuperación post-consumo.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="La interacción de venta es para entregar el producto; la clasificación ocurre una vez que el producto ha sido devuelto o ha fallado.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Interacción inicial de venta con el cliente.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La interacción de venta es para entregar el producto; la clasificación ocurre una vez que el producto ha sido devuelto o ha fallado.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="true" data-rationale="En esta fase se decide si el producto será reparado, reciclado o desechado basándose en su estado actual.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Recogida y consolidación (específicamente en el centro del operador).</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">En esta fase se decide si el producto será reparado, reciclado o desechado basándose en su estado actual.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="La clasificación ocurre sobre productos devueltos o usados, mucho antes de que sus materiales vuelvan a ser parte de una fabricación nueva.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Fabricación de partes primarias.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La clasificación ocurre sobre productos devueltos o usados, mucho antes de que sus materiales vuelvan a ser parte de una fabricación nueva.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="16">
+          <div class="q-header">
+            <span class="q-number">Pregunta 17</span>
+            <span class="q-of">/ 27</span>
+          </div>
+          <div class="q-text">Verdadero o Falso: La logística inversa es considerada una parte integral de la estrategia competitiva de las empresas modernas.</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Consulte el 'Logro de aprendizaje de la sesión' al inicio del material.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Tratarla como algo ajeno a la estrategia restaría eficiencia y dañaría la imagen de sostenibilidad de la organización.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Tratarla como algo ajeno a la estrategia restaría eficiencia y dañaría la imagen de sostenibilidad de la organización.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="El logro de aprendizaje indica que esta gestión maximiza el valor y minimiza el impacto ambiental como parte de la competitividad.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El logro de aprendizaje indica que esta gestión maximiza el valor y minimiza el impacto ambiental como parte de la competitividad.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="17">
+          <div class="q-header">
+            <span class="q-number">Pregunta 18</span>
+            <span class="q-of">/ 27</span>
+          </div>
+          <div class="q-text">¿Cuál es el propósito de la 'Reducción de insumos en estado natural' como objetivo de la logística inversa?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Relacione este objetivo con la preservación del medio ambiente y el uso de materiales reciclados.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Al reciclar y reutilizar, se evita agotar recursos naturales no renovables o limitados.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Disminuir la dependencia de la extracción de materias primas vírgenes mediante el uso de materiales recuperados.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Al reciclar y reutilizar, se evita agotar recursos naturales no renovables o limitados.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Aunque es una práctica verde, el objetivo de reducción de insumos naturales se refiere a los materiales del producto, no solo al combustible del transporte.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Sustituir el transporte terrestre por medios que no requieran combustibles fósiles.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aunque es una práctica verde, el objetivo de reducción de insumos naturales se refiere a los materiales del producto, no solo al combustible del transporte.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="La miniaturización es una tendencia de diseño, pero no es el enfoque principal de 'insumos naturales' en la logística de recuperación.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Reducir el tamaño físico de los productos para que ocupen menos espacio en los almacenes.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La miniaturización es una tendencia de diseño, pero no es el enfoque principal de 'insumos naturales' en la logística de recuperación.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="La logística inversa gestiona el flujo de materiales existentes, no interviene directamente en los ciclos biológicos de crecimiento de recursos.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Aumentar la velocidad de crecimiento de los árboles en las zonas de extracción forestal.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La logística inversa gestiona el flujo de materiales existentes, no interviene directamente en los ciclos biológicos de crecimiento de recursos.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="18">
+          <div class="q-header">
+            <span class="q-number">Pregunta 19</span>
+            <span class="q-of">/ 27</span>
+          </div>
+          <div class="q-text">En la gestión de residuos, ¿a qué se refiere el término 'Disposición final'?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piense en qué sucede con la basura que ya no tiene ninguna posibilidad de ser reciclada.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Es el punto final donde el material sale del ciclo productivo para ser almacenado o destruido permanentemente.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Al destino último de los materiales que no pudieron ser recuperados, como vertederos o incineración.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Es el punto final donde el material sale del ciclo productivo para ser almacenado o destruido permanentemente.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El empaquetado es una fase de la logística directa que precede al consumo.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Al proceso de empaquetado para el envío al cliente minorista.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El empaquetado es una fase de la logística directa que precede al consumo.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Las liquidaciones son una estrategia comercial de ventas, no un método de gestión de desechos o residuos.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">A la venta de productos en liquidación por cierre de temporada.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Las liquidaciones son una estrategia comercial de ventas, no un método de gestión de desechos o residuos.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Eso es consumo final, no disposición de residuos; la disposición ocurre después de que el producto deja de ser útil.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Al estante final donde el consumidor coloca el producto en su hogar.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Eso es consumo final, no disposición de residuos; la disposición ocurre después de que el producto deja de ser útil.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="19">
+          <div class="q-header">
+            <span class="q-number">Pregunta 20</span>
+            <span class="q-of">/ 27</span>
+          </div>
+          <div class="q-text">Verdadero o Falso: Una 'Etapa de la cadena de suministro' es una definición válida para la logística inversa.</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Revise el primer punto de la 'Definición de Logística inversa'.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Es una fase crítica que complementa a la logística directa para formar una cadena de suministro circular.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Es una fase crítica que complementa a la logística directa para formar una cadena de suministro circular.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="El material define explícitamente a la logística inversa como una etapa donde el producto regresa al punto de origen.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El material define explícitamente a la logística inversa como una etapa donde el producto regresa al punto de origen.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="20">
+          <div class="q-header">
+            <span class="q-number">Pregunta 21</span>
+            <span class="q-of">/ 27</span>
+          </div>
+          <div class="q-text">¿Qué papel juegan los 'Minoristas' en el ciclo inverso de los productos?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considere la ubicación física de las tiendas minoristas respecto al consumidor final.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Al estar en contacto directo con el consumidor, facilitan la entrada de los productos al flujo de retorno.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Sirven como puntos de recolección inicial donde el cliente entrega los productos devueltos.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Al estar en contacto directo con el consumidor, facilitan la entrada de los productos al flujo de retorno.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="La incineración es una tarea técnica de gestores de residuos especializados, no de tiendas minoristas.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Son los encargados exclusivos de incinerar los residuos peligrosos de las fábricas.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La incineración es una tarea técnica de gestores de residuos especializados, no de tiendas minoristas.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Esta es la función de los proveedores de primer nivel, situados en el extremo opuesto del flujo inverso.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Se encargan de extraer la materia prima de la naturaleza para el fabricante.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esta es la función de los proveedores de primer nivel, situados en el extremo opuesto del flujo inverso.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="El diseño y la ingeniería son responsabilidades del productor o fabricante, no de los canales de venta minorista.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Diseñan la ingeniería de los motores para que sean más fáciles de reciclar.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El diseño y la ingeniería son responsabilidades del productor o fabricante, no de los canales de venta minorista.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="21">
+          <div class="q-header">
+            <span class="q-number">Pregunta 22</span>
+            <span class="q-of">/ 27</span>
+          </div>
+          <div class="q-text">Si un producto regresa al fabricante para ser 'reparado', ¿cuál es el objetivo primordial de esta acción dentro de la logística inversa?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piense en lo que sucede con el valor económico y funcional de un objeto cuando se arregla.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="La reparación permite que un bien vuelva al mercado o al usuario, evitando la fabricación de uno nuevo y la generación de desperdicio.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Recuperar el valor del producto y extender su vida útil.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La reparación permite que un bien vuelva al mercado o al usuario, evitando la fabricación de uno nuevo y la generación de desperdicio.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="No existen tales leyes; los centros de reparación existen para brindar servicio real y eficiencia operativa.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Cumplir con las leyes de marketing que exigen tener centros de reparación vacíos.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">No existen tales leyes; los centros de reparación existen para brindar servicio real y eficiencia operativa.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="La logística inversa busca transparencia y mejora continua, no el ocultamiento de errores de calidad.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Destruir la evidencia de fallas de diseño antes de que el público las note.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La logística inversa busca transparencia y mejora continua, no el ocultamiento de errores de calidad.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="La reparación tiene el efecto contrario: permite al cliente seguir usando el producto actual, lo cual fomenta la lealtad.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Asegurar que el cliente tenga que comprar un modelo nuevo más costoso.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La reparación tiene el efecto contrario: permite al cliente seguir usando el producto actual, lo cual fomenta la lealtad.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="22">
+          <div class="q-header">
+            <span class="q-number">Pregunta 23</span>
+            <span class="q-of">/ 27</span>
+          </div>
+          <div class="q-text">¿Qué se busca lograr con la 'Sustitución de materiales' en una empresa con enfoque de logística inversa?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Relacione la sustitución con la 'eficiencia medioambiental' mencionada en las conclusiones.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="La seguridad y el etiquetado son normativas críticas que no se sustituyen por razones logísticas.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Eliminar el uso de etiquetas de advertencia en productos químicos.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La seguridad y el etiquetado son normativas críticas que no se sustituyen por razones logísticas.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="La logística inversa promueve el uso de materiales sostenibles, no el retroceso hacia materiales más contaminantes.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Cambiar materiales biodegradables por plásticos de un solo uso para ahorrar dinero.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La logística inversa promueve el uso de materiales sostenibles, no el retroceso hacia materiales más contaminantes.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Esto se conoce como obsolescencia programada y es lo opuesto a los principios de sostenibilidad de la logística inversa.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Reducir la calidad del producto para que el cliente lo deseche más rápido.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esto se conoce como obsolescencia programada y es lo opuesto a los principios de sostenibilidad de la logística inversa.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="true" data-rationale="Al planificar el material desde el inicio, se facilita su reintegración o eliminación segura al final de su vida útil.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Utilizar materiales que sean más fáciles de reciclar o que tengan menor impacto ambiental.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Al planificar el material desde el inicio, se facilita su reintegración o eliminación segura al final de su vida útil.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="23">
+          <div class="q-header">
+            <span class="q-number">Pregunta 24</span>
+            <span class="q-of">/ 27</span>
+          </div>
+          <div class="q-text">En el video sobre H&amp;M, se menciona el uso de poliéster. ¿Qué acción de logística inversa se asocia directamente con este material en dicho ejemplo?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Recuerde el objetivo del video de H&amp;M respecto a la creación de 'ropa nueva con prendas usadas'.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="El objetivo no es prohibirlo, sino crear un sistema circular donde el poliéster existente sea reciclado infinitamente.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">La prohibición total del poliéster en todas las colecciones futuras.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El objetivo no es prohibirlo, sino crear un sistema circular donde el poliéster existente sea reciclado infinitamente.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="La tecnología permite descomponer prendas viejas para extraer fibras sintéticas como el poliéster y reutilizarlas.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">La recuperación de insumos y materia prima de ropa usada para crear fibra nueva.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La tecnología permite descomponer prendas viejas para extraer fibras sintéticas como el poliéster y reutilizarlas.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="La donación es una acción social, pero no constituye el proceso técnico de reciclaje industrial descrito en el caso.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">La donación de poliéster virgen a comunidades de bajos recursos.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La donación es una acción social, pero no constituye el proceso técnico de reciclaje industrial descrito en el caso.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Esto sería disposición final, lo cual es el resultado de un fallo en la logística de recuperación que el video intenta solucionar.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">El entierro de toneladas de poliéster en vertederos controlados fuera de la ciudad.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esto sería disposición final, lo cual es el resultado de un fallo en la logística de recuperación que el video intenta solucionar.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="24">
+          <div class="q-header">
+            <span class="q-number">Pregunta 25</span>
+            <span class="q-of">/ 27</span>
+          </div>
+          <div class="q-text">Verdadero o Falso: La logística inversa bien gestionada permite a las empresas reducir la cantidad total de material virgen que utilizan.</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piense en el impacto de usar materiales reciclados en la compra de materia prima nueva.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Al reintroducir materiales recuperados en el proceso productivo, disminuye la necesidad de comprar nuevos insumos naturales.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Al reintroducir materiales recuperados en el proceso productivo, disminuye la necesidad de comprar nuevos insumos naturales.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El ahorro de materiales es precisamente uno de los beneficios clave de eficiencia mencionados en las conclusiones del curso.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El ahorro de materiales es precisamente uno de los beneficios clave de eficiencia mencionados en las conclusiones del curso.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="25">
+          <div class="q-header">
+            <span class="q-number">Pregunta 26</span>
+            <span class="q-of">/ 27</span>
+          </div>
+          <div class="q-text">¿Cuál de estos es un actor que NO forma parte de la cadena principal pero influye en sus políticas ambientales?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Busque en la sección de 'Actores' aquel grupo que tiene un rol más consultivo o de presión social.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="El productor es el destinatario final del flujo inverso y quien debe gestionar la recuperación o eliminación.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Productor</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El productor es el destinatario final del flujo inverso y quien debe gestionar la recuperación o eliminación.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Los distribuidores son actores principales indispensables para el movimiento físico de las mercancías en ambos sentidos.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Distribuidores</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Los distribuidores son actores principales indispensables para el movimiento físico de las mercancías en ambos sentidos.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="true" data-rationale="Son actores relacionados que presionan por mejores estándares, pero no compran, venden o transportan el producto en sí.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Ambientalistas</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Son actores relacionados que presionan por mejores estándares, pero no compran, venden o transportan el producto en sí.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="El cliente es el actor principal que inicia el flujo de retorno en la logística inversa.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Clientes</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El cliente es el actor principal que inicia el flujo de retorno en la logística inversa.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="26">
+          <div class="q-header">
+            <span class="q-number">Pregunta 27</span>
+            <span class="q-of">/ 27</span>
+          </div>
+          <div class="q-text">De acuerdo con el material bibliográfico sugerido (Jiménez Gómez, 2014), la logística inversa se asocia frecuentemente con otro concepto. ¿Cuál es?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Observe el título del segundo libro recomendado en la bibliografía.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Ambos términos están íntimamente ligados por su enfoque en la sostenibilidad y la reducción del impacto ambiental de las operaciones logísticas.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Logística verde.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Ambos términos están íntimamente ligados por su enfoque en la sostenibilidad y la reducción del impacto ambiental de las operaciones logísticas.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Las finanzas se encargan del capital, mientras que la logística inversa se enfoca en el flujo físico de bienes y residuos.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Finanzas especulativas.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Las finanzas se encargan del capital, mientras que la logística inversa se enfoca en el flujo físico de bienes y residuos.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Aunque la logística tiene orígenes militares, el enfoque actual de retorno y reciclaje se alinea con la sostenibilidad ambiental.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Logística militar.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aunque la logística tiene orígenes militares, el enfoque actual de retorno y reciclaje se alinea con la sostenibilidad ambiental.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Este es un concepto de promoción comercial que no tiene relación directa con la gestión de flujos de retorno de materiales.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Marketing de guerrilla.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Este es un concepto de promoción comercial que no tiene relación directa con la gestión de flujos de retorno de materiales.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      </div>
+  <div class="results" id="results">
+    <h2>¡Cuestionario completado!</h2>
+    <div class="score" id="score">0%</div>
+    <div class="score-text" id="score-text"></div>
+    <button class="restart-btn" onclick="restart()">Intentar de nuevo</button>
+  </div>
+</div>
+<script>
+const quizData = [{"question":"¿Cuál es la característica principal que define el flujo de la logística inversa en comparación con la logística tradicional?","hint":"Considere la dirección en la que se desplaza el bien una vez que llega a manos del usuario.","options":[{"label":"A","text":"El retorno de materiales o productos desde el consumidor final hacia el fabricante o distribuidor.","isCorrect":true,"rationale":"Esta dirección de flujo inverso busca recuperar el valor del producto o asegurar su eliminación adecuada, cerrando el ciclo de la cadena de suministro."},{"label":"B","text":"El almacenamiento prolongado de productos terminados en centros de distribución minoristas.","isCorrect":false,"rationale":"El almacenamiento es una función logística estándar, pero no define la naturaleza inversa de la recuperación de productos desde el cliente."},{"label":"C","text":"La gestión exclusiva de residuos biológicos generados en procesos de manufactura industrial.","isCorrect":false,"rationale":"Aunque el manejo de residuos es parte de la logística inversa, esta no se limita únicamente a desechos biológicos ni solo a la fase de manufactura."},{"label":"D","text":"La distribución acelerada de materias primas desde los proveedores hacia las plantas de fabricación.","isCorrect":false,"rationale":"Este concepto describe la logística directa o de entrada, enfocada en el abastecimiento inicial y no en el retorno de productos post-consumo."}]},{"question":"Dentro de los objetivos estratégicos de la logística inversa, ¿qué implica específicamente la 'sustitución de materiales'?","hint":"Piense en cómo el diseño del producto puede facilitar su reintegración al ciclo productivo.","options":[{"label":"A","text":"Intercambiar productos defectuosos por unidades nuevas para mantener la satisfacción del cliente.","isCorrect":false,"rationale":"Esto describe un proceso de garantía o servicio post-venta, pero la sustitución de materiales como objetivo se refiere a la composición física del insumo."},{"label":"B","text":"Eliminar por completo el uso de empaques para evitar la generación de cualquier residuo sólido.","isCorrect":false,"rationale":"La eliminación total es poco factible en la mayoría de industrias; el objetivo suele ser la reducción o el uso de materiales alternativos más sostenibles."},{"label":"C","text":"Cambiar proveedores locales por internacionales para reducir costos de materia prima natural.","isCorrect":false,"rationale":"La selección de proveedores es una decisión de compras estratégicas, no necesariamente vinculada a la mejora del ciclo inverso del producto."},{"label":"D","text":"Reemplazar componentes por otros que tengan un menor impacto ambiental o sean más fáciles de recuperar.","isCorrect":true,"rationale":"Este objetivo busca mejorar la sostenibilidad del producto desde su diseño, facilitando procesos posteriores de reciclaje o reutilización."}]},{"question":"¿Cómo se clasifican los actores que ejecutan específicamente procesos de transporte de logística inversa o recicladores?","hint":"Se refiere a entidades que tienen una función técnica y dirigida exclusivamente a la logística inversa.","options":[{"label":"A","text":"Actores Gubernamentales","isCorrect":false,"rationale":"Aunque regulan el proceso, no se clasifican como ejecutores operativos de reciclaje o transporte especializado dentro de la terminología del material."},{"label":"B","text":"Actores Especializados","isCorrect":true,"rationale":"Estos actores poseen la infraestructura y conocimientos técnicos necesarios para tareas específicas de recuperación y procesamiento de materiales."},{"label":"C","text":"Actores Relacionados","isCorrect":false,"rationale":"Este grupo suele incluir a entidades externas como ONGs o grupos ambientalistas que influyen en la percepción, pero no ejecutan la operación logística directa."},{"label":"D","text":"Actores Principales","isCorrect":false,"rationale":"Los actores principales son los eslabones estándar de la cadena (productor, minorista, cliente), mientras que estos realizan funciones de soporte técnico."}]},{"question":"Verdadero o Falso: La gestión de devoluciones debe diseñarse únicamente para minimizar las pérdidas económicas de la empresa fabricante.","hint":"Analice si el proceso tiene un enfoque unilateral o bilateral entre los involucrados.","options":[{"label":"A","text":"Falso","isCorrect":true,"rationale":"El material indica que el sistema de gestión de devoluciones debe servir equilibradamente tanto al cliente como a la empresa."},{"label":"B","text":"Verdadero","isCorrect":false,"rationale":"Enfocarse solo en la empresa ignoraría la satisfacción del cliente, lo cual es crítico para la competitividad a largo plazo."}]},{"question":"En el contexto de la logística inversa, ¿cuál es la diferencia fundamental entre un 'residuo' y un producto en proceso de 'reciclaje'?","hint":"Considere la noción de 'valor' y 'utilidad' mencionada en las definiciones del material.","options":[{"label":"A","text":"El residuo carece de utilidad o valor inmediato y se desecha, mientras que el reciclaje busca aprovechar el material residual.","isCorrect":true,"rationale":"El reciclaje es una intervención activa para recuperar valor, mientras que el residuo es el estado final de una sustancia que se considera sin provecho."},{"label":"B","text":"El residuo es siempre de origen natural, mientras que los materiales reciclados son exclusivamente sintéticos.","isCorrect":false,"rationale":"Tanto residuos como materiales para reciclaje pueden ser naturales o artificiales; la distinción radica en su gestión y valor potencial."},{"label":"C","text":"No existe diferencia, ya que todos los residuos son automáticamente considerados materia prima para el reciclaje.","isCorrect":false,"rationale":"Muchos residuos terminan en disposición final (vertederos) sin pasar por reciclaje debido a limitaciones técnicas o económicas."},{"label":"D","text":"El reciclaje se refiere solo a la reparación del producto, mientras que el residuo se refiere a su destrucción total.","isCorrect":false,"rationale":"La reparación es 'recuperación', mientras que el reciclaje implica procesar el material para crear algo nuevo, no solo arreglarlo."}]},{"question":"¿Cuál de las siguientes causas de devolución se considera un error interno de la cadena de suministro previo a la entrega?","hint":"Piense en situaciones donde el producto entregado no coincide con lo solicitado por el comprador.","options":[{"label":"A","text":"Caducidad natural de un producto que no fue vendido por el minorista.","isCorrect":false,"rationale":"Aunque genera logística inversa, se considera gestión de inventario u obsolescencia, no un error de entrega específico."},{"label":"B","text":"Daños ocurridos exclusivamente durante el uso del producto por el usuario final.","isCorrect":false,"rationale":"Si el daño ocurre después de la entrega y por mal uso, no se clasifica como una causa de logística inversa imputable al proceso de entrega."},{"label":"C","text":"Entrega errónea de los productos.","isCorrect":true,"rationale":"Este es un fallo operativo directo en el proceso de despacho y distribución que genera la necesidad de un flujo inverso."},{"label":"D","text":"Cambio de opinión del cliente.","isCorrect":false,"rationale":"Esta es una causa externa basada en la percepción del consumidor, no necesariamente en un fallo procedimental de la empresa."}]},{"question":"En el caso de la planta CopenHill, ¿cuál es el beneficio principal que aporta a la ciudad además del procesamiento de residuos?","hint":"Reflexione sobre la utilidad pública mencionada en las palabras clave del video de Copenhague.","options":[{"label":"A","text":"La creación de una reserva natural para la protección de especies en peligro.","isCorrect":false,"rationale":"Aunque es un edificio 'verde', su función principal es industrial y recreativa (pista de esquí), no es una reserva natural protegida."},{"label":"B","text":"La producción masiva de fertilizantes orgánicos para la agricultura local.","isCorrect":false,"rationale":"El material destaca la generación de energía y el procesamiento de residuos, no menciona la fertilización como su aporte principal."},{"label":"C","text":"Generación de energía limpia para atender a cientos de miles de personas.","isCorrect":true,"rationale":"La planta utiliza turbinas para generar energía ($63\\text{ MWh}$), transformando la basura en un recurso valioso para la comunidad."},{"label":"D","text":"La fabricación de componentes metálicos reciclados para la industria automotriz.","isCorrect":false,"rationale":"CopenHill se enfoca en la conversión de residuos en energía, no en la manufactura de piezas industriales de metal."}]},{"question":"¿Cuál es un beneficio directo del reciclaje según los conceptos de sostenibilidad presentados?","hint":"Piense en las ventajas a nivel macro-ambiental que conlleva el aprovechamiento de residuos.","options":[{"label":"A","text":"Garantía de que los productos nunca presentarán defectos de fabricación.","isCorrect":false,"rationale":"El reciclaje trata sobre el fin del ciclo de vida; no influye directamente en la calidad intrínseca del proceso de ensamblaje de nuevos productos."},{"label":"B","text":"Aumento inmediato de los márgenes de ganancia bruta por la venta de chatarra.","isCorrect":false,"rationale":"Aunque puede generar ingresos, el reciclaje a menudo conlleva costos operativos altos que no garantizan un aumento inmediato de márgenes."},{"label":"C","text":"Eliminación total de la necesidad de transporte de larga distancia.","isCorrect":false,"rationale":"El material reciclado aún requiere transporte hacia las plantas procesadoras, por lo que la logística sigue siendo necesaria."},{"label":"D","text":"Ahorro de energía y preservación de recursos naturales.","isCorrect":true,"rationale":"Al recuperar materiales, se reduce la necesidad de extraer nueva materia prima y se consumen menos recursos energéticos en comparación con la producción desde cero."}]},{"question":"De acuerdo con el ciclo de la logística inversa, ¿qué actividad sucede inmediatamente después del 'Fin del ciclo de vida del producto'?","hint":"Visualice el diagrama circular de la sesión; identifique el paso que conecta al usuario con la empresa.","options":[{"label":"A","text":"Venta en mercados secundarios.","isCorrect":false,"rationale":"Aunque es una opción, la 'recogida' es el paso logístico fundamental necesario para cualquier destino posterior tras el fin de vida."},{"label":"B","text":"Reutilización y fabricación.","isCorrect":false,"rationale":"Para reutilizar o fabricar algo nuevo, primero se debe haber recolectado y clasificado el producto antiguo."},{"label":"C","text":"Comercialización y distribución.","isCorrect":false,"rationale":"Esta es la fase de la logística directa que ocurre cuando el producto ya está listo para el consumidor, no cuando termina su vida."},{"label":"D","text":"Recogida y consolidación.","isCorrect":true,"rationale":"Una vez que el producto termina su vida útil, debe ser recolectado y agrupado para ser enviado a las fases de procesamiento o eliminación."}]},{"question":"¿Qué objetivo de la logística inversa se enfoca en la etapa inicial de adquisición de suministros?","hint":"Busque el primer punto de la lista de los 5 objetivos de la logística inversa.","options":[{"label":"A","text":"Compras responsables.","isCorrect":true,"rationale":"Este objetivo asegura que desde el origen se elijan insumos que permitan una gestión inversa más eficiente y menos contaminante."},{"label":"B","text":"Reducción de insumos en estado natural.","isCorrect":false,"rationale":"Aunque está relacionado, las 'compras responsables' es el término específico para la estrategia de adquisición consciente."},{"label":"C","text":"Gestión de residuos.","isCorrect":false,"rationale":"La gestión de residuos se enfoca principalmente en la fase final del proceso, no en la adquisición inicial."},{"label":"D","text":"Sustitución de materiales.","isCorrect":false,"rationale":"La sustitución es un cambio en el diseño o composición, mientras que las compras responsables se refieren al acto de suministro."}]},{"question":"Verdadero o Falso: Los vertederos controlados se consideran la opción de 'Disposición Final' más deseable dentro de una estrategia de economía circular ideal.","hint":"Considere si enviar materiales a un vertedero permite 'maximizar su valor' como dice el logro de la sesión.","options":[{"label":"A","text":"Verdadero","isCorrect":false,"rationale":"Aunque es una forma de manejo, la meta de la logística inversa es maximizar el valor y minimizar el desperdicio, lo cual contradice el entierro de desechos."},{"label":"B","text":"Falso","isCorrect":true,"rationale":"En la jerarquía de sostenibilidad, el reciclaje y la reutilización son preferibles a la disposición final en vertederos, que es el último recurso."}]},{"question":"¿Cuál es la función de los 'Actores Relacionados' en el ecosistema de la logística inversa?","hint":"Recuerde los ejemplos dados (ONGs, ambientalistas) y qué tipo de impacto tienen en el proceso.","options":[{"label":"A","text":"Comprar productos usados para su posterior reventa en mercados de pulgas.","isCorrect":false,"rationale":"Este actor actuaría como un minorista de segunda mano o gestor de recuperación, integrándose más a la fase operativa que a la de influencia ambiental."},{"label":"B","text":"Gestionar el software de seguimiento de devoluciones para el minorista.","isCorrect":false,"rationale":"Esta es una función técnica de soporte que realizaría un proveedor de servicios especializados, no un actor 'relacionado' como una ONG."},{"label":"C","text":"Fabricar los empaques biodegradables que utiliza el productor principal.","isCorrect":false,"rationale":"Los fabricantes de empaques son proveedores, categorizados generalmente como actores principales en la cadena de suministro."},{"label":"D","text":"Influir en la responsabilidad social y ambiental a través de la vigilancia y el activismo.","isCorrect":true,"rationale":"Entidades como ONGs presionan a las empresas para adoptar prácticas sostenibles, aunque no participen en el transporte de la mercancía."}]},{"question":"El proyecto de H&M mencionado en clase utiliza máquinas para convertir ropa usada en prendas nuevas. ¿Cuál es la escala aproximada de producción de ropa que se menciona como contexto del problema?","hint":"Busque el número específico asociado a las 'palabras clave' en la diapositiva sobre reciclaje de ropa.","options":[{"label":"A","text":"$50,000$ toneladas.","isCorrect":false,"rationale":"Esta cantidad subestima el volumen de producción que motiva la implementación de tecnologías de recuperación en esta empresa."},{"label":"B","text":"$100,000$ toneladas.","isCorrect":true,"rationale":"Esta cifra ilustra la magnitud del desafío de la 'moda rápida' y la necesidad de sistemas de reciclaje de circuito cerrado."},{"label":"C","text":"$1,000,000$ toneladas.","isCorrect":false,"rationale":"Aunque la industria es vasta, el dato específico resaltado en las palabras clave del material apunta a las cien mil toneladas."},{"label":"D","text":"$10,000$ toneladas.","isCorrect":false,"rationale":"Esta cifra es significativamente menor al impacto real descrito en el material sobre la industria de la confección."}]},{"question":"¿Qué elemento es fundamental para que la implementación de la logística inversa sea exitosa según las conclusiones de la sesión?","hint":"Revise la última diapositiva de conclusiones y recomendaciones.","options":[{"label":"A","text":"Las regulaciones gubernamentales y la responsabilidad social.","isCorrect":true,"rationale":"El material afirma que estos factores, junto con los costos, determinan la viabilidad y profundidad de los procesos logísticos inversos."},{"label":"B","text":"La eliminación absoluta de todos los distribuidores minoristas.","isCorrect":false,"rationale":"Los minoristas son actores clave para la recolección; eliminarlos dificultaría el retorno de productos por parte del cliente."},{"label":"C","text":"El uso exclusivo de energía nuclear en las plantas de reciclaje.","isCorrect":false,"rationale":"El tipo de energía no es un requisito determinante para la logística inversa en sí; se busca eficiencia energética en general."},{"label":"D","text":"Ignorar las preferencias de los ambientalistas para reducir costos operativos.","isCorrect":false,"rationale":"Al contrario, la responsabilidad social y la presión de grupos ambientales son motores que impulsan a las empresas a ser más eficientes."}]},{"question":"¿Cuál es un motivo común de devolución que NO implica una falla en la calidad física del producto?","hint":"Considere qué factor de devolución depende exclusivamente de la voluntad del cliente.","options":[{"label":"A","text":"Defectos de origen detectados al desempacar.","isCorrect":false,"rationale":"Esto constituye una falla de calidad de fabricación que invalida el estado óptimo del bien físico."},{"label":"B","text":"Daños severos durante el transporte.","isCorrect":false,"rationale":"El daño físico durante el traslado afecta la integridad del producto, siendo una falla logística tangible."},{"label":"C","text":"Cambio de opinión del consumidor.","isCorrect":true,"rationale":"El producto puede estar en perfectas condiciones, pero el cliente decide que ya no lo quiere, activando el flujo inverso por motivos subjetivos."},{"label":"D","text":"Funcionamiento intermitente de los circuitos electrónicos.","isCorrect":false,"rationale":"Cualquier problema técnico o de funcionamiento se categoriza como un defecto físico o de diseño."}]},{"question":"Dentro del ciclo de la logística inversa, ¿en qué etapa se encuentra la actividad de 'Inspección y Clasificación'?","hint":"Piense en el momento en que se recibe el producto de vuelta y se debe decidir su destino.","options":[{"label":"A","text":"Comercialización y distribución inicial.","isCorrect":false,"rationale":"La inspección en esta fase es de control de calidad de salida, no de clasificación para recuperación post-consumo."},{"label":"B","text":"Interacción inicial de venta con el cliente.","isCorrect":false,"rationale":"La interacción de venta es para entregar el producto; la clasificación ocurre una vez que el producto ha sido devuelto o ha fallado."},{"label":"C","text":"Recogida y consolidación (específicamente en el centro del operador).","isCorrect":true,"rationale":"En esta fase se decide si el producto será reparado, reciclado o desechado basándose en su estado actual."},{"label":"D","text":"Fabricación de partes primarias.","isCorrect":false,"rationale":"La clasificación ocurre sobre productos devueltos o usados, mucho antes de que sus materiales vuelvan a ser parte de una fabricación nueva."}]},{"question":"Verdadero o Falso: La logística inversa es considerada una parte integral de la estrategia competitiva de las empresas modernas.","hint":"Consulte el 'Logro de aprendizaje de la sesión' al inicio del material.","options":[{"label":"A","text":"Falso","isCorrect":false,"rationale":"Tratarla como algo ajeno a la estrategia restaría eficiencia y dañaría la imagen de sostenibilidad de la organización."},{"label":"B","text":"Verdadero","isCorrect":true,"rationale":"El logro de aprendizaje indica que esta gestión maximiza el valor y minimiza el impacto ambiental como parte de la competitividad."}]},{"question":"¿Cuál es el propósito de la 'Reducción de insumos en estado natural' como objetivo de la logística inversa?","hint":"Relacione este objetivo con la preservación del medio ambiente y el uso de materiales reciclados.","options":[{"label":"A","text":"Disminuir la dependencia de la extracción de materias primas vírgenes mediante el uso de materiales recuperados.","isCorrect":true,"rationale":"Al reciclar y reutilizar, se evita agotar recursos naturales no renovables o limitados."},{"label":"B","text":"Sustituir el transporte terrestre por medios que no requieran combustibles fósiles.","isCorrect":false,"rationale":"Aunque es una práctica verde, el objetivo de reducción de insumos naturales se refiere a los materiales del producto, no solo al combustible del transporte."},{"label":"C","text":"Reducir el tamaño físico de los productos para que ocupen menos espacio en los almacenes.","isCorrect":false,"rationale":"La miniaturización es una tendencia de diseño, pero no es el enfoque principal de 'insumos naturales' en la logística de recuperación."},{"label":"D","text":"Aumentar la velocidad de crecimiento de los árboles en las zonas de extracción forestal.","isCorrect":false,"rationale":"La logística inversa gestiona el flujo de materiales existentes, no interviene directamente en los ciclos biológicos de crecimiento de recursos."}]},{"question":"En la gestión de residuos, ¿a qué se refiere el término 'Disposición final'?","hint":"Piense en qué sucede con la basura que ya no tiene ninguna posibilidad de ser reciclada.","options":[{"label":"A","text":"Al destino último de los materiales que no pudieron ser recuperados, como vertederos o incineración.","isCorrect":true,"rationale":"Es el punto final donde el material sale del ciclo productivo para ser almacenado o destruido permanentemente."},{"label":"B","text":"Al proceso de empaquetado para el envío al cliente minorista.","isCorrect":false,"rationale":"El empaquetado es una fase de la logística directa que precede al consumo."},{"label":"C","text":"A la venta de productos en liquidación por cierre de temporada.","isCorrect":false,"rationale":"Las liquidaciones son una estrategia comercial de ventas, no un método de gestión de desechos o residuos."},{"label":"D","text":"Al estante final donde el consumidor coloca el producto en su hogar.","isCorrect":false,"rationale":"Eso es consumo final, no disposición de residuos; la disposición ocurre después de que el producto deja de ser útil."}]},{"question":"Verdadero o Falso: Una 'Etapa de la cadena de suministro' es una definición válida para la logística inversa.","hint":"Revise el primer punto de la 'Definición de Logística inversa'.","options":[{"label":"A","text":"Falso","isCorrect":false,"rationale":"Es una fase crítica que complementa a la logística directa para formar una cadena de suministro circular."},{"label":"B","text":"Verdadero","isCorrect":true,"rationale":"El material define explícitamente a la logística inversa como una etapa donde el producto regresa al punto de origen."}]},{"question":"¿Qué papel juegan los 'Minoristas' en el ciclo inverso de los productos?","hint":"Considere la ubicación física de las tiendas minoristas respecto al consumidor final.","options":[{"label":"A","text":"Sirven como puntos de recolección inicial donde el cliente entrega los productos devueltos.","isCorrect":true,"rationale":"Al estar en contacto directo con el consumidor, facilitan la entrada de los productos al flujo de retorno."},{"label":"B","text":"Son los encargados exclusivos de incinerar los residuos peligrosos de las fábricas.","isCorrect":false,"rationale":"La incineración es una tarea técnica de gestores de residuos especializados, no de tiendas minoristas."},{"label":"C","text":"Se encargan de extraer la materia prima de la naturaleza para el fabricante.","isCorrect":false,"rationale":"Esta es la función de los proveedores de primer nivel, situados en el extremo opuesto del flujo inverso."},{"label":"D","text":"Diseñan la ingeniería de los motores para que sean más fáciles de reciclar.","isCorrect":false,"rationale":"El diseño y la ingeniería son responsabilidades del productor o fabricante, no de los canales de venta minorista."}]},{"question":"Si un producto regresa al fabricante para ser 'reparado', ¿cuál es el objetivo primordial de esta acción dentro de la logística inversa?","hint":"Piense en lo que sucede con el valor económico y funcional de un objeto cuando se arregla.","options":[{"label":"A","text":"Recuperar el valor del producto y extender su vida útil.","isCorrect":true,"rationale":"La reparación permite que un bien vuelva al mercado o al usuario, evitando la fabricación de uno nuevo y la generación de desperdicio."},{"label":"B","text":"Cumplir con las leyes de marketing que exigen tener centros de reparación vacíos.","isCorrect":false,"rationale":"No existen tales leyes; los centros de reparación existen para brindar servicio real y eficiencia operativa."},{"label":"C","text":"Destruir la evidencia de fallas de diseño antes de que el público las note.","isCorrect":false,"rationale":"La logística inversa busca transparencia y mejora continua, no el ocultamiento de errores de calidad."},{"label":"D","text":"Asegurar que el cliente tenga que comprar un modelo nuevo más costoso.","isCorrect":false,"rationale":"La reparación tiene el efecto contrario: permite al cliente seguir usando el producto actual, lo cual fomenta la lealtad."}]},{"question":"¿Qué se busca lograr con la 'Sustitución de materiales' en una empresa con enfoque de logística inversa?","hint":"Relacione la sustitución con la 'eficiencia medioambiental' mencionada en las conclusiones.","options":[{"label":"A","text":"Eliminar el uso de etiquetas de advertencia en productos químicos.","isCorrect":false,"rationale":"La seguridad y el etiquetado son normativas críticas que no se sustituyen por razones logísticas."},{"label":"B","text":"Cambiar materiales biodegradables por plásticos de un solo uso para ahorrar dinero.","isCorrect":false,"rationale":"La logística inversa promueve el uso de materiales sostenibles, no el retroceso hacia materiales más contaminantes."},{"label":"C","text":"Reducir la calidad del producto para que el cliente lo deseche más rápido.","isCorrect":false,"rationale":"Esto se conoce como obsolescencia programada y es lo opuesto a los principios de sostenibilidad de la logística inversa."},{"label":"D","text":"Utilizar materiales que sean más fáciles de reciclar o que tengan menor impacto ambiental.","isCorrect":true,"rationale":"Al planificar el material desde el inicio, se facilita su reintegración o eliminación segura al final de su vida útil."}]},{"question":"En el video sobre H&M, se menciona el uso de poliéster. ¿Qué acción de logística inversa se asocia directamente con este material en dicho ejemplo?","hint":"Recuerde el objetivo del video de H&M respecto a la creación de 'ropa nueva con prendas usadas'.","options":[{"label":"A","text":"La prohibición total del poliéster en todas las colecciones futuras.","isCorrect":false,"rationale":"El objetivo no es prohibirlo, sino crear un sistema circular donde el poliéster existente sea reciclado infinitamente."},{"label":"B","text":"La recuperación de insumos y materia prima de ropa usada para crear fibra nueva.","isCorrect":true,"rationale":"La tecnología permite descomponer prendas viejas para extraer fibras sintéticas como el poliéster y reutilizarlas."},{"label":"C","text":"La donación de poliéster virgen a comunidades de bajos recursos.","isCorrect":false,"rationale":"La donación es una acción social, pero no constituye el proceso técnico de reciclaje industrial descrito en el caso."},{"label":"D","text":"El entierro de toneladas de poliéster en vertederos controlados fuera de la ciudad.","isCorrect":false,"rationale":"Esto sería disposición final, lo cual es el resultado de un fallo en la logística de recuperación que el video intenta solucionar."}]},{"question":"Verdadero o Falso: La logística inversa bien gestionada permite a las empresas reducir la cantidad total de material virgen que utilizan.","hint":"Piense en el impacto de usar materiales reciclados en la compra de materia prima nueva.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"Al reintroducir materiales recuperados en el proceso productivo, disminuye la necesidad de comprar nuevos insumos naturales."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"El ahorro de materiales es precisamente uno de los beneficios clave de eficiencia mencionados en las conclusiones del curso."}]},{"question":"¿Cuál de estos es un actor que NO forma parte de la cadena principal pero influye en sus políticas ambientales?","hint":"Busque en la sección de 'Actores' aquel grupo que tiene un rol más consultivo o de presión social.","options":[{"label":"A","text":"Productor","isCorrect":false,"rationale":"El productor es el destinatario final del flujo inverso y quien debe gestionar la recuperación o eliminación."},{"label":"B","text":"Distribuidores","isCorrect":false,"rationale":"Los distribuidores son actores principales indispensables para el movimiento físico de las mercancías en ambos sentidos."},{"label":"C","text":"Ambientalistas","isCorrect":true,"rationale":"Son actores relacionados que presionan por mejores estándares, pero no compran, venden o transportan el producto en sí."},{"label":"D","text":"Clientes","isCorrect":false,"rationale":"El cliente es el actor principal que inicia el flujo de retorno en la logística inversa."}]},{"question":"De acuerdo con el material bibliográfico sugerido (Jiménez Gómez, 2014), la logística inversa se asocia frecuentemente con otro concepto. ¿Cuál es?","hint":"Observe el título del segundo libro recomendado en la bibliografía.","options":[{"label":"A","text":"Logística verde.","isCorrect":true,"rationale":"Ambos términos están íntimamente ligados por su enfoque en la sostenibilidad y la reducción del impacto ambiental de las operaciones logísticas."},{"label":"B","text":"Finanzas especulativas.","isCorrect":false,"rationale":"Las finanzas se encargan del capital, mientras que la logística inversa se enfoca en el flujo físico de bienes y residuos."},{"label":"C","text":"Logística militar.","isCorrect":false,"rationale":"Aunque la logística tiene orígenes militares, el enfoque actual de retorno y reciclaje se alinea con la sostenibilidad ambiental."},{"label":"D","text":"Marketing de guerrilla.","isCorrect":false,"rationale":"Este es un concepto de promoción comercial que no tiene relación directa con la gestión de flujos de retorno de materiales."}]}];
+const tr = {"correct":"¡Correcto!","incorrect":"Incorrecto","next":"Siguiente pregunta →","seeResults":"Ver resultados","complete":"¡Cuestionario completado!","scoreText":"Obtuviste {correct} de {total} correctas","tryAgain":"Intentar de nuevo","rightAnswer":"Respuesta correcta","notQuite":"No del todo"};
+let currentQ = 0, correctCount = 0, answered = false;
+
+function init() {
+  document.querySelectorAll('.question').forEach((q, i) => q.classList.toggle('active', i === 0));
+  updateProgress();
+  document.querySelectorAll('.option').forEach(opt => opt.addEventListener('click', () => selectOption(opt)));
+  document.querySelectorAll('.next-btn').forEach(btn => btn.addEventListener('click', nextQuestion));
+}
+
+function selectOption(opt) {
+  if (answered) return;
+  answered = true;
+  const q = opt.closest('.question');
+  const options = q.querySelectorAll('.option');
+  const nextBtn = q.querySelector('.next-btn');
+  const isCorrect = opt.dataset.correct === 'true';
+  
+  // Mark all options as disabled
+  options.forEach(o => o.classList.add('disabled'));
+  
+  // Style selected option
+  opt.classList.add('selected', isCorrect ? 'correct' : 'incorrect');
+  
+  // Show correct answer if wrong
+  if (!isCorrect) {
+    const correctOpt = [...options].find(o => o.dataset.correct === 'true');
+    if (correctOpt) correctOpt.classList.add('show-correct');
+  }
+  
+  if (isCorrect) correctCount++;
+  
+  // Show feedback for ALL options that have rationale
+  options.forEach(o => {
+    const wrapper = o.closest('.option-wrapper');
+    const feedback = wrapper.querySelector('.option-feedback');
+    const rationale = o.dataset.rationale;
+    const isThisCorrect = o.dataset.correct === 'true';
+    
+    if (rationale && rationale.trim()) {
+      feedback.classList.remove('hidden');
+      feedback.classList.add(isThisCorrect ? 'correct-feedback' : 'incorrect-feedback');
+      
+      const statusEl = feedback.querySelector('.feedback-status');
+      statusEl.className = 'feedback-status ' + (isThisCorrect ? 'correct' : 'incorrect');
+      statusEl.innerHTML = isThisCorrect 
+        ? '✓ ' + tr.rightAnswer
+        : '✗ ' + tr.notQuite;
+    }
+  });
+  
+  nextBtn.classList.remove('hidden');
+  if (currentQ === quizData.length - 1) nextBtn.textContent = tr.seeResults;
+}
+
+function nextQuestion() {
+  answered = false;
+  currentQ++;
+  if (currentQ >= quizData.length) { showResults(); return; }
+  document.querySelectorAll('.question').forEach((q, i) => q.classList.toggle('active', i === currentQ));
+  updateProgress();
+}
+
+function updateProgress() {
+  document.querySelector('.progress-fill').style.width = (currentQ / quizData.length * 100) + '%';
+}
+
+function showResults() {
+  document.querySelectorAll('.question').forEach(q => q.classList.remove('active'));
+  document.getElementById('results').classList.add('active');
+  const pct = Math.round((correctCount / quizData.length) * 100);
+  document.getElementById('score').textContent = pct + '%';
+  document.getElementById('score-text').textContent = tr.scoreText.replace('{correct}', correctCount).replace('{total}', quizData.length);
+  document.querySelector('.progress-fill').style.width = '100%';
+}
+
+function restart() {
+  currentQ = 0; correctCount = 0; answered = false;
+  document.getElementById('results').classList.remove('active');
+  document.querySelectorAll('.question').forEach((q, i) => {
+    q.classList.toggle('active', i === 0);
+    q.querySelectorAll('.option').forEach(o => o.classList.remove('selected', 'correct', 'incorrect', 'disabled', 'show-correct'));
+    q.querySelectorAll('.option-feedback').forEach(f => {
+      f.classList.add('hidden');
+      f.classList.remove('correct-feedback', 'incorrect-feedback');
+    });
+    const btn = q.querySelector('.next-btn');
+    btn.classList.add('hidden');
+    btn.textContent = tr.next;
+  });
+  updateProgress();
+}
+
+init();
+</script>
+</body>
+</html>
