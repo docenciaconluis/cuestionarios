@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="es" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>S12 LCS</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  min-height: 100vh; padding: 20px; color: #333;
+}
+.container { max-width: 700px; margin: 0 auto; }
+.header { text-align: center; color: #fff; padding: 30px 20px; }
+.header h1 { font-size: 28px; font-weight: 700; margin-bottom: 8px; text-shadow: 0 2px 10px rgba(0,0,0,0.2); }
+.header .meta { font-size: 14px; opacity: 0.9; }
+.progress-bar { background: rgba(255,255,255,0.3); border-radius: 10px; height: 8px; margin: 20px 0; overflow: hidden; }
+.progress-fill { background: #fff; height: 100%; width: 0%; transition: width 0.4s ease; border-radius: 10px; }
+.question { background: #fff; border-radius: 16px; padding: 30px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); display: none; }
+.question.active { display: block; }
+.q-header { display: flex; justify-content: space-between; margin-bottom: 20px; font-size: 13px; color: #888; }
+.q-number { font-weight: 600; color: #667eea; }
+.q-text { font-size: 18px; font-weight: 600; line-height: 1.5; margin-bottom: 25px; color: #222; }
+.options { display: flex; flex-direction: column; gap: 12px; }
+.option-wrapper { display: flex; flex-direction: column; }
+.option {
+  display: flex; align-items: flex-start; gap: 14px; padding: 16px 18px;
+  border: 2px solid #e8e8e8; border-radius: 12px; background: #fafafa;
+  cursor: pointer; transition: all 0.2s; text-align: left; font-size: 15px; width: 100%;
+}
+[dir="rtl"] .option { text-align: right; flex-direction: row-reverse; }
+.option:hover:not(.disabled) { border-color: #667eea; background: #f5f3ff; }
+.option.selected { border-color: #667eea; background: #ede9fe; }
+.option.correct { border-color: #22c55e; background: #dcfce7; }
+.option.incorrect { border-color: #ef4444; background: #fee2e2; }
+.option.disabled { cursor: default; }
+.option.show-correct { border-color: #22c55e; background: #dcfce7; }
+.opt-label {
+  display: flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; border-radius: 50%; background: #e8e8e8;
+  font-weight: 700; font-size: 14px; flex-shrink: 0;
+}
+.option.selected .opt-label { background: #667eea; color: #fff; }
+.option.correct .opt-label { background: #22c55e; color: #fff; }
+.option.incorrect .opt-label { background: #ef4444; color: #fff; }
+.option.show-correct .opt-label { background: #22c55e; color: #fff; }
+.opt-text { padding-top: 5px; line-height: 1.5; }
+
+/* Individual option feedback */
+.option-feedback {
+  margin: 8px 0 4px 46px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+[dir="rtl"] .option-feedback { margin-left: 0; margin-right: 46px; }
+.option-feedback.correct-feedback {
+  background: #dcfce7;
+  border-left: 3px solid #22c55e;
+}
+.option-feedback.incorrect-feedback {
+  background: #fef3f2;
+  border-left: 3px solid #fca5a5;
+}
+[dir="rtl"] .option-feedback.correct-feedback,
+[dir="rtl"] .option-feedback.incorrect-feedback {
+  border-left: none;
+  border-right: 3px solid;
+}
+[dir="rtl"] .option-feedback.correct-feedback { border-right-color: #22c55e; }
+[dir="rtl"] .option-feedback.incorrect-feedback { border-right-color: #fca5a5; }
+.feedback-status {
+  font-weight: 600;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.feedback-status.correct { color: #166534; }
+.feedback-status.incorrect { color: #991b1b; }
+.feedback-rationale { color: #444; }
+
+/* Hint box */
+.hint-box {
+  margin: 12px 0;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+}
+.hint-toggle {
+  width: 100%;
+  padding: 10px 16px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  color: #92400e;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.hint-toggle:hover { background: #fef3c7; }
+.hint-content {
+  padding: 0 16px;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s, padding 0.3s;
+  font-size: 14px;
+  color: #78350f;
+  line-height: 1.5;
+}
+.hint-box.show .hint-content {
+  padding: 0 16px 12px;
+  max-height: 200px;
+}
+
+.next-btn {
+  margin-top: 20px; width: 100%; padding: 14px;
+  background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; border: none;
+  border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.next-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(102,126,234,0.4); }
+.hidden { display: none !important; }
+.results { background: #fff; border-radius: 16px; padding: 40px; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.15); display: none; }
+.results.active { display: block; }
+.results h2 { font-size: 28px; margin-bottom: 10px; color: #333; }
+.results .score { font-size: 64px; font-weight: 700; color: #667eea; margin: 20px 0; }
+.results .score-text { font-size: 18px; color: #666; margin-bottom: 30px; }
+.restart-btn {
+  padding: 14px 40px; background: linear-gradient(135deg, #667eea, #764ba2);
+  color: #fff; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer;
+}
+
+/* Math CSS */
+.math, .math-block { font-family: "Cambria Math", "Times New Roman", Times, serif; font-style: italic; }
+.math-block { display: block; text-align: center; margin: 10px 0; font-size: 110%; }
+.frac { display: inline-flex; flex-direction: column; align-items: center; vertical-align: middle; margin: 0 3px; font-size: 0.9em; }
+.frac-num { border-bottom: 1px solid currentColor; padding: 0 4px 2px; line-height: 1.2; }
+.frac-den { padding: 2px 4px 0; line-height: 1.2; }
+.sqrt { white-space: nowrap; }
+.sqrt-content { border-top: 1px solid currentColor; padding: 0 3px; margin-left: 2px; }
+sup, sub { font-size: 0.75em; }
+sup { vertical-align: super; }
+sub { vertical-align: sub; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>S12 LCS</h1>
+    <div class="meta">10 preguntas</div>
+    <div class="progress-bar"><div class="progress-fill"></div></div>
+  </div>
+  <div id="quiz-container">
+        <div class="question" data-index="0">
+          <div class="q-header">
+            <span class="q-number">Pregunta 1</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿Bajo el INCOTERM 2020 EXW (En Fábrica), el vendedor tiene la obligación legal de cargar la mercancía en el vehículo proporcionado por el comprador?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Recuerda cuál es el nivel de responsabilidad del vendedor en el punto de origen más básico.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="En este término, el vendedor solo pone la mercancía a disposición en sus instalaciones; la carga y el despacho de exportación son responsabilidad del comprador.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">En este término, el vendedor solo pone la mercancía a disposición en sus instalaciones; la carga y el despacho de exportación son responsabilidad del comprador.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Este término representa la mínima obligación para el vendedor, quien no es responsable de cargar la mercancía ni de realizar trámites aduaneros.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Este término representa la mínima obligación para el vendedor, quien no es responsable de cargar la mercancía ni de realizar trámites aduaneros.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="1">
+          <div class="q-header">
+            <span class="q-number">Pregunta 2</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿El peso volumétrico es un criterio de cobro que aplican las transportistas cuando la carga ocupa mucho espacio pero tiene una densidad baja?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considera por qué a una aerolínea le importaría el tamaño de una caja de almohadas.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Si se cobrara solo por peso real, el transporte de productos livianos pero voluminosos no sería rentable para el transportista.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Si se cobrara solo por peso real, el transporte de productos livianos pero voluminosos no sería rentable para el transportista.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Las navieras y aerolíneas cobran por el espacio que la carga ocupa en el vehículo para compensar el uso de su capacidad volumétrica.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Las navieras y aerolíneas cobran por el espacio que la carga ocupa en el vehículo para compensar el uso de su capacidad volumétrica.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="2">
+          <div class="q-header">
+            <span class="q-number">Pregunta 3</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿En una negociación FOB (Free On Board), el riesgo de pérdida o daño de la mercancía se transfiere del vendedor al comprador una vez que la carga llega al puerto de destino?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piensa en el momento exacto en que la mercancía 'toca' el barco en el país exportador.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="El riesgo se transfiere en el origen, lo que significa que el tránsito internacional corre por cuenta y riesgo del comprador.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El riesgo se transfiere en el origen, lo que significa que el tránsito internacional corre por cuenta y riesgo del comprador.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="En FOB, la transferencia de riesgo ocurre mucho antes, específicamente cuando la mercancía está a bordo del buque en el puerto de embarque.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">En FOB, la transferencia de riesgo ocurre mucho antes, específicamente cuando la mercancía está a bordo del buque en el puerto de embarque.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="3">
+          <div class="q-header">
+            <span class="q-number">Pregunta 4</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿Los agentes de aduana y los agentes transitarios (freight forwarders) son considerados operadores logísticos que facilitan el comercio internacional?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Analiza el papel de los intermediarios en la cadena de suministro global.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Estos intermediarios son aliados clave que manejan la consolidación, el papeleo aduanal y la optimización de rutas para las empresas.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Estos intermediarios son aliados clave que manejan la consolidación, el papeleo aduanal y la optimización de rutas para las empresas.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Sin estos operadores, las empresas tendrían que gestionar individualmente procesos complejos de aduanas y reservas de espacio con navieras.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Sin estos operadores, las empresas tendrían que gestionar individualmente procesos complejos de aduanas y reservas de espacio con navieras.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="4">
+          <div class="q-header">
+            <span class="q-number">Pregunta 5</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿El concepto de 'Landed Cost' o Costo Total de Adquisición se limita exclusivamente al precio pagado al proveedor extranjero por el producto?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considera todos los gastos adicionales que aparecen después de comprar el producto en China.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="El costo logístico real debe incluir fletes, seguros, aranceles y otros gastos necesarios para que el producto llegue al almacén final.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El costo logístico real debe incluir fletes, seguros, aranceles y otros gastos necesarios para que el producto llegue al almacén final.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Este término abarca la sumatoria de todos los costos incidentales, desde el origen hasta que la carga es nacionalizada y entregada.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Este término abarca la sumatoria de todos los costos incidentales, desde el origen hasta que la carga es nacionalizada y entregada.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="5">
+          <div class="q-header">
+            <span class="q-number">Pregunta 6</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿El Certificado de Seguro es innecesario en el comercio internacional porque la ley obliga a los buques a pagar el valor total de la mercancía en caso de tormenta?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Reflexiona sobre qué tan protegida está una carga que cae al mar por causas naturales.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Debido a las limitaciones legales de responsabilidad de los transportistas, el seguro es vital para proteger financieramente la inversión.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Debido a las limitaciones legales de responsabilidad de los transportistas, el seguro es vital para proteger financieramente la inversión.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="La responsabilidad legal de los transportistas es muy limitada; sin un seguro, el dueño de la carga asume casi toda la pérdida financiera.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La responsabilidad legal de los transportistas es muy limitada; sin un seguro, el dueño de la carga asume casi toda la pérdida financiera.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="6">
+          <div class="q-header">
+            <span class="q-number">Pregunta 7</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿El INCOTERM DDP (Delivered Duty Paid) es el que implica la mayor responsabilidad para el comprador, ya que este debe gestionar los impuestos en el país de destino?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Analiza quién paga los 'Duties' (impuestos) según las siglas de este término.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="DDP es el término de máxima obligación para el vendedor, no para el comprador; el vendedor entrega la mercancía ya nacionalizada.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">DDP es el término de máxima obligación para el vendedor, no para el comprador; el vendedor entrega la mercancía ya nacionalizada.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="En DDP, el vendedor asume todos los costos y riesgos, incluyendo el pago de aranceles y el despacho de importación en el país del comprador.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">En DDP, el vendedor asume todos los costos y riesgos, incluyendo el pago de aranceles y el despacho de importación en el país del comprador.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="7">
+          <div class="q-header">
+            <span class="q-number">Pregunta 8</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿Empresas como IKEA reducen sus costos logísticos al diseñar productos que se puedan desarmar, impactando directamente en el cálculo del peso volumétrico?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piensa en el beneficio de transportar una caja plana frente a un mueble ya armado.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Al eliminar el aire de los empaques, optimizan el espacio en los contenedores, reduciendo el flete unitario por cada producto transportado.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Al eliminar el aire de los empaques, optimizan el espacio en los contenedores, reduciendo el flete unitario por cada producto transportado.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El diseño de empaque plano es una estrategia logística deliberada para minimizar el volumen y maximizar la cantidad de productos por envío.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El diseño de empaque plano es una estrategia logística deliberada para minimizar el volumen y maximizar la cantidad de productos por envío.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="8">
+          <div class="q-header">
+            <span class="q-number">Pregunta 9</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿En el INCOTERM CIF (Cost, Insurance, and Freight), el vendedor tiene la obligación de contratar y pagar el seguro de la mercancía hasta el puerto de destino?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Revisa qué significan las siglas en inglés de este INCOTERM.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="CIF exige explícitamente que el vendedor cubra el costo del flete internacional y el seguro básico para proteger la carga del comprador.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">CIF exige explícitamente que el vendedor cubra el costo del flete internacional y el seguro básico para proteger la carga del comprador.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="A diferencia de otros términos, la 'I' en CIF hace referencia a la obligación del vendedor de asegurar la carga.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">A diferencia de otros términos, la 'I' en CIF hace referencia a la obligación del vendedor de asegurar la carga.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="9">
+          <div class="q-header">
+            <span class="q-number">Pregunta 10</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿El despacho de aduanas es un proceso que puede ser gestionado por un operador logístico conocido como 3PL (Third Party Logistics)?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considera el alcance de los servicios que ofrece una empresa de logística por contrato.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="La tercerización de la logística (3PL) permite a las empresas delegar la complejidad operativa, incluyendo la salida legal de mercancías.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La tercerización de la logística (3PL) permite a las empresas delegar la complejidad operativa, incluyendo la salida legal de mercancías.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Los operadores 3PL ofrecen servicios integrales que incluyen transporte, almacenamiento y gestión de trámites aduaneros.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Los operadores 3PL ofrecen servicios integrales que incluyen transporte, almacenamiento y gestión de trámites aduaneros.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      </div>
+  <div class="results" id="results">
+    <h2>¡Cuestionario completado!</h2>
+    <div class="score" id="score">0%</div>
+    <div class="score-text" id="score-text"></div>
+    <button class="restart-btn" onclick="restart()">Intentar de nuevo</button>
+  </div>
+</div>
+<script>
+const quizData = [{"question":"¿Bajo el INCOTERM 2020 EXW (En Fábrica), el vendedor tiene la obligación legal de cargar la mercancía en el vehículo proporcionado por el comprador?","hint":"Recuerda cuál es el nivel de responsabilidad del vendedor en el punto de origen más básico.","options":[{"label":"A","text":"Verdadero","isCorrect":false,"rationale":"En este término, el vendedor solo pone la mercancía a disposición en sus instalaciones; la carga y el despacho de exportación son responsabilidad del comprador."},{"label":"B","text":"Falso","isCorrect":true,"rationale":"Este término representa la mínima obligación para el vendedor, quien no es responsable de cargar la mercancía ni de realizar trámites aduaneros."}]},{"question":"¿El peso volumétrico es un criterio de cobro que aplican las transportistas cuando la carga ocupa mucho espacio pero tiene una densidad baja?","hint":"Considera por qué a una aerolínea le importaría el tamaño de una caja de almohadas.","options":[{"label":"A","text":"Falso","isCorrect":false,"rationale":"Si se cobrara solo por peso real, el transporte de productos livianos pero voluminosos no sería rentable para el transportista."},{"label":"B","text":"Verdadero","isCorrect":true,"rationale":"Las navieras y aerolíneas cobran por el espacio que la carga ocupa en el vehículo para compensar el uso de su capacidad volumétrica."}]},{"question":"¿En una negociación FOB (Free On Board), el riesgo de pérdida o daño de la mercancía se transfiere del vendedor al comprador una vez que la carga llega al puerto de destino?","hint":"Piensa en el momento exacto en que la mercancía 'toca' el barco en el país exportador.","options":[{"label":"A","text":"Falso","isCorrect":true,"rationale":"El riesgo se transfiere en el origen, lo que significa que el tránsito internacional corre por cuenta y riesgo del comprador."},{"label":"B","text":"Verdadero","isCorrect":false,"rationale":"En FOB, la transferencia de riesgo ocurre mucho antes, específicamente cuando la mercancía está a bordo del buque en el puerto de embarque."}]},{"question":"¿Los agentes de aduana y los agentes transitarios (freight forwarders) son considerados operadores logísticos que facilitan el comercio internacional?","hint":"Analiza el papel de los intermediarios en la cadena de suministro global.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"Estos intermediarios son aliados clave que manejan la consolidación, el papeleo aduanal y la optimización de rutas para las empresas."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"Sin estos operadores, las empresas tendrían que gestionar individualmente procesos complejos de aduanas y reservas de espacio con navieras."}]},{"question":"¿El concepto de 'Landed Cost' o Costo Total de Adquisición se limita exclusivamente al precio pagado al proveedor extranjero por el producto?","hint":"Considera todos los gastos adicionales que aparecen después de comprar el producto en China.","options":[{"label":"A","text":"Verdadero","isCorrect":false,"rationale":"El costo logístico real debe incluir fletes, seguros, aranceles y otros gastos necesarios para que el producto llegue al almacén final."},{"label":"B","text":"Falso","isCorrect":true,"rationale":"Este término abarca la sumatoria de todos los costos incidentales, desde el origen hasta que la carga es nacionalizada y entregada."}]},{"question":"¿El Certificado de Seguro es innecesario en el comercio internacional porque la ley obliga a los buques a pagar el valor total de la mercancía en caso de tormenta?","hint":"Reflexiona sobre qué tan protegida está una carga que cae al mar por causas naturales.","options":[{"label":"A","text":"Falso","isCorrect":true,"rationale":"Debido a las limitaciones legales de responsabilidad de los transportistas, el seguro es vital para proteger financieramente la inversión."},{"label":"B","text":"Verdadero","isCorrect":false,"rationale":"La responsabilidad legal de los transportistas es muy limitada; sin un seguro, el dueño de la carga asume casi toda la pérdida financiera."}]},{"question":"¿El INCOTERM DDP (Delivered Duty Paid) es el que implica la mayor responsabilidad para el comprador, ya que este debe gestionar los impuestos en el país de destino?","hint":"Analiza quién paga los 'Duties' (impuestos) según las siglas de este término.","options":[{"label":"A","text":"Verdadero","isCorrect":false,"rationale":"DDP es el término de máxima obligación para el vendedor, no para el comprador; el vendedor entrega la mercancía ya nacionalizada."},{"label":"B","text":"Falso","isCorrect":true,"rationale":"En DDP, el vendedor asume todos los costos y riesgos, incluyendo el pago de aranceles y el despacho de importación en el país del comprador."}]},{"question":"¿Empresas como IKEA reducen sus costos logísticos al diseñar productos que se puedan desarmar, impactando directamente en el cálculo del peso volumétrico?","hint":"Piensa en el beneficio de transportar una caja plana frente a un mueble ya armado.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"Al eliminar el aire de los empaques, optimizan el espacio en los contenedores, reduciendo el flete unitario por cada producto transportado."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"El diseño de empaque plano es una estrategia logística deliberada para minimizar el volumen y maximizar la cantidad de productos por envío."}]},{"question":"¿En el INCOTERM CIF (Cost, Insurance, and Freight), el vendedor tiene la obligación de contratar y pagar el seguro de la mercancía hasta el puerto de destino?","hint":"Revisa qué significan las siglas en inglés de este INCOTERM.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"CIF exige explícitamente que el vendedor cubra el costo del flete internacional y el seguro básico para proteger la carga del comprador."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"A diferencia de otros términos, la 'I' en CIF hace referencia a la obligación del vendedor de asegurar la carga."}]},{"question":"¿El despacho de aduanas es un proceso que puede ser gestionado por un operador logístico conocido como 3PL (Third Party Logistics)?","hint":"Considera el alcance de los servicios que ofrece una empresa de logística por contrato.","options":[{"label":"A","text":"Falso","isCorrect":false,"rationale":"La tercerización de la logística (3PL) permite a las empresas delegar la complejidad operativa, incluyendo la salida legal de mercancías."},{"label":"B","text":"Verdadero","isCorrect":true,"rationale":"Los operadores 3PL ofrecen servicios integrales que incluyen transporte, almacenamiento y gestión de trámites aduaneros."}]}];
+const tr = {"correct":"¡Correcto!","incorrect":"Incorrecto","next":"Siguiente pregunta →","seeResults":"Ver resultados","complete":"¡Cuestionario completado!","scoreText":"Obtuviste {correct} de {total} correctas","tryAgain":"Intentar de nuevo","rightAnswer":"Respuesta correcta","notQuite":"No del todo"};
+let currentQ = 0, correctCount = 0, answered = false;
+
+function init() {
+  document.querySelectorAll('.question').forEach((q, i) => q.classList.toggle('active', i === 0));
+  updateProgress();
+  document.querySelectorAll('.option').forEach(opt => opt.addEventListener('click', () => selectOption(opt)));
+  document.querySelectorAll('.next-btn').forEach(btn => btn.addEventListener('click', nextQuestion));
+}
+
+function selectOption(opt) {
+  if (answered) return;
+  answered = true;
+  const q = opt.closest('.question');
+  const options = q.querySelectorAll('.option');
+  const nextBtn = q.querySelector('.next-btn');
+  const isCorrect = opt.dataset.correct === 'true';
+  
+  // Mark all options as disabled
+  options.forEach(o => o.classList.add('disabled'));
+  
+  // Style selected option
+  opt.classList.add('selected', isCorrect ? 'correct' : 'incorrect');
+  
+  // Show correct answer if wrong
+  if (!isCorrect) {
+    const correctOpt = [...options].find(o => o.dataset.correct === 'true');
+    if (correctOpt) correctOpt.classList.add('show-correct');
+  }
+  
+  if (isCorrect) correctCount++;
+  
+  // Show feedback for ALL options that have rationale
+  options.forEach(o => {
+    const wrapper = o.closest('.option-wrapper');
+    const feedback = wrapper.querySelector('.option-feedback');
+    const rationale = o.dataset.rationale;
+    const isThisCorrect = o.dataset.correct === 'true';
+    
+    if (rationale && rationale.trim()) {
+      feedback.classList.remove('hidden');
+      feedback.classList.add(isThisCorrect ? 'correct-feedback' : 'incorrect-feedback');
+      
+      const statusEl = feedback.querySelector('.feedback-status');
+      statusEl.className = 'feedback-status ' + (isThisCorrect ? 'correct' : 'incorrect');
+      statusEl.innerHTML = isThisCorrect 
+        ? '✓ ' + tr.rightAnswer
+        : '✗ ' + tr.notQuite;
+    }
+  });
+  
+  nextBtn.classList.remove('hidden');
+  if (currentQ === quizData.length - 1) nextBtn.textContent = tr.seeResults;
+}
+
+function nextQuestion() {
+  answered = false;
+  currentQ++;
+  if (currentQ >= quizData.length) { showResults(); return; }
+  document.querySelectorAll('.question').forEach((q, i) => q.classList.toggle('active', i === currentQ));
+  updateProgress();
+}
+
+function updateProgress() {
+  document.querySelector('.progress-fill').style.width = (currentQ / quizData.length * 100) + '%';
+}
+
+function showResults() {
+  document.querySelectorAll('.question').forEach(q => q.classList.remove('active'));
+  document.getElementById('results').classList.add('active');
+  const pct = Math.round((correctCount / quizData.length) * 100);
+  document.getElementById('score').textContent = pct + '%';
+  document.getElementById('score-text').textContent = tr.scoreText.replace('{correct}', correctCount).replace('{total}', quizData.length);
+  document.querySelector('.progress-fill').style.width = '100%';
+}
+
+function restart() {
+  currentQ = 0; correctCount = 0; answered = false;
+  document.getElementById('results').classList.remove('active');
+  document.querySelectorAll('.question').forEach((q, i) => {
+    q.classList.toggle('active', i === 0);
+    q.querySelectorAll('.option').forEach(o => o.classList.remove('selected', 'correct', 'incorrect', 'disabled', 'show-correct'));
+    q.querySelectorAll('.option-feedback').forEach(f => {
+      f.classList.add('hidden');
+      f.classList.remove('correct-feedback', 'incorrect-feedback');
+    });
+    const btn = q.querySelector('.next-btn');
+    btn.classList.add('hidden');
+    btn.textContent = tr.next;
+  });
+  updateProgress();
+}
+
+init();
+</script>
+</body>
+</html>
