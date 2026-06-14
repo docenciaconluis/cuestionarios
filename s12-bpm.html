@@ -1,0 +1,1386 @@
+<!DOCTYPE html>
+<html lang="es" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Auditoría Cuestionario</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  min-height: 100vh; padding: 20px; color: #333;
+}
+.container { max-width: 700px; margin: 0 auto; }
+.header { text-align: center; color: #fff; padding: 30px 20px; }
+.header h1 { font-size: 28px; font-weight: 700; margin-bottom: 8px; text-shadow: 0 2px 10px rgba(0,0,0,0.2); }
+.header .meta { font-size: 14px; opacity: 0.9; }
+.progress-bar { background: rgba(255,255,255,0.3); border-radius: 10px; height: 8px; margin: 20px 0; overflow: hidden; }
+.progress-fill { background: #fff; height: 100%; width: 0%; transition: width 0.4s ease; border-radius: 10px; }
+.question { background: #fff; border-radius: 16px; padding: 30px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); display: none; }
+.question.active { display: block; }
+.q-header { display: flex; justify-content: space-between; margin-bottom: 20px; font-size: 13px; color: #888; }
+.q-number { font-weight: 600; color: #667eea; }
+.q-text { font-size: 18px; font-weight: 600; line-height: 1.5; margin-bottom: 25px; color: #222; }
+.options { display: flex; flex-direction: column; gap: 12px; }
+.option-wrapper { display: flex; flex-direction: column; }
+.option {
+  display: flex; align-items: flex-start; gap: 14px; padding: 16px 18px;
+  border: 2px solid #e8e8e8; border-radius: 12px; background: #fafafa;
+  cursor: pointer; transition: all 0.2s; text-align: left; font-size: 15px; width: 100%;
+}
+[dir="rtl"] .option { text-align: right; flex-direction: row-reverse; }
+.option:hover:not(.disabled) { border-color: #667eea; background: #f5f3ff; }
+.option.selected { border-color: #667eea; background: #ede9fe; }
+.option.correct { border-color: #22c55e; background: #dcfce7; }
+.option.incorrect { border-color: #ef4444; background: #fee2e2; }
+.option.disabled { cursor: default; }
+.option.show-correct { border-color: #22c55e; background: #dcfce7; }
+.opt-label {
+  display: flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; border-radius: 50%; background: #e8e8e8;
+  font-weight: 700; font-size: 14px; flex-shrink: 0;
+}
+.option.selected .opt-label { background: #667eea; color: #fff; }
+.option.correct .opt-label { background: #22c55e; color: #fff; }
+.option.incorrect .opt-label { background: #ef4444; color: #fff; }
+.option.show-correct .opt-label { background: #22c55e; color: #fff; }
+.opt-text { padding-top: 5px; line-height: 1.5; }
+
+/* Individual option feedback */
+.option-feedback {
+  margin: 8px 0 4px 46px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+[dir="rtl"] .option-feedback { margin-left: 0; margin-right: 46px; }
+.option-feedback.correct-feedback {
+  background: #dcfce7;
+  border-left: 3px solid #22c55e;
+}
+.option-feedback.incorrect-feedback {
+  background: #fef3f2;
+  border-left: 3px solid #fca5a5;
+}
+[dir="rtl"] .option-feedback.correct-feedback,
+[dir="rtl"] .option-feedback.incorrect-feedback {
+  border-left: none;
+  border-right: 3px solid;
+}
+[dir="rtl"] .option-feedback.correct-feedback { border-right-color: #22c55e; }
+[dir="rtl"] .option-feedback.incorrect-feedback { border-right-color: #fca5a5; }
+.feedback-status {
+  font-weight: 600;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.feedback-status.correct { color: #166534; }
+.feedback-status.incorrect { color: #991b1b; }
+.feedback-rationale { color: #444; }
+
+/* Hint box */
+.hint-box {
+  margin: 12px 0;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+}
+.hint-toggle {
+  width: 100%;
+  padding: 10px 16px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  color: #92400e;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.hint-toggle:hover { background: #fef3c7; }
+.hint-content {
+  padding: 0 16px;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s, padding 0.3s;
+  font-size: 14px;
+  color: #78350f;
+  line-height: 1.5;
+}
+.hint-box.show .hint-content {
+  padding: 0 16px 12px;
+  max-height: 200px;
+}
+
+.next-btn {
+  margin-top: 20px; width: 100%; padding: 14px;
+  background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; border: none;
+  border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.next-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(102,126,234,0.4); }
+.hidden { display: none !important; }
+.results { background: #fff; border-radius: 16px; padding: 40px; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.15); display: none; }
+.results.active { display: block; }
+.results h2 { font-size: 28px; margin-bottom: 10px; color: #333; }
+.results .score { font-size: 64px; font-weight: 700; color: #667eea; margin: 20px 0; }
+.results .score-text { font-size: 18px; color: #666; margin-bottom: 30px; }
+.restart-btn {
+  padding: 14px 40px; background: linear-gradient(135deg, #667eea, #764ba2);
+  color: #fff; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer;
+}
+
+/* Math CSS */
+.math, .math-block { font-family: "Cambria Math", "Times New Roman", Times, serif; font-style: italic; }
+.math-block { display: block; text-align: center; margin: 10px 0; font-size: 110%; }
+.frac { display: inline-flex; flex-direction: column; align-items: center; vertical-align: middle; margin: 0 3px; font-size: 0.9em; }
+.frac-num { border-bottom: 1px solid currentColor; padding: 0 4px 2px; line-height: 1.2; }
+.frac-den { padding: 2px 4px 0; line-height: 1.2; }
+.sqrt { white-space: nowrap; }
+.sqrt-content { border-top: 1px solid currentColor; padding: 0 3px; margin-left: 2px; }
+sup, sub { font-size: 0.75em; }
+sup { vertical-align: super; }
+sub { vertical-align: sub; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>Auditoría Cuestionario</h1>
+    <div class="meta">28 preguntas</div>
+    <div class="progress-bar"><div class="progress-fill"></div></div>
+  </div>
+  <div id="quiz-container">
+        <div class="question" data-index="0">
+          <div class="q-header">
+            <span class="q-number">Pregunta 1</span>
+            <span class="q-of">/ 28</span>
+          </div>
+          <div class="q-text">¿Es el objetivo primordial de una auditoría de procesos identificar y castigar a los trabajadores que cometen errores en la ejecución?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Recuerda el enfoque preventivo y de mejora mencionado en la sección de Teoría a profundidad.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="El propósito real es validar la efectividad de las acciones correctivas, detectar ineficiencias y asegurar la mejora continua del sistema.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El propósito real es validar la efectividad de las acciones correctivas, detectar ineficiencias y asegurar la mejora continua del sistema.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El material enfatiza que las auditorías no son una 'cacería de brujas' ni buscan culpables, sino que sirven para identificar áreas de mejora.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El material enfatiza que las auditorías no son una 'cacería de brujas' ni buscan culpables, sino que sirven para identificar áreas de mejora.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="1">
+          <div class="q-header">
+            <span class="q-number">Pregunta 2</span>
+            <span class="q-of">/ 28</span>
+          </div>
+          <div class="q-text">¿Son las auditorías internas realizadas por organismos certificadores independientes para otorgar sellos de calidad internacional?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Diferencia entre quién realiza la evaluación para el 'examen final' versus quién lo hace para 'autocorrección'.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Esta descripción corresponde a las auditorías externas, las cuales son llevadas a cabo por entes como SGS o Bureau Veritas.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esta descripción corresponde a las auditorías externas, las cuales son llevadas a cabo por entes como SGS o Bureau Veritas.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Las auditorías internas las realiza el propio equipo de control interno o áreas pares con un propósito de autodiagnóstico.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Las auditorías internas las realiza el propio equipo de control interno o áreas pares con un propósito de autodiagnóstico.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="2">
+          <div class="q-header">
+            <span class="q-number">Pregunta 3</span>
+            <span class="q-of">/ 28</span>
+          </div>
+          <div class="q-text">¿Se considera 'No Conformidad' al hallazgo detectado cuando un proceso no cumple con su propio procedimiento documentado?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Analiza qué sucede cuando existe una brecha entre lo que dice el manual y lo que sucede en la realidad.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Cualquier desviación respecto a lo planificado, como la falta de una firma o el incumplimiento de tiempos, constituye una no conformidad.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Cualquier desviación respecto a lo planificado, como la falta de una firma o el incumplimiento de tiempos, constituye una no conformidad.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El incumplimiento de estándares internos o externos es precisamente la definición técnica de una no conformidad en auditoría.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El incumplimiento de estándares internos o externos es precisamente la definición técnica de una no conformidad en auditoría.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="3">
+          <div class="q-header">
+            <span class="q-number">Pregunta 4</span>
+            <span class="q-of">/ 28</span>
+          </div>
+          <div class="q-text">¿La Norma ISO 9001 se centra exclusivamente en la inspección del producto final, dejando de lado la gestión de los procesos internos?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Revisa el punto 3 de la Teoría a profundidad sobre el enfoque de este estándar.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="La norma ISO 9001 tiene un enfoque sistémico que prioriza identificar, comprender y gestionar los procesos para lograr la calidad.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La norma ISO 9001 tiene un enfoque sistémico que prioriza identificar, comprender y gestionar los procesos para lograr la calidad.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Este estándar internacional se enfoca en el sistema de gestión por procesos para asegurar la consistencia y satisfacción del cliente.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Este estándar internacional se enfoca en el sistema de gestión por procesos para asegurar la consistencia y satisfacción del cliente.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="4">
+          <div class="q-header">
+            <span class="q-number">Pregunta 5</span>
+            <span class="q-of">/ 28</span>
+          </div>
+          <div class="q-text">¿Es el Ciclo PHVA una base para las auditorías, específicamente en las etapas de 'Verificar' y 'Actuar'?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considera qué etapas del ciclo se encargan de la revisión de resultados y la corrección de desviaciones.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="La auditoría permite verificar el cumplimiento y el plan de acción posterior representa la etapa de actuar para la mejora.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La auditoría permite verificar el cumplimiento y el plan de acción posterior representa la etapa de actuar para la mejora.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Las auditorías son el mecanismo por excelencia para la fase de verificación y el disparador de las acciones de ajuste.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Las auditorías son el mecanismo por excelencia para la fase de verificación y el disparador de las acciones de ajuste.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="5">
+          <div class="q-header">
+            <span class="q-number">Pregunta 6</span>
+            <span class="q-of">/ 28</span>
+          </div>
+          <div class="q-text">¿En la 'Simulación de Auditoría Cruzada', el equipo auditado tiene la responsabilidad de entregar su Manual de Procedimiento al Equipo Auditor?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Ubica el Paso 1 de la Actividad Grupal descrita en el material.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Para que el auditor pueda evaluar el cumplimiento, debe conocer primero los estándares definidos en el manual del auditado.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Para que el auditor pueda evaluar el cumplimiento, debe conocer primero los estándares definidos en el manual del auditado.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Sin el manual de procedimiento, el equipo auditor no tendría un criterio de comparación para identificar desviaciones.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Sin el manual de procedimiento, el equipo auditor no tendría un criterio de comparación para identificar desviaciones.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="6">
+          <div class="q-header">
+            <span class="q-number">Pregunta 7</span>
+            <span class="q-of">/ 28</span>
+          </div>
+          <div class="q-text">¿La 'inyección de crisis' durante la simulación consiste en que el profesor simule un evento en el Dashboard para evaluar la respuesta del equipo?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piensa en el rol del profesor o auditor al mencionar excesos de tiempo de ciclo del <span class="math">40%</span>.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Esta dinámica es parte del Paso 2 para hacer que la auditoría sea más realista e integradora con los Dashboards de IA.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esta dinámica es parte del Paso 2 para hacer que la auditoría sea más realista e integradora con los Dashboards de IA.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Se busca poner a prueba la capacidad de respuesta del equipo ante una alerta roja o desviación crítica en tiempo real.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Se busca poner a prueba la capacidad de respuesta del equipo ante una alerta roja o desviación crítica en tiempo real.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="7">
+          <div class="q-header">
+            <span class="q-number">Pregunta 8</span>
+            <span class="q-of">/ 28</span>
+          </div>
+          <div class="q-text">¿El análisis de causa raíz mediante herramientas como Ishikawa debe realizarse inmediatamente después de detectar una No Conformidad?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Revisa el orden lógico entre detectar un hallazgo y proponer una solución definitiva.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Identificar el origen del problema es el paso previo indispensable para diseñar un Plan de Acción Correctivo efectivo.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Identificar el origen del problema es el paso previo indispensable para diseñar un Plan de Acción Correctivo efectivo.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Sin un análisis de causa raíz, cualquier plan de acción sería solo un parche temporal que no evitaría la recurrencia.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Sin un análisis de causa raíz, cualquier plan de acción sería solo un parche temporal que no evitaría la recurrencia.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="8">
+          <div class="q-header">
+            <span class="q-number">Pregunta 9</span>
+            <span class="q-of">/ 28</span>
+          </div>
+          <div class="q-text">¿Las auditorías externas son opcionales para una empresa que desea renovar su certificación ISO 9001?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considera el valor de la objetividad de un tercero en el proceso de certificación.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Solo un organismo independiente puede validar objetivamente que el sistema de gestión cumple con los estándares internacionales.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Solo un organismo independiente puede validar objetivamente que el sistema de gestión cumple con los estándares internacionales.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Las auditorías externas son un requisito obligatorio e ineludible para la obtención o renovación de certificaciones internacionales.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Las auditorías externas son un requisito obligatorio e ineludible para la obtención o renovación de certificaciones internacionales.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="9">
+          <div class="q-header">
+            <span class="q-number">Pregunta 10</span>
+            <span class="q-of">/ 28</span>
+          </div>
+          <div class="q-text">¿Se afirma en el material que la mayoría de los fallos en los procesos ocurren porque el personal tiene la intención de trabajar mal?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Lee la sección de 'Conclusión de clase' sobre la naturaleza de las fallas.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="El texto concluye que los fallos suelen deberse al diseño del proceso, falta de capacitación o carencia de controles claros.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El texto concluye que los fallos suelen deberse al diseño del proceso, falta de capacitación o carencia de controles claros.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="La conclusión de la clase señala que la calidad no es accidental y los fallos no son voluntarios, sino sistémicos.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La conclusión de la clase señala que la calidad no es accidental y los fallos no son voluntarios, sino sistémicos.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="10">
+          <div class="q-header">
+            <span class="q-number">Pregunta 11</span>
+            <span class="q-of">/ 28</span>
+          </div>
+          <div class="q-text">¿En el ejemplo de la industria alimentaria, la causa raíz de la falta de registro de temperatura fue la sobrecarga de tareas del personal?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Busca el análisis de causa dentro del Ejemplo 1 de la industria alimentaria.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="El olvido humano por exceso de trabajo fue la causa raíz identificada, lo que llevó a la automatización como solución.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El olvido humano por exceso de trabajo fue la causa raíz identificada, lo que llevó a la automatización como solución.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El ejemplo 1 detalla explícitamente que la sobrecarga de tareas generaba el olvido en el llenado de los formatos manuales.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El ejemplo 1 detalla explícitamente que la sobrecarga de tareas generaba el olvido en el llenado de los formatos manuales.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="11">
+          <div class="q-header">
+            <span class="q-number">Pregunta 12</span>
+            <span class="q-of">/ 28</span>
+          </div>
+          <div class="q-text">¿El rol del 'Auditor Líder' durante la exposición de grupos en la simulación es desempeñado por los estudiantes que auditaron?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Verifica quién tiene la última palabra sobre la validez de los planes de acción en la dinámica grupal.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="El docente asume este rol para asegurar que el plan de acción ataque la causa raíz y no sea solo un parche.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El docente asume este rol para asegurar que el plan de acción ataque la causa raíz y no sea solo un parche.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El material indica que el profesor es quien actúa como Auditor Líder para validar los planes de acción.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El material indica que el profesor es quien actúa como Auditor Líder para validar los planes de acción.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="12">
+          <div class="q-header">
+            <span class="q-number">Pregunta 13</span>
+            <span class="q-of">/ 28</span>
+          </div>
+          <div class="q-text">¿Garantiza el diseño de un Dashboard con IA por sí solo que el personal cumplirá con los procesos en la vida real?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Reflexiona sobre el propósito preventivo de la auditoría frente a la planificación teórica.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Tener la herramienta no asegura el cumplimiento; por eso se requieren auditorías para verificar la ejecución real.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Tener la herramienta no asegura el cumplimiento; por eso se requieren auditorías para verificar la ejecución real.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="La utilidad de la sesión explica que diseñar procesos brillantes o Dashboards no garantiza el cumplimiento sin auditorías.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La utilidad de la sesión explica que diseñar procesos brillantes o Dashboards no garantiza el cumplimiento sin auditorías.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="13">
+          <div class="q-header">
+            <span class="q-number">Pregunta 14</span>
+            <span class="q-of">/ 28</span>
+          </div>
+          <div class="q-text">¿El tiempo asignado para la ejecución del role-play de auditoría (Paso 2) es de 15 minutos?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Busca la duración específica indicada en los pasos de la Actividad Grupal.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="El Paso 2 de la actividad grupal especifica una duración de 15 minutos para la interacción entre auditor y auditado.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El Paso 2 de la actividad grupal especifica una duración de 15 minutos para la interacción entre auditor y auditado.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El diseño de la sesión establece tiempos cortos y dinámicos para la fase de simulación de preguntas críticas.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El diseño de la sesión establece tiempos cortos y dinámicos para la fase de simulación de preguntas críticas.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="14">
+          <div class="q-header">
+            <span class="q-number">Pregunta 15</span>
+            <span class="q-of">/ 28</span>
+          </div>
+          <div class="q-text">¿Las auditorías internas fomentan la responsabilidad del equipo sobre sus propios fallos antes de que lleguen al cliente?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considera los beneficios de las auditorías internas listados en el punto 2 de la Teoría.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Uno de los propósitos de las autoevaluaciones es precisamente fomentar la responsabilidad y corrección temprana.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Uno de los propósitos de las autoevaluaciones es precisamente fomentar la responsabilidad y corrección temprana.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Al detectar desviaciones internamente, el equipo se hace cargo de la corrección sin afectar la imagen externa.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Al detectar desviaciones internamente, el equipo se hace cargo de la corrección sin afectar la imagen externa.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="15">
+          <div class="q-header">
+            <span class="q-number">Pregunta 16</span>
+            <span class="q-of">/ 28</span>
+          </div>
+          <div class="q-text">¿En el ejemplo de BBVA Continental, la auditoría externa detectó que el banco no cumplía con los tiempos de procesamiento?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Revisa el resultado de la auditoría externa en el Ejemplo 2.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="El ejemplo menciona que no se encontraron no conformidades mayores, lo que permitió certificar la calidad de atención.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El ejemplo menciona que no se encontraron no conformidades mayores, lo que permitió certificar la calidad de atención.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="El banco logró certificar precisamente porque la auditoría externa validó positivamente sus tiempos y operaciones.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El banco logró certificar precisamente porque la auditoría externa validó positivamente sus tiempos y operaciones.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="16">
+          <div class="q-header">
+            <span class="q-number">Pregunta 17</span>
+            <span class="q-of">/ 28</span>
+          </div>
+          <div class="q-text">¿Un Plan de Acción Correctivo debe explicar cómo se modificará el diseño del proceso (en Bizagi o Dashboard) para solucionar la causa raíz?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piensa en cómo se cierra el ciclo de mejora tras un hallazgo en la simulación.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="El Paso 4 de la actividad indica que el plan debe justificar modificaciones en el diseño para asegurar que el error no se repita.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El Paso 4 de la actividad indica que el plan debe justificar modificaciones en el diseño para asegurar que el error no se repita.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="La esencia de un plan correctivo sistemático es ajustar el diseño o los controles del proceso modelado.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La esencia de un plan correctivo sistemático es ajustar el diseño o los controles del proceso modelado.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="17">
+          <div class="q-header">
+            <span class="q-number">Pregunta 18</span>
+            <span class="q-of">/ 28</span>
+          </div>
+          <div class="q-text">¿Las certificaciones internacionales como ISO 9001 otorgan una ventaja competitiva al asegurar estándares de excelencia ante los clientes?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Reflexiona sobre la percepción del cliente ante una empresa certificada vs. una que no lo está.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Validan objetivamente la calidad y dan confianza a los grupos de interés sobre el cumplimiento de estándares.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Validan objetivamente la calidad y dan confianza a los grupos de interés sobre el cumplimiento de estándares.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="La utilidad de la sesión menciona explícitamente que estas certificaciones son una ventaja competitiva gigante.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La utilidad de la sesión menciona explícitamente que estas certificaciones son una ventaja competitiva gigante.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="18">
+          <div class="q-header">
+            <span class="q-number">Pregunta 19</span>
+            <span class="q-of">/ 28</span>
+          </div>
+          <div class="q-text">¿La técnica de los '5 Porqués' se utiliza exclusivamente para sancionar al responsable de un proceso?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Recuerda el propósito de las herramientas mencionadas en el punto 4 de la Teoría.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Es una herramienta de análisis de causa raíz enfocada en procesos, no una herramienta disciplinaria.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Es una herramienta de análisis de causa raíz enfocada en procesos, no una herramienta disciplinaria.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Su objetivo es profundizar en la cadena de eventos hasta encontrar el fallo sistémico que originó la No Conformidad.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Su objetivo es profundizar en la cadena de eventos hasta encontrar el fallo sistémico que originó la No Conformidad.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="19">
+          <div class="q-header">
+            <span class="q-number">Pregunta 20</span>
+            <span class="q-of">/ 28</span>
+          </div>
+          <div class="q-text">¿El Paso 3 de la simulación requiere que el equipo auditor redacte el hallazgo en un 'Formato de No Conformidad' indicando la desviación detectada?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Ubica la tarea específica que debe realizar el Equipo Auditor después de las preguntas críticas.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="El material describe este paso como esencial para que el equipo auditado pueda proceder con el análisis de causa.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El material describe este paso como esencial para que el equipo auditado pueda proceder con el análisis de causa.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="La documentación formal del hallazgo es un paso crítico en cualquier proceso de auditoría real o simulado.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La documentación formal del hallazgo es un paso crítico en cualquier proceso de auditoría real o simulado.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="20">
+          <div class="q-header">
+            <span class="q-number">Pregunta 21</span>
+            <span class="q-of">/ 28</span>
+          </div>
+          <div class="q-text">¿El logro de la sesión incluye que el estudiante demuestre capacidad crítica, ética y enfoque en la mejora continua?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Revisa el primer párrafo del material sobre el 'Logro de sesión'.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="El enunciado del logro de sesión menciona explícitamente estas competencias como parte de la formación del estudiante.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El enunciado del logro de sesión menciona explícitamente estas competencias como parte de la formación del estudiante.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Estos valores son transversales a la ejecución de auditorías y planes de acción según el logro planteado.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Estos valores son transversales a la ejecución de auditorías y planes de acción según el logro planteado.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="21">
+          <div class="q-header">
+            <span class="q-number">Pregunta 22</span>
+            <span class="q-of">/ 28</span>
+          </div>
+          <div class="q-text">¿El exceso del tiempo límite en una actividad es un ejemplo válido de una No Conformidad?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piensa en los ejemplos de no conformidades listados en la teoría sobre el punto 4.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Si el procedimiento define un tiempo máximo y este se excede, se está incumpliendo el estándar establecido.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Si el procedimiento define un tiempo máximo y este se excede, se está incumpliendo el estándar establecido.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Cualquier desviación de los parámetros operativos definidos en el manual se categoriza como no conformidad.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Cualquier desviación de los parámetros operativos definidos en el manual se categoriza como no conformidad.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="22">
+          <div class="q-header">
+            <span class="q-number">Pregunta 23</span>
+            <span class="q-of">/ 28</span>
+          </div>
+          <div class="q-text">¿Para la Semana 12, se requiere que el estudiante tenga conocimientos previos sobre Fichas de caracterización y Semáforos de control?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Consulta la sección de 'Conocimientos previos'.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Estos temas, vistos en las semanas 9 y 11, son la base sobre la cual se realiza la auditoría de procesos.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Estos temas, vistos en las semanas 9 y 11, son la base sobre la cual se realiza la auditoría de procesos.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El material lista explícitamente estos conceptos como prerrequisitos necesarios para el éxito de la sesión.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El material lista explícitamente estos conceptos como prerrequisitos necesarios para el éxito de la sesión.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="23">
+          <div class="q-header">
+            <span class="q-number">Pregunta 24</span>
+            <span class="q-of">/ 28</span>
+          </div>
+          <div class="q-text">¿La automatización mediante sensores en el ejemplo alimentario eliminó el error humano en el registro de temperaturas?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Evalúa el impacto del Plan de Acción mencionado en la industria alimentaria.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="El plan de acción del ejemplo 1 se diseñó específicamente para mitigar el riesgo de olvido humano mediante tecnología.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El plan de acción del ejemplo 1 se diseñó específicamente para mitigar el riesgo de olvido humano mediante tecnología.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Al enviar los datos directamente al Dashboard, se prescinde de la intervención manual que causaba los olvidos.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Al enviar los datos directamente al Dashboard, se prescinde de la intervención manual que causaba los olvidos.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="24">
+          <div class="q-header">
+            <span class="q-number">Pregunta 25</span>
+            <span class="q-of">/ 28</span>
+          </div>
+          <div class="q-text">¿Es la auditoría una herramienta de control que asegura que lo planificado se esté ejecutando correctamente?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considera la analogía de la auditoría como un 'chequeo médico preventivo'.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Su función principal es la verificación para garantizar que la realidad operativa coincida con la documentación.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Su función principal es la verificación para garantizar que la realidad operativa coincida con la documentación.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="La utilidad de la sesión define la auditoría precisamente como la herramienta para verificar la ejecución frente a la planificación.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La utilidad de la sesión define la auditoría precisamente como la herramienta para verificar la ejecución frente a la planificación.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="25">
+          <div class="q-header">
+            <span class="q-number">Pregunta 26</span>
+            <span class="q-of">/ 28</span>
+          </div>
+          <div class="q-text">¿En la dinámica de clase, cada pareja de grupos cuenta con 30 minutos para su exposición final?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Busca el tiempo asignado en la sección 'Exposición de grupos'.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="El material indica que cada pareja tiene solo 5 minutos para exponer sus hallazgos y planes de acción.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El material indica que cada pareja tiene solo 5 minutos para exponer sus hallazgos y planes de acción.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Se ha diseñado una exposición breve y concisa de 5 minutos por pareja de grupos ante el frente.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Se ha diseñado una exposición breve y concisa de 5 minutos por pareja de grupos ante el frente.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="26">
+          <div class="q-header">
+            <span class="q-number">Pregunta 27</span>
+            <span class="q-of">/ 28</span>
+          </div>
+          <div class="q-text">¿Las auditorías de procesos solo se aplican a empresas industriales, no a entidades bancarias como el BBVA?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Revisa los 'Ejemplos reales' proporcionados en el material.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="El ejemplo 2 demuestra que los bancos también implementan gestión por procesos e ISO 9001 para sus servicios.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El ejemplo 2 demuestra que los bancos también implementan gestión por procesos e ISO 9001 para sus servicios.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="La auditoría de procesos es aplicable a cualquier organización, sea de manufactura o de servicios financieros.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La auditoría de procesos es aplicable a cualquier organización, sea de manufactura o de servicios financieros.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="27">
+          <div class="q-header">
+            <span class="q-number">Pregunta 28</span>
+            <span class="q-of">/ 28</span>
+          </div>
+          <div class="q-text">¿La ISO 9001 es un estándar nacional exclusivo para empresas peruanas?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Fíjate en las siglas y el alcance mencionado en el punto 3 de la Teoría.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="ISO es una organización internacional de estandarización, lo que permite que las empresas compitan globalmente.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">ISO es una organización internacional de estandarización, lo que permite que las empresas compitan globalmente.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Es una norma de carácter internacional reconocida y aplicada en todo el mundo.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Es una norma de carácter internacional reconocida y aplicada en todo el mundo.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      </div>
+  <div class="results" id="results">
+    <h2>¡Cuestionario completado!</h2>
+    <div class="score" id="score">0%</div>
+    <div class="score-text" id="score-text"></div>
+    <button class="restart-btn" onclick="restart()">Intentar de nuevo</button>
+  </div>
+</div>
+<script>
+const quizData = [{"question":"¿Es el objetivo primordial de una auditoría de procesos identificar y castigar a los trabajadores que cometen errores en la ejecución?","hint":"Recuerda el enfoque preventivo y de mejora mencionado en la sección de Teoría a profundidad.","options":[{"label":"A","text":"Falso","isCorrect":true,"rationale":"El propósito real es validar la efectividad de las acciones correctivas, detectar ineficiencias y asegurar la mejora continua del sistema."},{"label":"B","text":"Verdadero","isCorrect":false,"rationale":"El material enfatiza que las auditorías no son una 'cacería de brujas' ni buscan culpables, sino que sirven para identificar áreas de mejora."}]},{"question":"¿Son las auditorías internas realizadas por organismos certificadores independientes para otorgar sellos de calidad internacional?","hint":"Diferencia entre quién realiza la evaluación para el 'examen final' versus quién lo hace para 'autocorrección'.","options":[{"label":"A","text":"Verdadero","isCorrect":false,"rationale":"Esta descripción corresponde a las auditorías externas, las cuales son llevadas a cabo por entes como SGS o Bureau Veritas."},{"label":"B","text":"Falso","isCorrect":true,"rationale":"Las auditorías internas las realiza el propio equipo de control interno o áreas pares con un propósito de autodiagnóstico."}]},{"question":"¿Se considera 'No Conformidad' al hallazgo detectado cuando un proceso no cumple con su propio procedimiento documentado?","hint":"Analiza qué sucede cuando existe una brecha entre lo que dice el manual y lo que sucede en la realidad.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"Cualquier desviación respecto a lo planificado, como la falta de una firma o el incumplimiento de tiempos, constituye una no conformidad."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"El incumplimiento de estándares internos o externos es precisamente la definición técnica de una no conformidad en auditoría."}]},{"question":"¿La Norma ISO 9001 se centra exclusivamente en la inspección del producto final, dejando de lado la gestión de los procesos internos?","hint":"Revisa el punto 3 de la Teoría a profundidad sobre el enfoque de este estándar.","options":[{"label":"A","text":"Verdadero","isCorrect":false,"rationale":"La norma ISO 9001 tiene un enfoque sistémico que prioriza identificar, comprender y gestionar los procesos para lograr la calidad."},{"label":"B","text":"Falso","isCorrect":true,"rationale":"Este estándar internacional se enfoca en el sistema de gestión por procesos para asegurar la consistencia y satisfacción del cliente."}]},{"question":"¿Es el Ciclo PHVA una base para las auditorías, específicamente en las etapas de 'Verificar' y 'Actuar'?","hint":"Considera qué etapas del ciclo se encargan de la revisión de resultados y la corrección de desviaciones.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"La auditoría permite verificar el cumplimiento y el plan de acción posterior representa la etapa de actuar para la mejora."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"Las auditorías son el mecanismo por excelencia para la fase de verificación y el disparador de las acciones de ajuste."}]},{"question":"¿En la 'Simulación de Auditoría Cruzada', el equipo auditado tiene la responsabilidad de entregar su Manual de Procedimiento al Equipo Auditor?","hint":"Ubica el Paso 1 de la Actividad Grupal descrita en el material.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"Para que el auditor pueda evaluar el cumplimiento, debe conocer primero los estándares definidos en el manual del auditado."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"Sin el manual de procedimiento, el equipo auditor no tendría un criterio de comparación para identificar desviaciones."}]},{"question":"¿La 'inyección de crisis' durante la simulación consiste en que el profesor simule un evento en el Dashboard para evaluar la respuesta del equipo?","hint":"Piensa en el rol del profesor o auditor al mencionar excesos de tiempo de ciclo del $40\\%$.","options":[{"label":"A","text":"Falso","isCorrect":false,"rationale":"Esta dinámica es parte del Paso 2 para hacer que la auditoría sea más realista e integradora con los Dashboards de IA."},{"label":"B","text":"Verdadero","isCorrect":true,"rationale":"Se busca poner a prueba la capacidad de respuesta del equipo ante una alerta roja o desviación crítica en tiempo real."}]},{"question":"¿El análisis de causa raíz mediante herramientas como Ishikawa debe realizarse inmediatamente después de detectar una No Conformidad?","hint":"Revisa el orden lógico entre detectar un hallazgo y proponer una solución definitiva.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"Identificar el origen del problema es el paso previo indispensable para diseñar un Plan de Acción Correctivo efectivo."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"Sin un análisis de causa raíz, cualquier plan de acción sería solo un parche temporal que no evitaría la recurrencia."}]},{"question":"¿Las auditorías externas son opcionales para una empresa que desea renovar su certificación ISO 9001?","hint":"Considera el valor de la objetividad de un tercero en el proceso de certificación.","options":[{"label":"A","text":"Falso","isCorrect":true,"rationale":"Solo un organismo independiente puede validar objetivamente que el sistema de gestión cumple con los estándares internacionales."},{"label":"B","text":"Verdadero","isCorrect":false,"rationale":"Las auditorías externas son un requisito obligatorio e ineludible para la obtención o renovación de certificaciones internacionales."}]},{"question":"¿Se afirma en el material que la mayoría de los fallos en los procesos ocurren porque el personal tiene la intención de trabajar mal?","hint":"Lee la sección de 'Conclusión de clase' sobre la naturaleza de las fallas.","options":[{"label":"A","text":"Verdadero","isCorrect":false,"rationale":"El texto concluye que los fallos suelen deberse al diseño del proceso, falta de capacitación o carencia de controles claros."},{"label":"B","text":"Falso","isCorrect":true,"rationale":"La conclusión de la clase señala que la calidad no es accidental y los fallos no son voluntarios, sino sistémicos."}]},{"question":"¿En el ejemplo de la industria alimentaria, la causa raíz de la falta de registro de temperatura fue la sobrecarga de tareas del personal?","hint":"Busca el análisis de causa dentro del Ejemplo 1 de la industria alimentaria.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"El olvido humano por exceso de trabajo fue la causa raíz identificada, lo que llevó a la automatización como solución."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"El ejemplo 1 detalla explícitamente que la sobrecarga de tareas generaba el olvido en el llenado de los formatos manuales."}]},{"question":"¿El rol del 'Auditor Líder' durante la exposición de grupos en la simulación es desempeñado por los estudiantes que auditaron?","hint":"Verifica quién tiene la última palabra sobre la validez de los planes de acción en la dinámica grupal.","options":[{"label":"A","text":"Falso","isCorrect":true,"rationale":"El docente asume este rol para asegurar que el plan de acción ataque la causa raíz y no sea solo un parche."},{"label":"B","text":"Verdadero","isCorrect":false,"rationale":"El material indica que el profesor es quien actúa como Auditor Líder para validar los planes de acción."}]},{"question":"¿Garantiza el diseño de un Dashboard con IA por sí solo que el personal cumplirá con los procesos en la vida real?","hint":"Reflexiona sobre el propósito preventivo de la auditoría frente a la planificación teórica.","options":[{"label":"A","text":"Verdadero","isCorrect":false,"rationale":"Tener la herramienta no asegura el cumplimiento; por eso se requieren auditorías para verificar la ejecución real."},{"label":"B","text":"Falso","isCorrect":true,"rationale":"La utilidad de la sesión explica que diseñar procesos brillantes o Dashboards no garantiza el cumplimiento sin auditorías."}]},{"question":"¿El tiempo asignado para la ejecución del role-play de auditoría (Paso 2) es de 15 minutos?","hint":"Busca la duración específica indicada en los pasos de la Actividad Grupal.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"El Paso 2 de la actividad grupal especifica una duración de 15 minutos para la interacción entre auditor y auditado."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"El diseño de la sesión establece tiempos cortos y dinámicos para la fase de simulación de preguntas críticas."}]},{"question":"¿Las auditorías internas fomentan la responsabilidad del equipo sobre sus propios fallos antes de que lleguen al cliente?","hint":"Considera los beneficios de las auditorías internas listados en el punto 2 de la Teoría.","options":[{"label":"A","text":"Falso","isCorrect":false,"rationale":"Uno de los propósitos de las autoevaluaciones es precisamente fomentar la responsabilidad y corrección temprana."},{"label":"B","text":"Verdadero","isCorrect":true,"rationale":"Al detectar desviaciones internamente, el equipo se hace cargo de la corrección sin afectar la imagen externa."}]},{"question":"¿En el ejemplo de BBVA Continental, la auditoría externa detectó que el banco no cumplía con los tiempos de procesamiento?","hint":"Revisa el resultado de la auditoría externa en el Ejemplo 2.","options":[{"label":"A","text":"Verdadero","isCorrect":false,"rationale":"El ejemplo menciona que no se encontraron no conformidades mayores, lo que permitió certificar la calidad de atención."},{"label":"B","text":"Falso","isCorrect":true,"rationale":"El banco logró certificar precisamente porque la auditoría externa validó positivamente sus tiempos y operaciones."}]},{"question":"¿Un Plan de Acción Correctivo debe explicar cómo se modificará el diseño del proceso (en Bizagi o Dashboard) para solucionar la causa raíz?","hint":"Piensa en cómo se cierra el ciclo de mejora tras un hallazgo en la simulación.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"El Paso 4 de la actividad indica que el plan debe justificar modificaciones en el diseño para asegurar que el error no se repita."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"La esencia de un plan correctivo sistemático es ajustar el diseño o los controles del proceso modelado."}]},{"question":"¿Las certificaciones internacionales como ISO 9001 otorgan una ventaja competitiva al asegurar estándares de excelencia ante los clientes?","hint":"Reflexiona sobre la percepción del cliente ante una empresa certificada vs. una que no lo está.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"Validan objetivamente la calidad y dan confianza a los grupos de interés sobre el cumplimiento de estándares."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"La utilidad de la sesión menciona explícitamente que estas certificaciones son una ventaja competitiva gigante."}]},{"question":"¿La técnica de los '5 Porqués' se utiliza exclusivamente para sancionar al responsable de un proceso?","hint":"Recuerda el propósito de las herramientas mencionadas en el punto 4 de la Teoría.","options":[{"label":"A","text":"Verdadero","isCorrect":false,"rationale":"Es una herramienta de análisis de causa raíz enfocada en procesos, no una herramienta disciplinaria."},{"label":"B","text":"Falso","isCorrect":true,"rationale":"Su objetivo es profundizar en la cadena de eventos hasta encontrar el fallo sistémico que originó la No Conformidad."}]},{"question":"¿El Paso 3 de la simulación requiere que el equipo auditor redacte el hallazgo en un 'Formato de No Conformidad' indicando la desviación detectada?","hint":"Ubica la tarea específica que debe realizar el Equipo Auditor después de las preguntas críticas.","options":[{"label":"A","text":"Falso","isCorrect":false,"rationale":"El material describe este paso como esencial para que el equipo auditado pueda proceder con el análisis de causa."},{"label":"B","text":"Verdadero","isCorrect":true,"rationale":"La documentación formal del hallazgo es un paso crítico en cualquier proceso de auditoría real o simulado."}]},{"question":"¿El logro de la sesión incluye que el estudiante demuestre capacidad crítica, ética y enfoque en la mejora continua?","hint":"Revisa el primer párrafo del material sobre el 'Logro de sesión'.","options":[{"label":"A","text":"Falso","isCorrect":false,"rationale":"El enunciado del logro de sesión menciona explícitamente estas competencias como parte de la formación del estudiante."},{"label":"B","text":"Verdadero","isCorrect":true,"rationale":"Estos valores son transversales a la ejecución de auditorías y planes de acción según el logro planteado."}]},{"question":"¿El exceso del tiempo límite en una actividad es un ejemplo válido de una No Conformidad?","hint":"Piensa en los ejemplos de no conformidades listados en la teoría sobre el punto 4.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"Si el procedimiento define un tiempo máximo y este se excede, se está incumpliendo el estándar establecido."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"Cualquier desviación de los parámetros operativos definidos en el manual se categoriza como no conformidad."}]},{"question":"¿Para la Semana 12, se requiere que el estudiante tenga conocimientos previos sobre Fichas de caracterización y Semáforos de control?","hint":"Consulta la sección de 'Conocimientos previos'.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"Estos temas, vistos en las semanas 9 y 11, son la base sobre la cual se realiza la auditoría de procesos."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"El material lista explícitamente estos conceptos como prerrequisitos necesarios para el éxito de la sesión."}]},{"question":"¿La automatización mediante sensores en el ejemplo alimentario eliminó el error humano en el registro de temperaturas?","hint":"Evalúa el impacto del Plan de Acción mencionado en la industria alimentaria.","options":[{"label":"A","text":"Falso","isCorrect":false,"rationale":"El plan de acción del ejemplo 1 se diseñó específicamente para mitigar el riesgo de olvido humano mediante tecnología."},{"label":"B","text":"Verdadero","isCorrect":true,"rationale":"Al enviar los datos directamente al Dashboard, se prescinde de la intervención manual que causaba los olvidos."}]},{"question":"¿Es la auditoría una herramienta de control que asegura que lo planificado se esté ejecutando correctamente?","hint":"Considera la analogía de la auditoría como un 'chequeo médico preventivo'.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"Su función principal es la verificación para garantizar que la realidad operativa coincida con la documentación."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"La utilidad de la sesión define la auditoría precisamente como la herramienta para verificar la ejecución frente a la planificación."}]},{"question":"¿En la dinámica de clase, cada pareja de grupos cuenta con 30 minutos para su exposición final?","hint":"Busca el tiempo asignado en la sección 'Exposición de grupos'.","options":[{"label":"A","text":"Verdadero","isCorrect":false,"rationale":"El material indica que cada pareja tiene solo 5 minutos para exponer sus hallazgos y planes de acción."},{"label":"B","text":"Falso","isCorrect":true,"rationale":"Se ha diseñado una exposición breve y concisa de 5 minutos por pareja de grupos ante el frente."}]},{"question":"¿Las auditorías de procesos solo se aplican a empresas industriales, no a entidades bancarias como el BBVA?","hint":"Revisa los 'Ejemplos reales' proporcionados en el material.","options":[{"label":"A","text":"Verdadero","isCorrect":false,"rationale":"El ejemplo 2 demuestra que los bancos también implementan gestión por procesos e ISO 9001 para sus servicios."},{"label":"B","text":"Falso","isCorrect":true,"rationale":"La auditoría de procesos es aplicable a cualquier organización, sea de manufactura o de servicios financieros."}]},{"question":"¿La ISO 9001 es un estándar nacional exclusivo para empresas peruanas?","hint":"Fíjate en las siglas y el alcance mencionado en el punto 3 de la Teoría.","options":[{"label":"A","text":"Falso","isCorrect":true,"rationale":"ISO es una organización internacional de estandarización, lo que permite que las empresas compitan globalmente."},{"label":"B","text":"Verdadero","isCorrect":false,"rationale":"Es una norma de carácter internacional reconocida y aplicada en todo el mundo."}]}];
+const tr = {"correct":"¡Correcto!","incorrect":"Incorrecto","next":"Siguiente pregunta →","seeResults":"Ver resultados","complete":"¡Cuestionario completado!","scoreText":"Obtuviste {correct} de {total} correctas","tryAgain":"Intentar de nuevo","rightAnswer":"Respuesta correcta","notQuite":"No del todo"};
+let currentQ = 0, correctCount = 0, answered = false;
+
+function init() {
+  document.querySelectorAll('.question').forEach((q, i) => q.classList.toggle('active', i === 0));
+  updateProgress();
+  document.querySelectorAll('.option').forEach(opt => opt.addEventListener('click', () => selectOption(opt)));
+  document.querySelectorAll('.next-btn').forEach(btn => btn.addEventListener('click', nextQuestion));
+}
+
+function selectOption(opt) {
+  if (answered) return;
+  answered = true;
+  const q = opt.closest('.question');
+  const options = q.querySelectorAll('.option');
+  const nextBtn = q.querySelector('.next-btn');
+  const isCorrect = opt.dataset.correct === 'true';
+  
+  // Mark all options as disabled
+  options.forEach(o => o.classList.add('disabled'));
+  
+  // Style selected option
+  opt.classList.add('selected', isCorrect ? 'correct' : 'incorrect');
+  
+  // Show correct answer if wrong
+  if (!isCorrect) {
+    const correctOpt = [...options].find(o => o.dataset.correct === 'true');
+    if (correctOpt) correctOpt.classList.add('show-correct');
+  }
+  
+  if (isCorrect) correctCount++;
+  
+  // Show feedback for ALL options that have rationale
+  options.forEach(o => {
+    const wrapper = o.closest('.option-wrapper');
+    const feedback = wrapper.querySelector('.option-feedback');
+    const rationale = o.dataset.rationale;
+    const isThisCorrect = o.dataset.correct === 'true';
+    
+    if (rationale && rationale.trim()) {
+      feedback.classList.remove('hidden');
+      feedback.classList.add(isThisCorrect ? 'correct-feedback' : 'incorrect-feedback');
+      
+      const statusEl = feedback.querySelector('.feedback-status');
+      statusEl.className = 'feedback-status ' + (isThisCorrect ? 'correct' : 'incorrect');
+      statusEl.innerHTML = isThisCorrect 
+        ? '✓ ' + tr.rightAnswer
+        : '✗ ' + tr.notQuite;
+    }
+  });
+  
+  nextBtn.classList.remove('hidden');
+  if (currentQ === quizData.length - 1) nextBtn.textContent = tr.seeResults;
+}
+
+function nextQuestion() {
+  answered = false;
+  currentQ++;
+  if (currentQ >= quizData.length) { showResults(); return; }
+  document.querySelectorAll('.question').forEach((q, i) => q.classList.toggle('active', i === currentQ));
+  updateProgress();
+}
+
+function updateProgress() {
+  document.querySelector('.progress-fill').style.width = (currentQ / quizData.length * 100) + '%';
+}
+
+function showResults() {
+  document.querySelectorAll('.question').forEach(q => q.classList.remove('active'));
+  document.getElementById('results').classList.add('active');
+  const pct = Math.round((correctCount / quizData.length) * 100);
+  document.getElementById('score').textContent = pct + '%';
+  document.getElementById('score-text').textContent = tr.scoreText.replace('{correct}', correctCount).replace('{total}', quizData.length);
+  document.querySelector('.progress-fill').style.width = '100%';
+}
+
+function restart() {
+  currentQ = 0; correctCount = 0; answered = false;
+  document.getElementById('results').classList.remove('active');
+  document.querySelectorAll('.question').forEach((q, i) => {
+    q.classList.toggle('active', i === 0);
+    q.querySelectorAll('.option').forEach(o => o.classList.remove('selected', 'correct', 'incorrect', 'disabled', 'show-correct'));
+    q.querySelectorAll('.option-feedback').forEach(f => {
+      f.classList.add('hidden');
+      f.classList.remove('correct-feedback', 'incorrect-feedback');
+    });
+    const btn = q.querySelector('.next-btn');
+    btn.classList.add('hidden');
+    btn.textContent = tr.next;
+  });
+  updateProgress();
+}
+
+init();
+</script>
+</body>
+</html>
