@@ -1,0 +1,886 @@
+<!DOCTYPE html>
+<html lang="es" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>S13 IOP</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  min-height: 100vh; padding: 20px; color: #333;
+}
+.container { max-width: 700px; margin: 0 auto; }
+.header { text-align: center; color: #fff; padding: 30px 20px; }
+.header h1 { font-size: 28px; font-weight: 700; margin-bottom: 8px; text-shadow: 0 2px 10px rgba(0,0,0,0.2); }
+.header .meta { font-size: 14px; opacity: 0.9; }
+.progress-bar { background: rgba(255,255,255,0.3); border-radius: 10px; height: 8px; margin: 20px 0; overflow: hidden; }
+.progress-fill { background: #fff; height: 100%; width: 0%; transition: width 0.4s ease; border-radius: 10px; }
+.question { background: #fff; border-radius: 16px; padding: 30px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); display: none; }
+.question.active { display: block; }
+.q-header { display: flex; justify-content: space-between; margin-bottom: 20px; font-size: 13px; color: #888; }
+.q-number { font-weight: 600; color: #667eea; }
+.q-text { font-size: 18px; font-weight: 600; line-height: 1.5; margin-bottom: 25px; color: #222; }
+.options { display: flex; flex-direction: column; gap: 12px; }
+.option-wrapper { display: flex; flex-direction: column; }
+.option {
+  display: flex; align-items: flex-start; gap: 14px; padding: 16px 18px;
+  border: 2px solid #e8e8e8; border-radius: 12px; background: #fafafa;
+  cursor: pointer; transition: all 0.2s; text-align: left; font-size: 15px; width: 100%;
+}
+[dir="rtl"] .option { text-align: right; flex-direction: row-reverse; }
+.option:hover:not(.disabled) { border-color: #667eea; background: #f5f3ff; }
+.option.selected { border-color: #667eea; background: #ede9fe; }
+.option.correct { border-color: #22c55e; background: #dcfce7; }
+.option.incorrect { border-color: #ef4444; background: #fee2e2; }
+.option.disabled { cursor: default; }
+.option.show-correct { border-color: #22c55e; background: #dcfce7; }
+.opt-label {
+  display: flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; border-radius: 50%; background: #e8e8e8;
+  font-weight: 700; font-size: 14px; flex-shrink: 0;
+}
+.option.selected .opt-label { background: #667eea; color: #fff; }
+.option.correct .opt-label { background: #22c55e; color: #fff; }
+.option.incorrect .opt-label { background: #ef4444; color: #fff; }
+.option.show-correct .opt-label { background: #22c55e; color: #fff; }
+.opt-text { padding-top: 5px; line-height: 1.5; }
+
+/* Individual option feedback */
+.option-feedback {
+  margin: 8px 0 4px 46px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+[dir="rtl"] .option-feedback { margin-left: 0; margin-right: 46px; }
+.option-feedback.correct-feedback {
+  background: #dcfce7;
+  border-left: 3px solid #22c55e;
+}
+.option-feedback.incorrect-feedback {
+  background: #fef3f2;
+  border-left: 3px solid #fca5a5;
+}
+[dir="rtl"] .option-feedback.correct-feedback,
+[dir="rtl"] .option-feedback.incorrect-feedback {
+  border-left: none;
+  border-right: 3px solid;
+}
+[dir="rtl"] .option-feedback.correct-feedback { border-right-color: #22c55e; }
+[dir="rtl"] .option-feedback.incorrect-feedback { border-right-color: #fca5a5; }
+.feedback-status {
+  font-weight: 600;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.feedback-status.correct { color: #166534; }
+.feedback-status.incorrect { color: #991b1b; }
+.feedback-rationale { color: #444; }
+
+/* Hint box */
+.hint-box {
+  margin: 12px 0;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+}
+.hint-toggle {
+  width: 100%;
+  padding: 10px 16px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  color: #92400e;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.hint-toggle:hover { background: #fef3c7; }
+.hint-content {
+  padding: 0 16px;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s, padding 0.3s;
+  font-size: 14px;
+  color: #78350f;
+  line-height: 1.5;
+}
+.hint-box.show .hint-content {
+  padding: 0 16px 12px;
+  max-height: 200px;
+}
+
+.next-btn {
+  margin-top: 20px; width: 100%; padding: 14px;
+  background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; border: none;
+  border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.next-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(102,126,234,0.4); }
+.hidden { display: none !important; }
+.results { background: #fff; border-radius: 16px; padding: 40px; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.15); display: none; }
+.results.active { display: block; }
+.results h2 { font-size: 28px; margin-bottom: 10px; color: #333; }
+.results .score { font-size: 64px; font-weight: 700; color: #667eea; margin: 20px 0; }
+.results .score-text { font-size: 18px; color: #666; margin-bottom: 30px; }
+.restart-btn {
+  padding: 14px 40px; background: linear-gradient(135deg, #667eea, #764ba2);
+  color: #fff; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer;
+}
+
+/* Math CSS */
+.math, .math-block { font-family: "Cambria Math", "Times New Roman", Times, serif; font-style: italic; }
+.math-block { display: block; text-align: center; margin: 10px 0; font-size: 110%; }
+.frac { display: inline-flex; flex-direction: column; align-items: center; vertical-align: middle; margin: 0 3px; font-size: 0.9em; }
+.frac-num { border-bottom: 1px solid currentColor; padding: 0 4px 2px; line-height: 1.2; }
+.frac-den { padding: 2px 4px 0; line-height: 1.2; }
+.sqrt { white-space: nowrap; }
+.sqrt-content { border-top: 1px solid currentColor; padding: 0 3px; margin-left: 2px; }
+sup, sub { font-size: 0.75em; }
+sup { vertical-align: super; }
+sub { vertical-align: sub; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>S13 IOP</h1>
+    <div class="meta">10 preguntas</div>
+    <div class="progress-bar"><div class="progress-fill"></div></div>
+  </div>
+  <div id="quiz-container">
+        <div class="question" data-index="0">
+          <div class="q-header">
+            <span class="q-number">Pregunta 1</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿Cuál es la función principal de la Programación Multiobjetivo (Goal Programming) en la toma de decisiones gerenciales?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piense en cómo un gerente debe equilibrar objetivos que se contradicen entre sí.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Las variables de decisión siguen siendo fundamentales para determinar las cantidades a producir o acciones a tomar.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Eliminar la necesidad de utilizar variables de decisión en los modelos matemáticos.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Las variables de decisión siguen siendo fundamentales para determinar las cantidades a producir o acciones a tomar.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="En la realidad, las metas suelen estar en conflicto, por lo que se busca una solución de compromiso y no necesariamente el óptimo absoluto de cada una.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Garantizar que todos los objetivos alcancen su valor ideal de forma absoluta e independiente.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">En la realidad, las metas suelen estar en conflicto, por lo que se busca una solución de compromiso y no necesariamente el óptimo absoluto de cada una.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="La programación multiobjetivo se utiliza precisamente cuando existe más de un objetivo que debe ser considerado simultáneamente.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Optimizar un único objetivo ignorando cualquier otra restricción de la empresa.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La programación multiobjetivo se utiliza precisamente cuando existe más de un objetivo que debe ser considerado simultáneamente.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="true" data-rationale="Esta técnica permite equilibrar múltiples objetivos que pueden contradecirse, como maximizar la utilidad mientras se minimiza el inventario.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Encontrar una solución de compromiso que satisfaga una jerarquía de prioridades entre metas en conflicto.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esta técnica permite equilibrar múltiples objetivos que pueden contradecirse, como maximizar la utilidad mientras se minimiza el inventario.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="1">
+          <div class="q-header">
+            <span class="q-number">Pregunta 2</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">Según el ejercicio de producción, ¿cuál es el cálculo correcto para determinar la disponibilidad total de horas-máquina?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Multiplique el número de máquinas por la cantidad de turnos y las horas de cada turno.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="La disponibilidad de recursos se calcula mediante el producto de sus factores, no mediante la suma de los mismos.">
+            <span class="opt-label">A</span>
+            <span class="opt-text"><span class="math">2 + 2 + 8 = 12</span> horas.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La disponibilidad de recursos se calcula mediante el producto de sus factores, no mediante la suma de los mismos.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Se dispone de $2$ máquinas, que trabajan en $2$ turnos de $8$ horas cada uno, resultando en un total de $32$ horas disponibles.">
+            <span class="opt-label">B</span>
+            <span class="opt-text"><span class="math">2 × 2 × 8 = 32</span> horas.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Se dispone de <span class="math">2</span> máquinas, que trabajan en <span class="math">2</span> turnos de <span class="math">8</span> horas cada uno, resultando en un total de <span class="math">32</span> horas disponibles.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Este cálculo utiliza un número incorrecto de máquinas basado en un error tipográfico mencionado en las notas del material.">
+            <span class="opt-label">C</span>
+            <span class="opt-text"><span class="math">12 × 2 × 8 = 192</span> horas.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Este cálculo utiliza un número incorrecto de máquinas basado en un error tipográfico mencionado en las notas del material.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Este cálculo asume la existencia de una sola máquina cuando el problema especifica que se dispone de dos.">
+            <span class="opt-label">D</span>
+            <span class="opt-text"><span class="math">1 × 2 × 8 = 16</span> horas.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Este cálculo asume la existencia de una sola máquina cuando el problema especifica que se dispone de dos.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="2">
+          <div class="q-header">
+            <span class="q-number">Pregunta 3</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">En el contexto de las metas de producción, ¿qué representa la variable de desviación negativa <span class="math">D<sub>1</sub></span> en la Meta 1 (Utilidad)?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Recuerde que las variables <span class="math">D</span> se asocian con quedarse corto respecto a una meta.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="El exceso sobre la meta se representa con la variable de desviación positiva ($E$), no con la negativa.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">El exceso de utilidad obtenida por encima de los <span class="math">3000</span> soles.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El exceso sobre la meta se representa con la variable de desviación positiva (<span class="math">E</span>), no con la negativa.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Los costos publicitarios son coeficientes de las variables de decisión, no variables de desviación de la utilidad.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">El costo publicitario total de los productos A y B.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Los costos publicitarios son coeficientes de las variables de decisión, no variables de desviación de la utilidad.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="La prioridad se representa generalmente con una letra $P$ y define el orden de importancia, no el valor del faltante.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">La prioridad asignada a la meta de utilidad en la función objetivo.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La prioridad se representa generalmente con una letra <span class="math">P</span> y define el orden de importancia, no el valor del faltante.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="true" data-rationale="La desviación negativa ($D$) captura el faltante o sub-logro respecto al valor objetivo establecido.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">La cantidad de dinero que falta para alcanzar la meta de <span class="math">3000</span> soles de utilidad.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La desviación negativa (<span class="math">D</span>) captura el faltante o sub-logro respecto al valor objetivo establecido.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="3">
+          <div class="q-header">
+            <span class="q-number">Pregunta 4</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿Cuál es la formulación matemática correcta para la meta de presupuesto de publicidad, considerando que no se deben exceder los <span class="math">500</span> soles?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Utilice los costos de publicidad de <span class="math">2</span> y <span class="math">3</span> soles respectivamente para los productos A y B.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Esta opción utiliza incorrectamente los valores de utilidad unitaria en lugar de los costos de publicidad.">
+            <span class="opt-label">A</span>
+            <span class="opt-text"><span class="math">20A + 15B + D<sub>3</sub> - E<sub>3</sub> = 500</span></span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esta opción utiliza incorrectamente los valores de utilidad unitaria en lugar de los costos de publicidad.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Esta ecuación utiliza los costos unitarios de publicidad ($2$ para A y $3$ para B) e incluye las variables de desviación para igualar el presupuesto meta.">
+            <span class="opt-label">B</span>
+            <span class="opt-text"><span class="math">2A + 3B + D<sub>3</sub> - E<sub>3</sub> = 500</span></span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esta ecuación utiliza los costos unitarios de publicidad (<span class="math">2</span> para A y <span class="math">3</span> para B) e incluye las variables de desviación para igualar el presupuesto meta.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Aunque es una restricción lógica, en Programación por Metas se utilizan igualdades que incorporan variables de desviación.">
+            <span class="opt-label">C</span>
+            <span class="opt-text"><span class="math">2A + 3B ≤ 500</span></span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aunque es una restricción lógica, en Programación por Metas se utilizan igualdades que incorporan variables de desviación.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Esta fórmula no considera los costos específicos de publicidad de cada producto, tratando a ambos como si costaran $1$ sol.">
+            <span class="opt-label">D</span>
+            <span class="opt-text"><span class="math">A + B + D<sub>3</sub> - E<sub>3</sub> = 500</span></span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esta fórmula no considera los costos específicos de publicidad de cada producto, tratando a ambos como si costaran <span class="math">1</span> sol.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="4">
+          <div class="q-header">
+            <span class="q-number">Pregunta 5</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">Si el objetivo es 'cumplir exactamente' con un pedido de <span class="math">400</span> unidades del producto A, ¿qué variables de desviación deberían minimizarse en la función objetivo?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piense en qué variables representan cualquier alejamiento (por arriba o por abajo) del valor exacto.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Minimizar solo $D_{4}$ permitiría producir más de $400$ unidades sin penalización, incumpliendo el criterio de exactitud.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Solo la variable <span class="math">D<sub>4</sub></span>.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Minimizar solo <span class="math">D<sub>4</sub></span> permitiría producir más de <span class="math">400</span> unidades sin penalización, incumpliendo el criterio de exactitud.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="En el modelo presentado, los pedidos se manejan como metas (Meta 4 y Meta 5) para permitir flexibilidad en la jerarquía de prioridades.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Ninguna, ya que los pedidos son restricciones rígidas y no metas.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">En el modelo presentado, los pedidos se manejan como metas (Meta 4 y Meta 5) para permitir flexibilidad en la jerarquía de prioridades.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Minimizar solo $E_{4}$ permitiría producir menos de $400$ unidades sin penalización, incumpliendo el compromiso del contrato.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Solo la variable <span class="math">E<sub>4</sub></span>.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Minimizar solo <span class="math">E<sub>4</sub></span> permitiría producir menos de <span class="math">400</span> unidades sin penalización, incumpliendo el compromiso del contrato.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="true" data-rationale="Para cumplir 'exactamente', se debe penalizar tanto el faltante ($D$) como el exceso ($E$) para forzar que el resultado sea igual a la meta.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Tanto <span class="math">D<sub>4</sub></span> como <span class="math">E<sub>4</sub></span>.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Para cumplir 'exactamente', se debe penalizar tanto el faltante (<span class="math">D</span>) como el exceso (<span class="math">E</span>) para forzar que el resultado sea igual a la meta.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="5">
+          <div class="q-header">
+            <span class="q-number">Pregunta 6</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">En la función objetivo <span class="math">MIN = D<sub>1</sub> + D<sub>2</sub> + E<sub>3</sub> + D<sub>4</sub> + E<sub>4</sub> + D<sub>5</sub> + E<sub>5</sub></span>, ¿por qué se incluye <span class="math">E<sub>3</sub></span>?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Analice qué tipo de desviación se quiere evitar cuando existe un presupuesto máximo.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="En metas de 'no exceder', la desviación positiva ($E$) es la que genera una penalización en la función objetivo.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Porque representa el exceso del presupuesto de publicidad, el cual se desea evitar.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">En metas de 'no exceder', la desviación positiva (<span class="math">E</span>) es la que genera una penalización en la función objetivo.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="La variable $E_{3}$ está vinculada a la Meta 3 (Presupuesto), no a la utilidad.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Porque representa la utilidad máxima que la empresa puede alcanzar.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La variable <span class="math">E<sub>3</sub></span> está vinculada a la Meta 3 (Presupuesto), no a la utilidad.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="El objetivo no es llegar a cero, sino evitar superar el límite de $500$ soles establecido por la gerencia.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Porque el presupuesto de publicidad siempre debe ser minimizado a cero.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El objetivo no es llegar a cero, sino evitar superar el límite de <span class="math">500</span> soles establecido por la gerencia.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Si se buscara gasto exacto, también se incluiría $D_{3}$ en la minimización; aquí solo se penaliza el exceso.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Porque es necesario gastar exactamente todo el presupuesto asignado.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Si se buscara gasto exacto, también se incluiría <span class="math">D<sub>3</sub></span> en la minimización; aquí solo se penaliza el exceso.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="6">
+          <div class="q-header">
+            <span class="q-number">Pregunta 7</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿Cuál es la meta que tiene la prioridad más alta (<span class="math">P1</span>) según la lógica de 'no incumplir pedidos' descrita?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Busque la meta relacionada con los compromisos contractuales con el cliente.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Aunque es importante, en la jerarquía presentada la utilidad es de prioridad $P4$, la más baja del grupo.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Meta 1 (Obtener utilidad de <span class="math">3000</span> soles).</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aunque es importante, en la jerarquía presentada la utilidad es de prioridad <span class="math">P4</span>, la más baja del grupo.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="La eficiencia operativa de las máquinas se establece con prioridad $P3$ en el modelo planteado.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Meta 2 (Uso de máquinas al <span class="math">100%</span>).</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La eficiencia operativa de las máquinas se establece con prioridad <span class="math">P3</span> en el modelo planteado.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="El presupuesto tiene una prioridad intermedia ($P2$), subordinada al cumplimiento de los pedidos.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Meta 3 (No exceder el presupuesto de publicidad).</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El presupuesto tiene una prioridad intermedia (<span class="math">P2</span>), subordinada al cumplimiento de los pedidos.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="true" data-rationale="El cumplimiento de contratos con clientes suele ser la prioridad crítica para mantener la relación comercial.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Meta 4 y Meta 5 (Cumplir con los pedidos de A y B).</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El cumplimiento de contratos con clientes suele ser la prioridad crítica para mantener la relación comercial.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="7">
+          <div class="q-header">
+            <span class="q-number">Pregunta 8</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">En la restricción de la Meta 2, ¿qué significan los coeficientes <span class="math">1</span> y <span class="math">2</span> que multiplican a A y B?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considere qué recurso se está midiendo en la Meta 2 relacionada con el tiempo de trabajo.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Los costos de publicidad son $2$ y $3$ soles, no $1$ y $2$ horas.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">El costo de publicidad de cada producto.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Los costos de publicidad son <span class="math">2</span> y <span class="math">3</span> soles, no <span class="math">1</span> y <span class="math">2</span> horas.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Las utilidades son de $20$ y $15$ soles, valores muy distintos a los requerimientos de tiempo.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">La utilidad unitaria que deja cada producto vendido.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Las utilidades son de <span class="math">20</span> y <span class="math">15</span> soles, valores muy distintos a los requerimientos de tiempo.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="true" data-rationale="El producto A requiere $1$ hora-máquina y el producto B requiere $2$ horas-máquina según los datos técnicos proporcionados.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Las horas-máquina requeridas para producir una unidad de cada producto.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El producto A requiere <span class="math">1</span> hora-máquina y el producto B requiere <span class="math">2</span> horas-máquina según los datos técnicos proporcionados.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Estos coeficientes representan el consumo de tiempo por unidad producida, no la cantidad física de máquinas fijas.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">El número de máquinas asignadas a cada línea de producción.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Estos coeficientes representan el consumo de tiempo por unidad producida, no la cantidad física de máquinas fijas.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="8">
+          <div class="q-header">
+            <span class="q-number">Pregunta 9</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿Qué ocurre si en el resultado final la variable <span class="math">D<sub>1</sub></span> es igual a <span class="math">500</span>?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Reste la desviación negativa al valor de la meta establecida para encontrar el valor real.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Si la meta es $3000$ y la desviación negativa ($D_{1}$) es $500$, significa que el logro real fue $3000 - 500 = 2500$.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">La utilidad real obtenida fue de <span class="math">2500</span> soles (<span class="math">500</span> por debajo de la meta).</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Si la meta es <span class="math">3000</span> y la desviación negativa (<span class="math">D<sub>1</sub></span>) es <span class="math">500</span>, significa que el logro real fue <span class="math">3000 - 500 = 2500</span>.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Superar la meta se reflejaría en un valor positivo para la variable de exceso $E_{1}$, no para $D_{1}$.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Se superó la meta de utilidad por un monto de <span class="math">500</span> soles.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Superar la meta se reflejaría en un valor positivo para la variable de exceso <span class="math">E<sub>1</sub></span>, no para <span class="math">D<sub>1</sub></span>.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Una desviación negativa de la meta de utilidad no implica pérdida neta, solo que no se alcanzó el objetivo deseado.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">La empresa perdió <span class="math">500</span> soles en total.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Una desviación negativa de la meta de utilidad no implica pérdida neta, solo que no se alcanzó el objetivo deseado.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="La variable $D_{1}$ pertenece a la meta de utilidad, no a la meta presupuestaria.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">El presupuesto de publicidad se excedió en <span class="math">500</span> soles.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La variable <span class="math">D<sub>1</sub></span> pertenece a la meta de utilidad, no a la meta presupuestaria.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="9">
+          <div class="q-header">
+            <span class="q-number">Pregunta 10</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿Cuál es un conocimiento previo requerido para comprender el Goal Programming según el material?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Busque la técnica de optimización básica en la que se basan los modelos de producción.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="La programación multiobjetivo es una extensión de la programación lineal, utilizando su misma estructura de variables y restricciones.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Programación Lineal.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La programación multiobjetivo es una extensión de la programación lineal, utilizando su misma estructura de variables y restricciones.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Aunque las matemáticas son la base, el GP se fundamenta en álgebra lineal y optimización, no requiere integración compleja.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Cálculo Integral Avanzado.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aunque las matemáticas son la base, el GP se fundamenta en álgebra lineal y optimización, no requiere integración compleja.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="El manejo de turnos y máquinas es operativo; el conocimiento previo listado es de carácter cuantitativo.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Derecho Laboral.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El manejo de turnos y máquinas es operativo; el conocimiento previo listado es de carácter cuantitativo.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Aunque el ejemplo menciona publicidad, el conocimiento técnico requerido es sobre modelos de optimización.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Marketing Digital.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aunque el ejemplo menciona publicidad, el conocimiento técnico requerido es sobre modelos de optimización.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      </div>
+  <div class="results" id="results">
+    <h2>¡Cuestionario completado!</h2>
+    <div class="score" id="score">0%</div>
+    <div class="score-text" id="score-text"></div>
+    <button class="restart-btn" onclick="restart()">Intentar de nuevo</button>
+  </div>
+</div>
+<script>
+const quizData = [{"question":"¿Cuál es la función principal de la Programación Multiobjetivo (Goal Programming) en la toma de decisiones gerenciales?","hint":"Piense en cómo un gerente debe equilibrar objetivos que se contradicen entre sí.","options":[{"label":"A","text":"Eliminar la necesidad de utilizar variables de decisión en los modelos matemáticos.","isCorrect":false,"rationale":"Las variables de decisión siguen siendo fundamentales para determinar las cantidades a producir o acciones a tomar."},{"label":"B","text":"Garantizar que todos los objetivos alcancen su valor ideal de forma absoluta e independiente.","isCorrect":false,"rationale":"En la realidad, las metas suelen estar en conflicto, por lo que se busca una solución de compromiso y no necesariamente el óptimo absoluto de cada una."},{"label":"C","text":"Optimizar un único objetivo ignorando cualquier otra restricción de la empresa.","isCorrect":false,"rationale":"La programación multiobjetivo se utiliza precisamente cuando existe más de un objetivo que debe ser considerado simultáneamente."},{"label":"D","text":"Encontrar una solución de compromiso que satisfaga una jerarquía de prioridades entre metas en conflicto.","isCorrect":true,"rationale":"Esta técnica permite equilibrar múltiples objetivos que pueden contradecirse, como maximizar la utilidad mientras se minimiza el inventario."}]},{"question":"Según el ejercicio de producción, ¿cuál es el cálculo correcto para determinar la disponibilidad total de horas-máquina?","hint":"Multiplique el número de máquinas por la cantidad de turnos y las horas de cada turno.","options":[{"label":"A","text":"$2 + 2 + 8 = 12$ horas.","isCorrect":false,"rationale":"La disponibilidad de recursos se calcula mediante el producto de sus factores, no mediante la suma de los mismos."},{"label":"B","text":"$2 \\times 2 \\times 8 = 32$ horas.","isCorrect":true,"rationale":"Se dispone de $2$ máquinas, que trabajan en $2$ turnos de $8$ horas cada uno, resultando en un total de $32$ horas disponibles."},{"label":"C","text":"$12 \\times 2 \\times 8 = 192$ horas.","isCorrect":false,"rationale":"Este cálculo utiliza un número incorrecto de máquinas basado en un error tipográfico mencionado en las notas del material."},{"label":"D","text":"$1 \\times 2 \\times 8 = 16$ horas.","isCorrect":false,"rationale":"Este cálculo asume la existencia de una sola máquina cuando el problema especifica que se dispone de dos."}]},{"question":"En el contexto de las metas de producción, ¿qué representa la variable de desviación negativa $D_{1}$ en la Meta 1 (Utilidad)?","hint":"Recuerde que las variables $D$ se asocian con quedarse corto respecto a una meta.","options":[{"label":"A","text":"El exceso de utilidad obtenida por encima de los $3000$ soles.","isCorrect":false,"rationale":"El exceso sobre la meta se representa con la variable de desviación positiva ($E$), no con la negativa."},{"label":"B","text":"El costo publicitario total de los productos A y B.","isCorrect":false,"rationale":"Los costos publicitarios son coeficientes de las variables de decisión, no variables de desviación de la utilidad."},{"label":"C","text":"La prioridad asignada a la meta de utilidad en la función objetivo.","isCorrect":false,"rationale":"La prioridad se representa generalmente con una letra $P$ y define el orden de importancia, no el valor del faltante."},{"label":"D","text":"La cantidad de dinero que falta para alcanzar la meta de $3000$ soles de utilidad.","isCorrect":true,"rationale":"La desviación negativa ($D$) captura el faltante o sub-logro respecto al valor objetivo establecido."}]},{"question":"¿Cuál es la formulación matemática correcta para la meta de presupuesto de publicidad, considerando que no se deben exceder los $500$ soles?","hint":"Utilice los costos de publicidad de $2$ y $3$ soles respectivamente para los productos A y B.","options":[{"label":"A","text":"$20A + 15B + D_{3} - E_{3} = 500$","isCorrect":false,"rationale":"Esta opción utiliza incorrectamente los valores de utilidad unitaria en lugar de los costos de publicidad."},{"label":"B","text":"$2A + 3B + D_{3} - E_{3} = 500$","isCorrect":true,"rationale":"Esta ecuación utiliza los costos unitarios de publicidad ($2$ para A y $3$ para B) e incluye las variables de desviación para igualar el presupuesto meta."},{"label":"C","text":"$2A + 3B \\le 500$","isCorrect":false,"rationale":"Aunque es una restricción lógica, en Programación por Metas se utilizan igualdades que incorporan variables de desviación."},{"label":"D","text":"$A + B + D_{3} - E_{3} = 500$","isCorrect":false,"rationale":"Esta fórmula no considera los costos específicos de publicidad de cada producto, tratando a ambos como si costaran $1$ sol."}]},{"question":"Si el objetivo es 'cumplir exactamente' con un pedido de $400$ unidades del producto A, ¿qué variables de desviación deberían minimizarse en la función objetivo?","hint":"Piense en qué variables representan cualquier alejamiento (por arriba o por abajo) del valor exacto.","options":[{"label":"A","text":"Solo la variable $D_{4}$.","isCorrect":false,"rationale":"Minimizar solo $D_{4}$ permitiría producir más de $400$ unidades sin penalización, incumpliendo el criterio de exactitud."},{"label":"B","text":"Ninguna, ya que los pedidos son restricciones rígidas y no metas.","isCorrect":false,"rationale":"En el modelo presentado, los pedidos se manejan como metas (Meta 4 y Meta 5) para permitir flexibilidad en la jerarquía de prioridades."},{"label":"C","text":"Solo la variable $E_{4}$.","isCorrect":false,"rationale":"Minimizar solo $E_{4}$ permitiría producir menos de $400$ unidades sin penalización, incumpliendo el compromiso del contrato."},{"label":"D","text":"Tanto $D_{4}$ como $E_{4}$.","isCorrect":true,"rationale":"Para cumplir 'exactamente', se debe penalizar tanto el faltante ($D$) como el exceso ($E$) para forzar que el resultado sea igual a la meta."}]},{"question":"En la función objetivo $MIN = D_{1} + D_{2} + E_{3} + D_{4} + E_{4} + D_{5} + E_{5}$, ¿por qué se incluye $E_{3}$?","hint":"Analice qué tipo de desviación se quiere evitar cuando existe un presupuesto máximo.","options":[{"label":"A","text":"Porque representa el exceso del presupuesto de publicidad, el cual se desea evitar.","isCorrect":true,"rationale":"En metas de 'no exceder', la desviación positiva ($E$) es la que genera una penalización en la función objetivo."},{"label":"B","text":"Porque representa la utilidad máxima que la empresa puede alcanzar.","isCorrect":false,"rationale":"La variable $E_{3}$ está vinculada a la Meta 3 (Presupuesto), no a la utilidad."},{"label":"C","text":"Porque el presupuesto de publicidad siempre debe ser minimizado a cero.","isCorrect":false,"rationale":"El objetivo no es llegar a cero, sino evitar superar el límite de $500$ soles establecido por la gerencia."},{"label":"D","text":"Porque es necesario gastar exactamente todo el presupuesto asignado.","isCorrect":false,"rationale":"Si se buscara gasto exacto, también se incluiría $D_{3}$ en la minimización; aquí solo se penaliza el exceso."}]},{"question":"¿Cuál es la meta que tiene la prioridad más alta ($P1$) según la lógica de 'no incumplir pedidos' descrita?","hint":"Busque la meta relacionada con los compromisos contractuales con el cliente.","options":[{"label":"A","text":"Meta 1 (Obtener utilidad de $3000$ soles).","isCorrect":false,"rationale":"Aunque es importante, en la jerarquía presentada la utilidad es de prioridad $P4$, la más baja del grupo."},{"label":"B","text":"Meta 2 (Uso de máquinas al $100\\%$).","isCorrect":false,"rationale":"La eficiencia operativa de las máquinas se establece con prioridad $P3$ en el modelo planteado."},{"label":"C","text":"Meta 3 (No exceder el presupuesto de publicidad).","isCorrect":false,"rationale":"El presupuesto tiene una prioridad intermedia ($P2$), subordinada al cumplimiento de los pedidos."},{"label":"D","text":"Meta 4 y Meta 5 (Cumplir con los pedidos de A y B).","isCorrect":true,"rationale":"El cumplimiento de contratos con clientes suele ser la prioridad crítica para mantener la relación comercial."}]},{"question":"En la restricción de la Meta 2, ¿qué significan los coeficientes $1$ y $2$ que multiplican a A y B?","hint":"Considere qué recurso se está midiendo en la Meta 2 relacionada con el tiempo de trabajo.","options":[{"label":"A","text":"El costo de publicidad de cada producto.","isCorrect":false,"rationale":"Los costos de publicidad son $2$ y $3$ soles, no $1$ y $2$ horas."},{"label":"B","text":"La utilidad unitaria que deja cada producto vendido.","isCorrect":false,"rationale":"Las utilidades son de $20$ y $15$ soles, valores muy distintos a los requerimientos de tiempo."},{"label":"C","text":"Las horas-máquina requeridas para producir una unidad de cada producto.","isCorrect":true,"rationale":"El producto A requiere $1$ hora-máquina y el producto B requiere $2$ horas-máquina según los datos técnicos proporcionados."},{"label":"D","text":"El número de máquinas asignadas a cada línea de producción.","isCorrect":false,"rationale":"Estos coeficientes representan el consumo de tiempo por unidad producida, no la cantidad física de máquinas fijas."}]},{"question":"¿Qué ocurre si en el resultado final la variable $D_{1}$ es igual a $500$?","hint":"Reste la desviación negativa al valor de la meta establecida para encontrar el valor real.","options":[{"label":"A","text":"La utilidad real obtenida fue de $2500$ soles ($500$ por debajo de la meta).","isCorrect":true,"rationale":"Si la meta es $3000$ y la desviación negativa ($D_{1}$) es $500$, significa que el logro real fue $3000 - 500 = 2500$."},{"label":"B","text":"Se superó la meta de utilidad por un monto de $500$ soles.","isCorrect":false,"rationale":"Superar la meta se reflejaría en un valor positivo para la variable de exceso $E_{1}$, no para $D_{1}$."},{"label":"C","text":"La empresa perdió $500$ soles en total.","isCorrect":false,"rationale":"Una desviación negativa de la meta de utilidad no implica pérdida neta, solo que no se alcanzó el objetivo deseado."},{"label":"D","text":"El presupuesto de publicidad se excedió en $500$ soles.","isCorrect":false,"rationale":"La variable $D_{1}$ pertenece a la meta de utilidad, no a la meta presupuestaria."}]},{"question":"¿Cuál es un conocimiento previo requerido para comprender el Goal Programming según el material?","hint":"Busque la técnica de optimización básica en la que se basan los modelos de producción.","options":[{"label":"A","text":"Programación Lineal.","isCorrect":true,"rationale":"La programación multiobjetivo es una extensión de la programación lineal, utilizando su misma estructura de variables y restricciones."},{"label":"B","text":"Cálculo Integral Avanzado.","isCorrect":false,"rationale":"Aunque las matemáticas son la base, el GP se fundamenta en álgebra lineal y optimización, no requiere integración compleja."},{"label":"C","text":"Derecho Laboral.","isCorrect":false,"rationale":"El manejo de turnos y máquinas es operativo; el conocimiento previo listado es de carácter cuantitativo."},{"label":"D","text":"Marketing Digital.","isCorrect":false,"rationale":"Aunque el ejemplo menciona publicidad, el conocimiento técnico requerido es sobre modelos de optimización."}]}];
+const tr = {"correct":"¡Correcto!","incorrect":"Incorrecto","next":"Siguiente pregunta →","seeResults":"Ver resultados","complete":"¡Cuestionario completado!","scoreText":"Obtuviste {correct} de {total} correctas","tryAgain":"Intentar de nuevo","rightAnswer":"Respuesta correcta","notQuite":"No del todo"};
+let currentQ = 0, correctCount = 0, answered = false;
+
+function init() {
+  document.querySelectorAll('.question').forEach((q, i) => q.classList.toggle('active', i === 0));
+  updateProgress();
+  document.querySelectorAll('.option').forEach(opt => opt.addEventListener('click', () => selectOption(opt)));
+  document.querySelectorAll('.next-btn').forEach(btn => btn.addEventListener('click', nextQuestion));
+}
+
+function selectOption(opt) {
+  if (answered) return;
+  answered = true;
+  const q = opt.closest('.question');
+  const options = q.querySelectorAll('.option');
+  const nextBtn = q.querySelector('.next-btn');
+  const isCorrect = opt.dataset.correct === 'true';
+  
+  // Mark all options as disabled
+  options.forEach(o => o.classList.add('disabled'));
+  
+  // Style selected option
+  opt.classList.add('selected', isCorrect ? 'correct' : 'incorrect');
+  
+  // Show correct answer if wrong
+  if (!isCorrect) {
+    const correctOpt = [...options].find(o => o.dataset.correct === 'true');
+    if (correctOpt) correctOpt.classList.add('show-correct');
+  }
+  
+  if (isCorrect) correctCount++;
+  
+  // Show feedback for ALL options that have rationale
+  options.forEach(o => {
+    const wrapper = o.closest('.option-wrapper');
+    const feedback = wrapper.querySelector('.option-feedback');
+    const rationale = o.dataset.rationale;
+    const isThisCorrect = o.dataset.correct === 'true';
+    
+    if (rationale && rationale.trim()) {
+      feedback.classList.remove('hidden');
+      feedback.classList.add(isThisCorrect ? 'correct-feedback' : 'incorrect-feedback');
+      
+      const statusEl = feedback.querySelector('.feedback-status');
+      statusEl.className = 'feedback-status ' + (isThisCorrect ? 'correct' : 'incorrect');
+      statusEl.innerHTML = isThisCorrect 
+        ? '✓ ' + tr.rightAnswer
+        : '✗ ' + tr.notQuite;
+    }
+  });
+  
+  nextBtn.classList.remove('hidden');
+  if (currentQ === quizData.length - 1) nextBtn.textContent = tr.seeResults;
+}
+
+function nextQuestion() {
+  answered = false;
+  currentQ++;
+  if (currentQ >= quizData.length) { showResults(); return; }
+  document.querySelectorAll('.question').forEach((q, i) => q.classList.toggle('active', i === currentQ));
+  updateProgress();
+}
+
+function updateProgress() {
+  document.querySelector('.progress-fill').style.width = (currentQ / quizData.length * 100) + '%';
+}
+
+function showResults() {
+  document.querySelectorAll('.question').forEach(q => q.classList.remove('active'));
+  document.getElementById('results').classList.add('active');
+  const pct = Math.round((correctCount / quizData.length) * 100);
+  document.getElementById('score').textContent = pct + '%';
+  document.getElementById('score-text').textContent = tr.scoreText.replace('{correct}', correctCount).replace('{total}', quizData.length);
+  document.querySelector('.progress-fill').style.width = '100%';
+}
+
+function restart() {
+  currentQ = 0; correctCount = 0; answered = false;
+  document.getElementById('results').classList.remove('active');
+  document.querySelectorAll('.question').forEach((q, i) => {
+    q.classList.toggle('active', i === 0);
+    q.querySelectorAll('.option').forEach(o => o.classList.remove('selected', 'correct', 'incorrect', 'disabled', 'show-correct'));
+    q.querySelectorAll('.option-feedback').forEach(f => {
+      f.classList.add('hidden');
+      f.classList.remove('correct-feedback', 'incorrect-feedback');
+    });
+    const btn = q.querySelector('.next-btn');
+    btn.classList.add('hidden');
+    btn.textContent = tr.next;
+  });
+  updateProgress();
+}
+
+init();
+</script>
+</body>
+</html>
