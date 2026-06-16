@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="es" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>s13.1 iop</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  min-height: 100vh; padding: 20px; color: #333;
+}
+.container { max-width: 700px; margin: 0 auto; }
+.header { text-align: center; color: #fff; padding: 30px 20px; }
+.header h1 { font-size: 28px; font-weight: 700; margin-bottom: 8px; text-shadow: 0 2px 10px rgba(0,0,0,0.2); }
+.header .meta { font-size: 14px; opacity: 0.9; }
+.progress-bar { background: rgba(255,255,255,0.3); border-radius: 10px; height: 8px; margin: 20px 0; overflow: hidden; }
+.progress-fill { background: #fff; height: 100%; width: 0%; transition: width 0.4s ease; border-radius: 10px; }
+.question { background: #fff; border-radius: 16px; padding: 30px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); display: none; }
+.question.active { display: block; }
+.q-header { display: flex; justify-content: space-between; margin-bottom: 20px; font-size: 13px; color: #888; }
+.q-number { font-weight: 600; color: #667eea; }
+.q-text { font-size: 18px; font-weight: 600; line-height: 1.5; margin-bottom: 25px; color: #222; }
+.options { display: flex; flex-direction: column; gap: 12px; }
+.option-wrapper { display: flex; flex-direction: column; }
+.option {
+  display: flex; align-items: flex-start; gap: 14px; padding: 16px 18px;
+  border: 2px solid #e8e8e8; border-radius: 12px; background: #fafafa;
+  cursor: pointer; transition: all 0.2s; text-align: left; font-size: 15px; width: 100%;
+}
+[dir="rtl"] .option { text-align: right; flex-direction: row-reverse; }
+.option:hover:not(.disabled) { border-color: #667eea; background: #f5f3ff; }
+.option.selected { border-color: #667eea; background: #ede9fe; }
+.option.correct { border-color: #22c55e; background: #dcfce7; }
+.option.incorrect { border-color: #ef4444; background: #fee2e2; }
+.option.disabled { cursor: default; }
+.option.show-correct { border-color: #22c55e; background: #dcfce7; }
+.opt-label {
+  display: flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; border-radius: 50%; background: #e8e8e8;
+  font-weight: 700; font-size: 14px; flex-shrink: 0;
+}
+.option.selected .opt-label { background: #667eea; color: #fff; }
+.option.correct .opt-label { background: #22c55e; color: #fff; }
+.option.incorrect .opt-label { background: #ef4444; color: #fff; }
+.option.show-correct .opt-label { background: #22c55e; color: #fff; }
+.opt-text { padding-top: 5px; line-height: 1.5; }
+
+/* Individual option feedback */
+.option-feedback {
+  margin: 8px 0 4px 46px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+[dir="rtl"] .option-feedback { margin-left: 0; margin-right: 46px; }
+.option-feedback.correct-feedback {
+  background: #dcfce7;
+  border-left: 3px solid #22c55e;
+}
+.option-feedback.incorrect-feedback {
+  background: #fef3f2;
+  border-left: 3px solid #fca5a5;
+}
+[dir="rtl"] .option-feedback.correct-feedback,
+[dir="rtl"] .option-feedback.incorrect-feedback {
+  border-left: none;
+  border-right: 3px solid;
+}
+[dir="rtl"] .option-feedback.correct-feedback { border-right-color: #22c55e; }
+[dir="rtl"] .option-feedback.incorrect-feedback { border-right-color: #fca5a5; }
+.feedback-status {
+  font-weight: 600;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.feedback-status.correct { color: #166534; }
+.feedback-status.incorrect { color: #991b1b; }
+.feedback-rationale { color: #444; }
+
+/* Hint box */
+.hint-box {
+  margin: 12px 0;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+}
+.hint-toggle {
+  width: 100%;
+  padding: 10px 16px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  color: #92400e;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.hint-toggle:hover { background: #fef3c7; }
+.hint-content {
+  padding: 0 16px;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s, padding 0.3s;
+  font-size: 14px;
+  color: #78350f;
+  line-height: 1.5;
+}
+.hint-box.show .hint-content {
+  padding: 0 16px 12px;
+  max-height: 200px;
+}
+
+.next-btn {
+  margin-top: 20px; width: 100%; padding: 14px;
+  background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; border: none;
+  border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.next-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(102,126,234,0.4); }
+.hidden { display: none !important; }
+.results { background: #fff; border-radius: 16px; padding: 40px; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.15); display: none; }
+.results.active { display: block; }
+.results h2 { font-size: 28px; margin-bottom: 10px; color: #333; }
+.results .score { font-size: 64px; font-weight: 700; color: #667eea; margin: 20px 0; }
+.results .score-text { font-size: 18px; color: #666; margin-bottom: 30px; }
+.restart-btn {
+  padding: 14px 40px; background: linear-gradient(135deg, #667eea, #764ba2);
+  color: #fff; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer;
+}
+
+/* Math CSS */
+.math, .math-block { font-family: "Cambria Math", "Times New Roman", Times, serif; font-style: italic; }
+.math-block { display: block; text-align: center; margin: 10px 0; font-size: 110%; }
+.frac { display: inline-flex; flex-direction: column; align-items: center; vertical-align: middle; margin: 0 3px; font-size: 0.9em; }
+.frac-num { border-bottom: 1px solid currentColor; padding: 0 4px 2px; line-height: 1.2; }
+.frac-den { padding: 2px 4px 0; line-height: 1.2; }
+.sqrt { white-space: nowrap; }
+.sqrt-content { border-top: 1px solid currentColor; padding: 0 3px; margin-left: 2px; }
+sup, sub { font-size: 0.75em; }
+sup { vertical-align: super; }
+sub { vertical-align: sub; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>s13.1 iop</h1>
+    <div class="meta">10 preguntas</div>
+    <div class="progress-bar"><div class="progress-fill"></div></div>
+  </div>
+  <div id="quiz-container">
+        <div class="question" data-index="0">
+          <div class="q-header">
+            <span class="q-number">Pregunta 1</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿Es la Programación Multiobjetivo (Goal Programming) una técnica diseñada para encontrar una solución de compromiso cuando existen metas que se contradicen entre sí?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Recuerda que en el mundo real los gerentes rara vez tienen un solo objetivo.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="La esencia de la Programación Multiobjetivo es precisamente manejar múltiples metas en conflicto, no solo una meta única o independiente.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La esencia de la Programación Multiobjetivo es precisamente manejar múltiples metas en conflicto, no solo una meta única o independiente.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Esta técnica permite a los gerentes equilibrar objetivos opuestos mediante una jerarquía de prioridades, buscando la solución que mejor satisfaga el conjunto de metas.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esta técnica permite a los gerentes equilibrar objetivos opuestos mediante una jerarquía de prioridades, buscando la solución que mejor satisfaga el conjunto de metas.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="1">
+          <div class="q-header">
+            <span class="q-number">Pregunta 2</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">En el modelo planteado, ¿las variables de desviación negativa (<span class="math">D<sub>i</sub></span>) representan el exceso por encima de una meta establecida?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Asocia la letra 'D' con 'Déficit' o falta de cumplimiento.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Las variables $D_i$ se refieren a la falta o déficit respecto a la meta, mientras que las variables de exceso se representan con $E_i$.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Las variables <span class="math">D<sub>i</sub></span> se refieren a la falta o déficit respecto a la meta, mientras que las variables de exceso se representan con <span class="math">E<sub>i</sub></span>.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Las variables de desviación negativa ($D_i$) representan quedarse corto o el incumplimiento por defecto, no el exceso.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Las variables de desviación negativa (<span class="math">D<sub>i</sub></span>) representan quedarse corto o el incumplimiento por defecto, no el exceso.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="2">
+          <div class="q-header">
+            <span class="q-number">Pregunta 3</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">Si el objetivo de una empresa es 'no exceder el presupuesto de publicidad', ¿la variable de desviación que se debe minimizar en la función objetivo es la desviación positiva (<span class="math">E<sub>3</sub></span>)?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considera qué tipo de desviación representa un gasto mayor al planeado.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Penalizar la desviación negativa significaría que es malo gastar menos del presupuesto, lo cual no es el objetivo de ahorro planteado.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Penalizar la desviación negativa significaría que es malo gastar menos del presupuesto, lo cual no es el objetivo de ahorro planteado.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Al querer evitar exceder un límite, se penaliza cualquier valor por encima de la meta, lo cual corresponde a la desviación positiva.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Al querer evitar exceder un límite, se penaliza cualquier valor por encima de la meta, lo cual corresponde a la desviación positiva.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="3">
+          <div class="q-header">
+            <span class="q-number">Pregunta 4</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿La restricción para la meta de horas-máquina se formula correctamente como <span class="math">A + 2B + D<sub>2</sub> - E<sub>2</sub> = 32</span>?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Verifica los requerimientos de tiempo para el producto A y el producto B en el texto.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="La ecuación utiliza los coeficientes de uso por producto (1 para A y 2 para B) e iguala al total de 32 horas disponibles, incluyendo las variables de desviación.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La ecuación utiliza los coeficientes de uso por producto (1 para A y 2 para B) e iguala al total de 32 horas disponibles, incluyendo las variables de desviación.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Esta fórmula es correcta porque refleja el uso de recursos de ambos productos y permite desviaciones tanto por falta como por exceso de uso.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esta fórmula es correcta porque refleja el uso de recursos de ambos productos y permite desviaciones tanto por falta como por exceso de uso.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="4">
+          <div class="q-header">
+            <span class="q-number">Pregunta 5</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">En la Programación Multiobjetivo, ¿todas las metas deben tener obligatoriamente el mismo nivel de importancia o prioridad?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piensa en el concepto de 'jerarquía de prioridades' mencionado en la utilidad del tema.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="La técnica se basa precisamente en establecer una jerarquía de prioridades ($P_1, P_2, \dots$) para resolver conflictos.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La técnica se basa precisamente en establecer una jerarquía de prioridades (<span class="math">P<sub>1</sub>, P<sub>2</sub>, …</span>) para resolver conflictos.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="El Goal Programming permite clasificar las metas por orden de importancia, atendiendo primero las de mayor prioridad antes que las secundarias.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El Goal Programming permite clasificar las metas por orden de importancia, atendiendo primero las de mayor prioridad antes que las secundarias.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="5">
+          <div class="q-header">
+            <span class="q-number">Pregunta 6</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿El cálculo de la disponibilidad total de máquinas en el ejercicio (2 máquinas, 2 turnos, 8 horas por turno) resulta en un total de 16 horas?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Realiza la operación matemática multiplicando todos los factores de disponibilidad.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Multiplicando las 2 máquinas por los 2 turnos y las 8 horas de cada uno, se obtiene una capacidad total de 32 horas.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Multiplicando las 2 máquinas por los 2 turnos y las 8 horas de cada uno, se obtiene una capacidad total de 32 horas.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El cálculo correcto es $2 \times 2 \times 8 = 32$ horas, no 16.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El cálculo correcto es <span class="math">2 × 2 × 8 = 32</span> horas, no 16.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="6">
+          <div class="q-header">
+            <span class="q-number">Pregunta 7</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">Para la meta 4 (Cumplir exactamente con los pedidos del producto A), ¿es correcto penalizar tanto <span class="math">D<sub>4</sub></span> como <span class="math">E<sub>4</sub></span> en la función objetivo?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Analiza qué significa el término 'exactamente' para las desviaciones.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Cuando se busca un cumplimiento exacto, cualquier desviación (tanto por falta como por exceso) se considera indeseada.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Cuando se busca un cumplimiento exacto, cualquier desviación (tanto por falta como por exceso) se considera indeseada.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Si solo se penalizara una, el modelo permitiría desviaciones libres en la otra dirección, no garantizando el cumplimiento exacto.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Si solo se penalizara una, el modelo permitiría desviaciones libres en la otra dirección, no garantizando el cumplimiento exacto.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="7">
+          <div class="q-header">
+            <span class="q-number">Pregunta 8</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿La variable de decisión <span class="math">A</span> en el modelo representa la utilidad generada por el producto A?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Diferencia entre los datos fijos del problema y lo que el modelo debe decidir (cantidades).</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="$A$ y $B$ representan las cantidades físicas a producir de cada producto, no sus costos o utilidades unitarias.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale"><span class="math">A</span> y <span class="math">B</span> representan las cantidades físicas a producir de cada producto, no sus costos o utilidades unitarias.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="La utilidad es un parámetro (20 soles), mientras que $A$ es la variable que representa la cantidad de unidades a producir.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La utilidad es un parámetro (20 soles), mientras que <span class="math">A</span> es la variable que representa la cantidad de unidades a producir.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="8">
+          <div class="q-header">
+            <span class="q-number">Pregunta 9</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">Si la meta 1 es obtener una utilidad de 3000 soles, ¿la ecuación correspondiente es <span class="math">20A + 15B + D<sub>1</sub> - E<sub>1</sub> = 3000</span>?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Utiliza los valores de utilidad de 20 para A y 15 para B.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Esta es la forma estándar de expresar una meta en Goal Programming, relacionando las variables de decisión con el valor objetivo.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esta es la forma estándar de expresar una meta en Goal Programming, relacionando las variables de decisión con el valor objetivo.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Esta ecuación combina las utilidades unitarias de cada producto con las variables de desviación para igualar el objetivo de 3000 soles.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esta ecuación combina las utilidades unitarias de cada producto con las variables de desviación para igualar el objetivo de 3000 soles.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="9">
+          <div class="q-header">
+            <span class="q-number">Pregunta 10</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿La Programación Multiobjetivo se considera una herramienta avanzada para la toma de decisiones gerenciales?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Revisa la conclusión final del documento.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="El material afirma explícitamente su valor como una herramienta avanzada para la complejidad gerencial moderna.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El material afirma explícitamente su valor como una herramienta avanzada para la complejidad gerencial moderna.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="La conclusión de la sesión destaca que es la herramienta más avanzada para gestionar decisiones con múltiples prioridades.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La conclusión de la sesión destaca que es la herramienta más avanzada para gestionar decisiones con múltiples prioridades.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      </div>
+  <div class="results" id="results">
+    <h2>¡Cuestionario completado!</h2>
+    <div class="score" id="score">0%</div>
+    <div class="score-text" id="score-text"></div>
+    <button class="restart-btn" onclick="restart()">Intentar de nuevo</button>
+  </div>
+</div>
+<script>
+const quizData = [{"question":"¿Es la Programación Multiobjetivo (Goal Programming) una técnica diseñada para encontrar una solución de compromiso cuando existen metas que se contradicen entre sí?","hint":"Recuerda que en el mundo real los gerentes rara vez tienen un solo objetivo.","options":[{"label":"A","text":"Falso","isCorrect":false,"rationale":"La esencia de la Programación Multiobjetivo es precisamente manejar múltiples metas en conflicto, no solo una meta única o independiente."},{"label":"B","text":"Verdadero","isCorrect":true,"rationale":"Esta técnica permite a los gerentes equilibrar objetivos opuestos mediante una jerarquía de prioridades, buscando la solución que mejor satisfaga el conjunto de metas."}]},{"question":"En el modelo planteado, ¿las variables de desviación negativa ($D_i$) representan el exceso por encima de una meta establecida?","hint":"Asocia la letra 'D' con 'Déficit' o falta de cumplimiento.","options":[{"label":"A","text":"Falso","isCorrect":true,"rationale":"Las variables $D_i$ se refieren a la falta o déficit respecto a la meta, mientras que las variables de exceso se representan con $E_i$."},{"label":"B","text":"Verdadero","isCorrect":false,"rationale":"Las variables de desviación negativa ($D_i$) representan quedarse corto o el incumplimiento por defecto, no el exceso."}]},{"question":"Si el objetivo de una empresa es 'no exceder el presupuesto de publicidad', ¿la variable de desviación que se debe minimizar en la función objetivo es la desviación positiva ($E_3$)?","hint":"Considera qué tipo de desviación representa un gasto mayor al planeado.","options":[{"label":"A","text":"Falso","isCorrect":false,"rationale":"Penalizar la desviación negativa significaría que es malo gastar menos del presupuesto, lo cual no es el objetivo de ahorro planteado."},{"label":"B","text":"Verdadero","isCorrect":true,"rationale":"Al querer evitar exceder un límite, se penaliza cualquier valor por encima de la meta, lo cual corresponde a la desviación positiva."}]},{"question":"¿La restricción para la meta de horas-máquina se formula correctamente como $A + 2B + D_2 - E_2 = 32$?","hint":"Verifica los requerimientos de tiempo para el producto A y el producto B en el texto.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"La ecuación utiliza los coeficientes de uso por producto (1 para A y 2 para B) e iguala al total de 32 horas disponibles, incluyendo las variables de desviación."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"Esta fórmula es correcta porque refleja el uso de recursos de ambos productos y permite desviaciones tanto por falta como por exceso de uso."}]},{"question":"En la Programación Multiobjetivo, ¿todas las metas deben tener obligatoriamente el mismo nivel de importancia o prioridad?","hint":"Piensa en el concepto de 'jerarquía de prioridades' mencionado en la utilidad del tema.","options":[{"label":"A","text":"Verdadero","isCorrect":false,"rationale":"La técnica se basa precisamente en establecer una jerarquía de prioridades ($P_1, P_2, \\dots$) para resolver conflictos."},{"label":"B","text":"Falso","isCorrect":true,"rationale":"El Goal Programming permite clasificar las metas por orden de importancia, atendiendo primero las de mayor prioridad antes que las secundarias."}]},{"question":"¿El cálculo de la disponibilidad total de máquinas en el ejercicio (2 máquinas, 2 turnos, 8 horas por turno) resulta en un total de 16 horas?","hint":"Realiza la operación matemática multiplicando todos los factores de disponibilidad.","options":[{"label":"A","text":"Falso","isCorrect":true,"rationale":"Multiplicando las 2 máquinas por los 2 turnos y las 8 horas de cada uno, se obtiene una capacidad total de 32 horas."},{"label":"B","text":"Verdadero","isCorrect":false,"rationale":"El cálculo correcto es $2 \\times 2 \\times 8 = 32$ horas, no 16."}]},{"question":"Para la meta 4 (Cumplir exactamente con los pedidos del producto A), ¿es correcto penalizar tanto $D_4$ como $E_4$ en la función objetivo?","hint":"Analiza qué significa el término 'exactamente' para las desviaciones.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"Cuando se busca un cumplimiento exacto, cualquier desviación (tanto por falta como por exceso) se considera indeseada."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"Si solo se penalizara una, el modelo permitiría desviaciones libres en la otra dirección, no garantizando el cumplimiento exacto."}]},{"question":"¿La variable de decisión $A$ en el modelo representa la utilidad generada por el producto A?","hint":"Diferencia entre los datos fijos del problema y lo que el modelo debe decidir (cantidades).","options":[{"label":"A","text":"Falso","isCorrect":true,"rationale":"$A$ y $B$ representan las cantidades físicas a producir de cada producto, no sus costos o utilidades unitarias."},{"label":"B","text":"Verdadero","isCorrect":false,"rationale":"La utilidad es un parámetro (20 soles), mientras que $A$ es la variable que representa la cantidad de unidades a producir."}]},{"question":"Si la meta 1 es obtener una utilidad de 3000 soles, ¿la ecuación correspondiente es $20A + 15B + D_1 - E_1 = 3000$?","hint":"Utiliza los valores de utilidad de 20 para A y 15 para B.","options":[{"label":"A","text":"Falso","isCorrect":false,"rationale":"Esta es la forma estándar de expresar una meta en Goal Programming, relacionando las variables de decisión con el valor objetivo."},{"label":"B","text":"Verdadero","isCorrect":true,"rationale":"Esta ecuación combina las utilidades unitarias de cada producto con las variables de desviación para igualar el objetivo de 3000 soles."}]},{"question":"¿La Programación Multiobjetivo se considera una herramienta avanzada para la toma de decisiones gerenciales?","hint":"Revisa la conclusión final del documento.","options":[{"label":"A","text":"Falso","isCorrect":false,"rationale":"El material afirma explícitamente su valor como una herramienta avanzada para la complejidad gerencial moderna."},{"label":"B","text":"Verdadero","isCorrect":true,"rationale":"La conclusión de la sesión destaca que es la herramienta más avanzada para gestionar decisiones con múltiples prioridades."}]}];
+const tr = {"correct":"¡Correcto!","incorrect":"Incorrecto","next":"Siguiente pregunta →","seeResults":"Ver resultados","complete":"¡Cuestionario completado!","scoreText":"Obtuviste {correct} de {total} correctas","tryAgain":"Intentar de nuevo","rightAnswer":"Respuesta correcta","notQuite":"No del todo"};
+let currentQ = 0, correctCount = 0, answered = false;
+
+function init() {
+  document.querySelectorAll('.question').forEach((q, i) => q.classList.toggle('active', i === 0));
+  updateProgress();
+  document.querySelectorAll('.option').forEach(opt => opt.addEventListener('click', () => selectOption(opt)));
+  document.querySelectorAll('.next-btn').forEach(btn => btn.addEventListener('click', nextQuestion));
+}
+
+function selectOption(opt) {
+  if (answered) return;
+  answered = true;
+  const q = opt.closest('.question');
+  const options = q.querySelectorAll('.option');
+  const nextBtn = q.querySelector('.next-btn');
+  const isCorrect = opt.dataset.correct === 'true';
+  
+  // Mark all options as disabled
+  options.forEach(o => o.classList.add('disabled'));
+  
+  // Style selected option
+  opt.classList.add('selected', isCorrect ? 'correct' : 'incorrect');
+  
+  // Show correct answer if wrong
+  if (!isCorrect) {
+    const correctOpt = [...options].find(o => o.dataset.correct === 'true');
+    if (correctOpt) correctOpt.classList.add('show-correct');
+  }
+  
+  if (isCorrect) correctCount++;
+  
+  // Show feedback for ALL options that have rationale
+  options.forEach(o => {
+    const wrapper = o.closest('.option-wrapper');
+    const feedback = wrapper.querySelector('.option-feedback');
+    const rationale = o.dataset.rationale;
+    const isThisCorrect = o.dataset.correct === 'true';
+    
+    if (rationale && rationale.trim()) {
+      feedback.classList.remove('hidden');
+      feedback.classList.add(isThisCorrect ? 'correct-feedback' : 'incorrect-feedback');
+      
+      const statusEl = feedback.querySelector('.feedback-status');
+      statusEl.className = 'feedback-status ' + (isThisCorrect ? 'correct' : 'incorrect');
+      statusEl.innerHTML = isThisCorrect 
+        ? '✓ ' + tr.rightAnswer
+        : '✗ ' + tr.notQuite;
+    }
+  });
+  
+  nextBtn.classList.remove('hidden');
+  if (currentQ === quizData.length - 1) nextBtn.textContent = tr.seeResults;
+}
+
+function nextQuestion() {
+  answered = false;
+  currentQ++;
+  if (currentQ >= quizData.length) { showResults(); return; }
+  document.querySelectorAll('.question').forEach((q, i) => q.classList.toggle('active', i === currentQ));
+  updateProgress();
+}
+
+function updateProgress() {
+  document.querySelector('.progress-fill').style.width = (currentQ / quizData.length * 100) + '%';
+}
+
+function showResults() {
+  document.querySelectorAll('.question').forEach(q => q.classList.remove('active'));
+  document.getElementById('results').classList.add('active');
+  const pct = Math.round((correctCount / quizData.length) * 100);
+  document.getElementById('score').textContent = pct + '%';
+  document.getElementById('score-text').textContent = tr.scoreText.replace('{correct}', correctCount).replace('{total}', quizData.length);
+  document.querySelector('.progress-fill').style.width = '100%';
+}
+
+function restart() {
+  currentQ = 0; correctCount = 0; answered = false;
+  document.getElementById('results').classList.remove('active');
+  document.querySelectorAll('.question').forEach((q, i) => {
+    q.classList.toggle('active', i === 0);
+    q.querySelectorAll('.option').forEach(o => o.classList.remove('selected', 'correct', 'incorrect', 'disabled', 'show-correct'));
+    q.querySelectorAll('.option-feedback').forEach(f => {
+      f.classList.add('hidden');
+      f.classList.remove('correct-feedback', 'incorrect-feedback');
+    });
+    const btn = q.querySelector('.next-btn');
+    btn.classList.add('hidden');
+    btn.textContent = tr.next;
+  });
+  updateProgress();
+}
+
+init();
+</script>
+</body>
+</html>
