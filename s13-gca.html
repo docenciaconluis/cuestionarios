@@ -1,0 +1,1306 @@
+<!DOCTYPE html>
+<html lang="es" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>S13 - GCA</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  min-height: 100vh; padding: 20px; color: #333;
+}
+.container { max-width: 700px; margin: 0 auto; }
+.header { text-align: center; color: #fff; padding: 30px 20px; }
+.header h1 { font-size: 28px; font-weight: 700; margin-bottom: 8px; text-shadow: 0 2px 10px rgba(0,0,0,0.2); }
+.header .meta { font-size: 14px; opacity: 0.9; }
+.progress-bar { background: rgba(255,255,255,0.3); border-radius: 10px; height: 8px; margin: 20px 0; overflow: hidden; }
+.progress-fill { background: #fff; height: 100%; width: 0%; transition: width 0.4s ease; border-radius: 10px; }
+.question { background: #fff; border-radius: 16px; padding: 30px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); display: none; }
+.question.active { display: block; }
+.q-header { display: flex; justify-content: space-between; margin-bottom: 20px; font-size: 13px; color: #888; }
+.q-number { font-weight: 600; color: #667eea; }
+.q-text { font-size: 18px; font-weight: 600; line-height: 1.5; margin-bottom: 25px; color: #222; }
+.options { display: flex; flex-direction: column; gap: 12px; }
+.option-wrapper { display: flex; flex-direction: column; }
+.option {
+  display: flex; align-items: flex-start; gap: 14px; padding: 16px 18px;
+  border: 2px solid #e8e8e8; border-radius: 12px; background: #fafafa;
+  cursor: pointer; transition: all 0.2s; text-align: left; font-size: 15px; width: 100%;
+}
+[dir="rtl"] .option { text-align: right; flex-direction: row-reverse; }
+.option:hover:not(.disabled) { border-color: #667eea; background: #f5f3ff; }
+.option.selected { border-color: #667eea; background: #ede9fe; }
+.option.correct { border-color: #22c55e; background: #dcfce7; }
+.option.incorrect { border-color: #ef4444; background: #fee2e2; }
+.option.disabled { cursor: default; }
+.option.show-correct { border-color: #22c55e; background: #dcfce7; }
+.opt-label {
+  display: flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; border-radius: 50%; background: #e8e8e8;
+  font-weight: 700; font-size: 14px; flex-shrink: 0;
+}
+.option.selected .opt-label { background: #667eea; color: #fff; }
+.option.correct .opt-label { background: #22c55e; color: #fff; }
+.option.incorrect .opt-label { background: #ef4444; color: #fff; }
+.option.show-correct .opt-label { background: #22c55e; color: #fff; }
+.opt-text { padding-top: 5px; line-height: 1.5; }
+
+/* Individual option feedback */
+.option-feedback {
+  margin: 8px 0 4px 46px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+[dir="rtl"] .option-feedback { margin-left: 0; margin-right: 46px; }
+.option-feedback.correct-feedback {
+  background: #dcfce7;
+  border-left: 3px solid #22c55e;
+}
+.option-feedback.incorrect-feedback {
+  background: #fef3f2;
+  border-left: 3px solid #fca5a5;
+}
+[dir="rtl"] .option-feedback.correct-feedback,
+[dir="rtl"] .option-feedback.incorrect-feedback {
+  border-left: none;
+  border-right: 3px solid;
+}
+[dir="rtl"] .option-feedback.correct-feedback { border-right-color: #22c55e; }
+[dir="rtl"] .option-feedback.incorrect-feedback { border-right-color: #fca5a5; }
+.feedback-status {
+  font-weight: 600;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.feedback-status.correct { color: #166534; }
+.feedback-status.incorrect { color: #991b1b; }
+.feedback-rationale { color: #444; }
+
+/* Hint box */
+.hint-box {
+  margin: 12px 0;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+}
+.hint-toggle {
+  width: 100%;
+  padding: 10px 16px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  color: #92400e;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.hint-toggle:hover { background: #fef3c7; }
+.hint-content {
+  padding: 0 16px;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s, padding 0.3s;
+  font-size: 14px;
+  color: #78350f;
+  line-height: 1.5;
+}
+.hint-box.show .hint-content {
+  padding: 0 16px 12px;
+  max-height: 200px;
+}
+
+.next-btn {
+  margin-top: 20px; width: 100%; padding: 14px;
+  background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; border: none;
+  border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.next-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(102,126,234,0.4); }
+.hidden { display: none !important; }
+.results { background: #fff; border-radius: 16px; padding: 40px; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.15); display: none; }
+.results.active { display: block; }
+.results h2 { font-size: 28px; margin-bottom: 10px; color: #333; }
+.results .score { font-size: 64px; font-weight: 700; color: #667eea; margin: 20px 0; }
+.results .score-text { font-size: 18px; color: #666; margin-bottom: 30px; }
+.restart-btn {
+  padding: 14px 40px; background: linear-gradient(135deg, #667eea, #764ba2);
+  color: #fff; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer;
+}
+
+/* Math CSS */
+.math, .math-block { font-family: "Cambria Math", "Times New Roman", Times, serif; font-style: italic; }
+.math-block { display: block; text-align: center; margin: 10px 0; font-size: 110%; }
+.frac { display: inline-flex; flex-direction: column; align-items: center; vertical-align: middle; margin: 0 3px; font-size: 0.9em; }
+.frac-num { border-bottom: 1px solid currentColor; padding: 0 4px 2px; line-height: 1.2; }
+.frac-den { padding: 2px 4px 0; line-height: 1.2; }
+.sqrt { white-space: nowrap; }
+.sqrt-content { border-top: 1px solid currentColor; padding: 0 3px; margin-left: 2px; }
+sup, sub { font-size: 0.75em; }
+sup { vertical-align: super; }
+sub { vertical-align: sub; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>S13 - GCA</h1>
+    <div class="meta">26 preguntas</div>
+    <div class="progress-bar"><div class="progress-fill"></div></div>
+  </div>
+  <div id="quiz-container">
+        <div class="question" data-index="0">
+          <div class="q-header">
+            <span class="q-number">Pregunta 1</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿El sistema de trazabilidad en la cadena de suministro tiene como objetivo único el seguimiento del producto durante la entrega final al cliente?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considere si el seguimiento inicia desde las materias primas o solo en el último eslabón.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="La trazabilidad es un concepto integral que permite el control de productos en toda la cadena como parte de la estrategia logística organizacional.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La trazabilidad es un concepto integral que permite el control de productos en toda la cadena como parte de la estrategia logística organizacional.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="La trazabilidad abarca el control y seguimiento de los procesos y actividades a lo largo de toda la cadena de abastecimiento, no solo en la entrega final.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La trazabilidad abarca el control y seguimiento de los procesos y actividades a lo largo de toda la cadena de abastecimiento, no solo en la entrega final.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="1">
+          <div class="q-header">
+            <span class="q-number">Pregunta 2</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿Dentro de las '4 patas de la excelencia operativa', se menciona que el sistema debe adaptarse a la operación y no al revés?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piense en cuál de los dos (sistema u operación) es el núcleo del negocio que debe ser servido por el otro.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Forzar la operación a adaptarse a un sistema rígido suele ir en contra de la agilidad y eficiencia buscada en la excelencia operativa.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Forzar la operación a adaptarse a un sistema rígido suele ir en contra de la agilidad y eficiencia buscada en la excelencia operativa.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="La excelencia operativa requiere que las herramientas tecnológicas sean flexibles para soportar los procesos específicos de la empresa.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La excelencia operativa requiere que las herramientas tecnológicas sean flexibles para soportar los procesos específicos de la empresa.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="2">
+          <div class="q-header">
+            <span class="q-number">Pregunta 3</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿Los indicadores primarios son aquellos que se usan principalmente a nivel operativo para el control diario de tareas?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Diferencie entre la jerarquía de reporte para la dirección estratégica versus el nivel de ejecución táctica.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Los indicadores que se usan a nivel operativo son los secundarios; los primarios están destinados a la alta dirección.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Los indicadores que se usan a nivel operativo son los secundarios; los primarios están destinados a la alta dirección.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Según el material, los indicadores primarios se reportan directamente a la dirección para la toma de decisiones estratégicas.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Según el material, los indicadores primarios se reportan directamente a la dirección para la toma de decisiones estratégicas.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="3">
+          <div class="q-header">
+            <span class="q-number">Pregunta 4</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿En el cálculo de la Exactitud de Registro por Ubicación (<span class="math">ERU</span>), una ubicación con una mínima diferencia entre el sistema y el físico recibe un puntaje porcentual parcial?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Recuerde si este indicador específico admite matices de error o si es una validación de 'pasa o no pasa'.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="El $ERU$ es un indicador binario por ubicación: si hay cualquier error, la ubicación se marca con $0\%$, independientemente de la magnitud.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El <span class="math">ERU</span> es un indicador binario por ubicación: si hay cualquier error, la ubicación se marca con <span class="math">0%</span>, independientemente de la magnitud.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="El modelo presentado establece que una ubicación sin error es $100\%$ y con error es $0\%$, calculando el total como un promedio de estas unidades.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El modelo presentado establece que una ubicación sin error es <span class="math">100%</span> y con error es <span class="math">0%</span>, calculando el total como un promedio de estas unidades.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="4">
+          <div class="q-header">
+            <span class="q-number">Pregunta 5</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿El 'Slotting' es un proceso que implica el diseño de un mapa de calor y el análisis de los movimientos de los <span class="math">SKUs</span>?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Revise las etapas numeradas en el gráfico de optimización de ubicaciones en el almacén.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="El diseño de mapas de calor y la identificación de $SKUs$ a mover son pasos fundamentales descritos en la metodología de slotting.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El diseño de mapas de calor y la identificación de <span class="math">SKUs</span> a mover son pasos fundamentales descritos en la metodología de slotting.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="El slotting busca optimizar la ubicación de productos analizando periodos distintos y niveles de ubicación para mejorar la eficiencia del flujo.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El slotting busca optimizar la ubicación de productos analizando periodos distintos y niveles de ubicación para mejorar la eficiencia del flujo.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="5">
+          <div class="q-header">
+            <span class="q-number">Pregunta 6</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿La logística inversa comienza con el proceso de 'Clasificación' de los productos devueltos?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piense en el orden lógico desde que el cliente decide devolver un producto hasta que este llega a la planta.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Antes de clasificar, es necesario recolectar, transportar, recibir e inspeccionar los elementos en el flujo inverso.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Antes de clasificar, es necesario recolectar, transportar, recibir e inspeccionar los elementos en el flujo inverso.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="El primer paso de la logística inversa, según el diagrama de flujo, es 'Recolectar'.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El primer paso de la logística inversa, según el diagrama de flujo, es 'Recolectar'.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="6">
+          <div class="q-header">
+            <span class="q-number">Pregunta 7</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿Los indicadores de gestión (<span class="math">KPIs</span>) deben poseer la característica de ser continuos y periódicos?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considere si una medición aislada permite analizar la eficacia de las acciones a largo plazo.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Para que un indicador sea útil en el análisis de tendencias y mejora de procesos, debe medirse de manera constante en el tiempo.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Para que un indicador sea útil en el análisis de tendencias y mejora de procesos, debe medirse de manera constante en el tiempo.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="La continuidad y periodicidad son características esenciales para poder comparar y corregir procesos basados en datos históricos.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La continuidad y periodicidad son características esenciales para poder comparar y corregir procesos basados en datos históricos.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="7">
+          <div class="q-header">
+            <span class="q-number">Pregunta 8</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿La etapa de 'Picking' se considera finalizada una vez que se realiza la extracción de los productos de sus ubicaciones?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Examine si el despacho y el embalaje forman parte de las seis etapas mencionadas en el proceso de picking.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="El proceso de picking incluye etapas posteriores como la verificación, el embalaje y el despacho.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El proceso de picking incluye etapas posteriores como la verificación, el embalaje y el despacho.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="El flujo de picking completo abarca desde la recepción del pedido hasta el despacho final del mismo.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El flujo de picking completo abarca desde la recepción del pedido hasta el despacho final del mismo.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="8">
+          <div class="q-header">
+            <span class="q-number">Pregunta 9</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿El indicador <span class="math">ERI</span> (<span class="math">Exactitud de Registro de Inventario</span>) se calcula típicamente comparando la cantidad física contra la cantidad en sistema por <span class="math">SKU</span>?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Recuerde los encabezados de la tabla donde se mostraban artículos como 'ABC', 'ABB' y 'ACC'.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="El $ERI$ mide qué tan alineado está el stock físico real con los datos registrados en el sistema de gestión para cada artículo.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El <span class="math">ERI</span> mide qué tan alineado está el stock físico real con los datos registrados en el sistema de gestión para cada artículo.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="La comparación entre 'Cant. Sistema' y 'Cant. Físico' es la base fundamental para determinar el porcentaje de exactitud de inventario.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La comparación entre 'Cant. Sistema' y 'Cant. Físico' es la base fundamental para determinar el porcentaje de exactitud de inventario.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="9">
+          <div class="q-header">
+            <span class="q-number">Pregunta 10</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿La gestión de inventarios requiere obligatoriamente una coordinación estrecha con el departamento de Recursos Humanos (<span class="math">RRHH</span>)?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Busque la relación entre 'Personal Capacitado' y las áreas administrativas mencionadas en el mapa de control de inventarios.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Aunque es un área logística, el factor humano es crítico y depende de los procesos de selección y capacitación gestionados por $RRHH$.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aunque es un área logística, el factor humano es crítico y depende de los procesos de selección y capacitación gestionados por <span class="math">RRHH</span>.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="El material señala que para asegurar una correcta gestión, se requiere personal capacitado, lo cual implica mucha coordinación con $RRHH$.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El material señala que para asegurar una correcta gestión, se requiere personal capacitado, lo cual implica mucha coordinación con <span class="math">RRHH</span>.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="10">
+          <div class="q-header">
+            <span class="q-number">Pregunta 11</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿Un sistema de trazabilidad contribuye únicamente a la reducción de costos operativos, sin impactar en la satisfacción del cliente?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considere la relación entre el control de productos y la percepción de valor del consumidor final.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="El impacto de la logística en el servicio al cliente es un tema central, y la trazabilidad asegura entregas correctas y a tiempo.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El impacto de la logística en el servicio al cliente es un tema central, y la trazabilidad asegura entregas correctas y a tiempo.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="La trazabilidad mejora la visibilidad y el servicio al cliente, lo cual impacta directamente en su satisfacción final.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La trazabilidad mejora la visibilidad y el servicio al cliente, lo cual impacta directamente en su satisfacción final.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="11">
+          <div class="q-header">
+            <span class="q-number">Pregunta 12</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿El 'Mapa de Estados' en el control de inventarios debe considerar, como mínimo, los estados de 'Disponible' y 'No Disponible'?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piense en la utilidad de saber si un producto está en merma o listo para picking.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Sin la distinción de estados de inventario, el sistema de planificación podría comprometer existencias que no están aptas para el despacho.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Sin la distinción de estados de inventario, el sistema de planificación podría comprometer existencias que no están aptas para el despacho.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Diferenciar entre lo que se puede vender y lo que está retenido (por calidad o daño) es vital para la planificación de la cadena.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Diferenciar entre lo que se puede vender y lo que está retenido (por calidad o daño) es vital para la planificación de la cadena.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="12">
+          <div class="q-header">
+            <span class="q-number">Pregunta 13</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿En el flujo de la cadena de suministro (<span class="math">SCM</span>), el eslabón de 'Retail' se ubica cronológicamente antes del proceso de 'Distribución'?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Siga el sentido de las flechas en el diagrama circular de Supply Chain Management.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="La distribución es el proceso que lleva los productos desde la fabricación o almacenes centrales hacia los puntos de venta ($Retail$).">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La distribución es el proceso que lleva los productos desde la fabricación o almacenes centrales hacia los puntos de venta (<span class="math">Retail</span>).</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Según el diagrama de $SCM$, la distribución precede al $Retail$, el cual a su vez precede al cliente final.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Según el diagrama de <span class="math">SCM</span>, la distribución precede al <span class="math">Retail</span>, el cual a su vez precede al cliente final.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="13">
+          <div class="q-header">
+            <span class="q-number">Pregunta 14</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿Los indicadores de gestión deben ser realistas y coherentes con los objetivos de la organización?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considere qué sucede si se establecen metas imposibles de medir o de alcanzar en una operación.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Los $KPIs$ que no son alcanzables o que contradicen la estrategia general pierden su utilidad como herramientas de mejora.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Los <span class="math">KPIs</span> que no son alcanzables o que contradicen la estrategia general pierden su utilidad como herramientas de mejora.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="La coherencia y el realismo son pilares fundamentales de las características de un indicador de desempeño efectivo.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La coherencia y el realismo son pilares fundamentales de las características de un indicador de desempeño efectivo.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="14">
+          <div class="q-header">
+            <span class="q-number">Pregunta 15</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿El uso de códigos de barras como <span class="math">EAN</span>, <span class="math">SKU</span> o <span class="math">LPN</span> es opcional para lograr un sistema de trazabilidad eficiente en almacenes caóticos?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piense en cómo encontraría un operario un producto en un almacén sin ubicaciones fijas si no tuviera un sistema de escaneo.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="En almacenes caóticos, la identificación precisa por etiquetas es indispensable para poder localizar productos sin un orden fijo.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">En almacenes caóticos, la identificación precisa por etiquetas es indispensable para poder localizar productos sin un orden fijo.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="El etiquetado es una herramienta crítica para el control de existencias, especialmente en modelos de almacenamiento dirigido o caótico.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El etiquetado es una herramienta crítica para el control de existencias, especialmente en modelos de almacenamiento dirigido o caótico.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="15">
+          <div class="q-header">
+            <span class="q-number">Pregunta 16</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿La logística inversa incluye como una de sus salidas posibles el desecho de productos?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Analice las opciones que se presentan a la derecha del proceso de 'Clasificar' en el material.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Si un producto devuelto no puede ser revendido ni reciclado, la disposición final o 'Desechar' es parte del flujo clasificado.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Si un producto devuelto no puede ser revendido ni reciclado, la disposición final o 'Desechar' es parte del flujo clasificado.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El diagrama de logística inversa muestra claramente 'Desechar' como una de las cuatro opciones finales tras la clasificación.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El diagrama de logística inversa muestra claramente 'Desechar' como una de las cuatro opciones finales tras la clasificación.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="16">
+          <div class="q-header">
+            <span class="q-number">Pregunta 17</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿El indicador de 'Efectividad de entrega' se centra principalmente en que el producto llegue al cliente, sin importar el cumplimiento del tiempo pactado?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Busque la definición que acompaña al proceso de distribución en las láminas de transformación.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="La efectividad de entrega está intrínsecamente ligada a la 'Entrega a tiempo' para considerarse exitosa.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La efectividad de entrega está intrínsecamente ligada a la 'Entrega a tiempo' para considerarse exitosa.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="El material define explícitamente la efectividad de entrega bajo el concepto de 'Entrega a tiempo'.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El material define explícitamente la efectividad de entrega bajo el concepto de 'Entrega a tiempo'.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="17">
+          <div class="q-header">
+            <span class="q-number">Pregunta 18</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿Un buen sistema de trazabilidad permite analizar y comparar la eficacia de las acciones tomadas en la operación?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piense en para qué sirve recolectar información sobre cada paso de la cadena de suministro.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Una de las funciones principales de los indicadores derivados de la trazabilidad es precisamente el análisis y la comparación de procesos.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Una de las funciones principales de los indicadores derivados de la trazabilidad es precisamente el análisis y la comparación de procesos.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Los sistemas de trazabilidad generan datos que sirven como base para los $KPIs$, permitiendo la comparación y toma de decisiones.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Los sistemas de trazabilidad generan datos que sirven como base para los <span class="math">KPIs</span>, permitiendo la comparación y toma de decisiones.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="18">
+          <div class="q-header">
+            <span class="q-number">Pregunta 19</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿La característica de ser 'Específico' en un <span class="math">KPI</span> se refiere a que debe medir múltiples variables complejas al mismo tiempo?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considere si la claridad de un indicador aumenta o disminuye al intentar medir demasiadas cosas a la vez.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Ser específico significa enfocarse en un solo aspecto o métrica clara para evitar ambigüedades en la interpretación.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Ser específico significa enfocarse en un solo aspecto o métrica clara para evitar ambigüedades en la interpretación.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Un indicador específico debe ser claro y enfocado en un punto particular de la operación para ser efectivo.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Un indicador específico debe ser claro y enfocado en un punto particular de la operación para ser efectivo.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="19">
+          <div class="q-header">
+            <span class="q-number">Pregunta 20</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿El 'Maestro de Artículos' debe estar detallado al máximo y contar con valores (<span class="math">VLs</span>) exactas para un control de inventario óptimo?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piense en la importancia de que la información técnica y logística del producto sea fidedigna en el sistema.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="El material subraya la necesidad de un detalle máximo y exactitud en el maestro de artículos como entrada para el control de inventarios.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El material subraya la necesidad de un detalle máximo y exactitud en el maestro de artículos como entrada para el control de inventarios.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="La base de datos de productos es el cimiento de la trazabilidad; errores en el maestro de artículos se propagan a toda la cadena.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La base de datos de productos es el cimiento de la trazabilidad; errores en el maestro de artículos se propagan a toda la cadena.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="20">
+          <div class="q-header">
+            <span class="q-number">Pregunta 21</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿La 'Revisión Total al <span class="math">100%</span>' y el 'Muestreo' son actividades que ocurren durante la recepción y descarga de mercadería?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Ubique las acciones que se realizan inmediatamente después de descargar los camiones.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="El proceso de recepción incluye obligatoriamente una fase de inspección física que puede ser total o por muestreo estadístico.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El proceso de recepción incluye obligatoriamente una fase de inspección física que puede ser total o por muestreo estadístico.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Estas actividades de validación aseguran que lo recibido coincida con lo documentado antes de ingresar al inventario.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Estas actividades de validación aseguran que lo recibido coincida con lo documentado antes de ingresar al inventario.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="21">
+          <div class="q-header">
+            <span class="q-number">Pregunta 22</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿La logística inversa es considerada un proceso independiente que no guarda relación con la satisfacción del cliente?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piense en cómo se siente un cliente cuando el proceso de devolver un producto fallido es fácil o difícil.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="La gestión de retornos impacta directamente en la experiencia del cliente y es parte fundamental de la estrategia logística moderna.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La gestión de retornos impacta directamente en la experiencia del cliente y es parte fundamental de la estrategia logística moderna.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Un proceso de devolución eficiente (logística inversa) es un factor clave para mantener la lealtad y satisfacción del cliente.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Un proceso de devolución eficiente (logística inversa) es un factor clave para mantener la lealtad y satisfacción del cliente.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="22">
+          <div class="q-header">
+            <span class="q-number">Pregunta 23</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿El indicador <span class="math">ERU</span> se enfoca en medir qué tan bien está distribuido el inventario en las estanterías en términos de peso?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Relacione las siglas con el concepto de 'Ubicación' y 'Exactitud de Registro'.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="El $ERU$ mide la exactitud de los registros contables frente a la ubicación física, no la distribución de carga o peso.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El <span class="math">ERU</span> mide la exactitud de los registros contables frente a la ubicación física, no la distribución de carga o peso.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Exactitud de Registro por Ubicación ($ERU$) se refiere a la veracidad de la información de ubicación en el sistema.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Exactitud de Registro por Ubicación (<span class="math">ERU</span>) se refiere a la veracidad de la información de ubicación en el sistema.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="23">
+          <div class="q-header">
+            <span class="q-number">Pregunta 24</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿En el proceso de 'Picking', la generación de tareas de extracción ocurre antes de la recepción de los pedidos?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considere qué evento dispara la necesidad de ir a buscar un producto al almacén.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="La secuencia correcta inicia con la 'Recepción de Pedidos' y continúa con la 'Generación de tareas de extracción'.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La secuencia correcta inicia con la 'Recepción de Pedidos' y continúa con la 'Generación de tareas de extracción'.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="No se pueden generar tareas de extracción si no se ha recibido y procesado previamente un pedido del cliente.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">No se pueden generar tareas de extracción si no se ha recibido y procesado previamente un pedido del cliente.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="24">
+          <div class="q-header">
+            <span class="q-number">Pregunta 25</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿El uso de indicadores de gestión permite revisar, corregir o incluso desarrollar nuevos procesos organizacionales?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piense en la utilidad de los datos para la mejora continua de una empresa.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Los $KPIs$ proporcionan el feedback necesario para identificar fallas y oportunidades de rediseño de procesos.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Los <span class="math">KPIs</span> proporcionan el feedback necesario para identificar fallas y oportunidades de rediseño de procesos.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Analizar la eficacia de las acciones actuales mediante indicadores es el paso previo indispensable para la innovación de procesos.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Analizar la eficacia de las acciones actuales mediante indicadores es el paso previo indispensable para la innovación de procesos.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="25">
+          <div class="q-header">
+            <span class="q-number">Pregunta 26</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿La trazabilidad solo es relevante para empresas que manejan productos físicos, excluyendo servicios o procesos digitales?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considere la definición general de trazabilidad mencionada al inicio del tema de transformación.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="La trazabilidad se define como el seguimiento de procesos y actividades dentro de la cadena, lo cual es transversal a distintos modelos de negocio.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La trazabilidad se define como el seguimiento de procesos y actividades dentro de la cadena, lo cual es transversal a distintos modelos de negocio.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Aunque el material se enfoca en productos, la trazabilidad es el seguimiento de procesos y actividades, aplicable a cualquier flujo de valor.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aunque el material se enfoca en productos, la trazabilidad es el seguimiento de procesos y actividades, aplicable a cualquier flujo de valor.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      </div>
+  <div class="results" id="results">
+    <h2>¡Cuestionario completado!</h2>
+    <div class="score" id="score">0%</div>
+    <div class="score-text" id="score-text"></div>
+    <button class="restart-btn" onclick="restart()">Intentar de nuevo</button>
+  </div>
+</div>
+<script>
+const quizData = [{"question":"¿El sistema de trazabilidad en la cadena de suministro tiene como objetivo único el seguimiento del producto durante la entrega final al cliente?","hint":"Considere si el seguimiento inicia desde las materias primas o solo en el último eslabón.","options":[{"label":"A","text":"Falso","isCorrect":true,"rationale":"La trazabilidad es un concepto integral que permite el control de productos en toda la cadena como parte de la estrategia logística organizacional."},{"label":"B","text":"Verdadero","isCorrect":false,"rationale":"La trazabilidad abarca el control y seguimiento de los procesos y actividades a lo largo de toda la cadena de abastecimiento, no solo en la entrega final."}]},{"question":"¿Dentro de las '4 patas de la excelencia operativa', se menciona que el sistema debe adaptarse a la operación y no al revés?","hint":"Piense en cuál de los dos (sistema u operación) es el núcleo del negocio que debe ser servido por el otro.","options":[{"label":"A","text":"Falso","isCorrect":false,"rationale":"Forzar la operación a adaptarse a un sistema rígido suele ir en contra de la agilidad y eficiencia buscada en la excelencia operativa."},{"label":"B","text":"Verdadero","isCorrect":true,"rationale":"La excelencia operativa requiere que las herramientas tecnológicas sean flexibles para soportar los procesos específicos de la empresa."}]},{"question":"¿Los indicadores primarios son aquellos que se usan principalmente a nivel operativo para el control diario de tareas?","hint":"Diferencie entre la jerarquía de reporte para la dirección estratégica versus el nivel de ejecución táctica.","options":[{"label":"A","text":"Verdadero","isCorrect":false,"rationale":"Los indicadores que se usan a nivel operativo son los secundarios; los primarios están destinados a la alta dirección."},{"label":"B","text":"Falso","isCorrect":true,"rationale":"Según el material, los indicadores primarios se reportan directamente a la dirección para la toma de decisiones estratégicas."}]},{"question":"¿En el cálculo de la Exactitud de Registro por Ubicación ($ERU$), una ubicación con una mínima diferencia entre el sistema y el físico recibe un puntaje porcentual parcial?","hint":"Recuerde si este indicador específico admite matices de error o si es una validación de 'pasa o no pasa'.","options":[{"label":"A","text":"Verdadero","isCorrect":false,"rationale":"El $ERU$ es un indicador binario por ubicación: si hay cualquier error, la ubicación se marca con $0\\%$, independientemente de la magnitud."},{"label":"B","text":"Falso","isCorrect":true,"rationale":"El modelo presentado establece que una ubicación sin error es $100\\%$ y con error es $0\\%$, calculando el total como un promedio de estas unidades."}]},{"question":"¿El 'Slotting' es un proceso que implica el diseño de un mapa de calor y el análisis de los movimientos de los $SKUs$?","hint":"Revise las etapas numeradas en el gráfico de optimización de ubicaciones en el almacén.","options":[{"label":"A","text":"Falso","isCorrect":false,"rationale":"El diseño de mapas de calor y la identificación de $SKUs$ a mover son pasos fundamentales descritos en la metodología de slotting."},{"label":"B","text":"Verdadero","isCorrect":true,"rationale":"El slotting busca optimizar la ubicación de productos analizando periodos distintos y niveles de ubicación para mejorar la eficiencia del flujo."}]},{"question":"¿La logística inversa comienza con el proceso de 'Clasificación' de los productos devueltos?","hint":"Piense en el orden lógico desde que el cliente decide devolver un producto hasta que este llega a la planta.","options":[{"label":"A","text":"Verdadero","isCorrect":false,"rationale":"Antes de clasificar, es necesario recolectar, transportar, recibir e inspeccionar los elementos en el flujo inverso."},{"label":"B","text":"Falso","isCorrect":true,"rationale":"El primer paso de la logística inversa, según el diagrama de flujo, es 'Recolectar'."}]},{"question":"¿Los indicadores de gestión ($KPIs$) deben poseer la característica de ser continuos y periódicos?","hint":"Considere si una medición aislada permite analizar la eficacia de las acciones a largo plazo.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"Para que un indicador sea útil en el análisis de tendencias y mejora de procesos, debe medirse de manera constante en el tiempo."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"La continuidad y periodicidad son características esenciales para poder comparar y corregir procesos basados en datos históricos."}]},{"question":"¿La etapa de 'Picking' se considera finalizada una vez que se realiza la extracción de los productos de sus ubicaciones?","hint":"Examine si el despacho y el embalaje forman parte de las seis etapas mencionadas en el proceso de picking.","options":[{"label":"A","text":"Verdadero","isCorrect":false,"rationale":"El proceso de picking incluye etapas posteriores como la verificación, el embalaje y el despacho."},{"label":"B","text":"Falso","isCorrect":true,"rationale":"El flujo de picking completo abarca desde la recepción del pedido hasta el despacho final del mismo."}]},{"question":"¿El indicador $ERI$ ($Exactitud de Registro de Inventario$) se calcula típicamente comparando la cantidad física contra la cantidad en sistema por $SKU$?","hint":"Recuerde los encabezados de la tabla donde se mostraban artículos como 'ABC', 'ABB' y 'ACC'.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"El $ERI$ mide qué tan alineado está el stock físico real con los datos registrados en el sistema de gestión para cada artículo."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"La comparación entre 'Cant. Sistema' y 'Cant. Físico' es la base fundamental para determinar el porcentaje de exactitud de inventario."}]},{"question":"¿La gestión de inventarios requiere obligatoriamente una coordinación estrecha con el departamento de Recursos Humanos ($RRHH$)?","hint":"Busque la relación entre 'Personal Capacitado' y las áreas administrativas mencionadas en el mapa de control de inventarios.","options":[{"label":"A","text":"Falso","isCorrect":false,"rationale":"Aunque es un área logística, el factor humano es crítico y depende de los procesos de selección y capacitación gestionados por $RRHH$."},{"label":"B","text":"Verdadero","isCorrect":true,"rationale":"El material señala que para asegurar una correcta gestión, se requiere personal capacitado, lo cual implica mucha coordinación con $RRHH$."}]},{"question":"¿Un sistema de trazabilidad contribuye únicamente a la reducción de costos operativos, sin impactar en la satisfacción del cliente?","hint":"Considere la relación entre el control de productos y la percepción de valor del consumidor final.","options":[{"label":"A","text":"Falso","isCorrect":true,"rationale":"El impacto de la logística en el servicio al cliente es un tema central, y la trazabilidad asegura entregas correctas y a tiempo."},{"label":"B","text":"Verdadero","isCorrect":false,"rationale":"La trazabilidad mejora la visibilidad y el servicio al cliente, lo cual impacta directamente en su satisfacción final."}]},{"question":"¿El 'Mapa de Estados' en el control de inventarios debe considerar, como mínimo, los estados de 'Disponible' y 'No Disponible'?","hint":"Piense en la utilidad de saber si un producto está en merma o listo para picking.","options":[{"label":"A","text":"Falso","isCorrect":false,"rationale":"Sin la distinción de estados de inventario, el sistema de planificación podría comprometer existencias que no están aptas para el despacho."},{"label":"B","text":"Verdadero","isCorrect":true,"rationale":"Diferenciar entre lo que se puede vender y lo que está retenido (por calidad o daño) es vital para la planificación de la cadena."}]},{"question":"¿En el flujo de la cadena de suministro ($SCM$), el eslabón de 'Retail' se ubica cronológicamente antes del proceso de 'Distribución'?","hint":"Siga el sentido de las flechas en el diagrama circular de Supply Chain Management.","options":[{"label":"A","text":"Verdadero","isCorrect":false,"rationale":"La distribución es el proceso que lleva los productos desde la fabricación o almacenes centrales hacia los puntos de venta ($Retail$)."},{"label":"B","text":"Falso","isCorrect":true,"rationale":"Según el diagrama de $SCM$, la distribución precede al $Retail$, el cual a su vez precede al cliente final."}]},{"question":"¿Los indicadores de gestión deben ser realistas y coherentes con los objetivos de la organización?","hint":"Considere qué sucede si se establecen metas imposibles de medir o de alcanzar en una operación.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"Los $KPIs$ que no son alcanzables o que contradicen la estrategia general pierden su utilidad como herramientas de mejora."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"La coherencia y el realismo son pilares fundamentales de las características de un indicador de desempeño efectivo."}]},{"question":"¿El uso de códigos de barras como $EAN$, $SKU$ o $LPN$ es opcional para lograr un sistema de trazabilidad eficiente en almacenes caóticos?","hint":"Piense en cómo encontraría un operario un producto en un almacén sin ubicaciones fijas si no tuviera un sistema de escaneo.","options":[{"label":"A","text":"Verdadero","isCorrect":false,"rationale":"En almacenes caóticos, la identificación precisa por etiquetas es indispensable para poder localizar productos sin un orden fijo."},{"label":"B","text":"Falso","isCorrect":true,"rationale":"El etiquetado es una herramienta crítica para el control de existencias, especialmente en modelos de almacenamiento dirigido o caótico."}]},{"question":"¿La logística inversa incluye como una de sus salidas posibles el desecho de productos?","hint":"Analice las opciones que se presentan a la derecha del proceso de 'Clasificar' en el material.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"Si un producto devuelto no puede ser revendido ni reciclado, la disposición final o 'Desechar' es parte del flujo clasificado."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"El diagrama de logística inversa muestra claramente 'Desechar' como una de las cuatro opciones finales tras la clasificación."}]},{"question":"¿El indicador de 'Efectividad de entrega' se centra principalmente en que el producto llegue al cliente, sin importar el cumplimiento del tiempo pactado?","hint":"Busque la definición que acompaña al proceso de distribución en las láminas de transformación.","options":[{"label":"A","text":"Verdadero","isCorrect":false,"rationale":"La efectividad de entrega está intrínsecamente ligada a la 'Entrega a tiempo' para considerarse exitosa."},{"label":"B","text":"Falso","isCorrect":true,"rationale":"El material define explícitamente la efectividad de entrega bajo el concepto de 'Entrega a tiempo'."}]},{"question":"¿Un buen sistema de trazabilidad permite analizar y comparar la eficacia de las acciones tomadas en la operación?","hint":"Piense en para qué sirve recolectar información sobre cada paso de la cadena de suministro.","options":[{"label":"A","text":"Falso","isCorrect":false,"rationale":"Una de las funciones principales de los indicadores derivados de la trazabilidad es precisamente el análisis y la comparación de procesos."},{"label":"B","text":"Verdadero","isCorrect":true,"rationale":"Los sistemas de trazabilidad generan datos que sirven como base para los $KPIs$, permitiendo la comparación y toma de decisiones."}]},{"question":"¿La característica de ser 'Específico' en un $KPI$ se refiere a que debe medir múltiples variables complejas al mismo tiempo?","hint":"Considere si la claridad de un indicador aumenta o disminuye al intentar medir demasiadas cosas a la vez.","options":[{"label":"A","text":"Verdadero","isCorrect":false,"rationale":"Ser específico significa enfocarse en un solo aspecto o métrica clara para evitar ambigüedades en la interpretación."},{"label":"B","text":"Falso","isCorrect":true,"rationale":"Un indicador específico debe ser claro y enfocado en un punto particular de la operación para ser efectivo."}]},{"question":"¿El 'Maestro de Artículos' debe estar detallado al máximo y contar con valores ($VLs$) exactas para un control de inventario óptimo?","hint":"Piense en la importancia de que la información técnica y logística del producto sea fidedigna en el sistema.","options":[{"label":"A","text":"Falso","isCorrect":false,"rationale":"El material subraya la necesidad de un detalle máximo y exactitud en el maestro de artículos como entrada para el control de inventarios."},{"label":"B","text":"Verdadero","isCorrect":true,"rationale":"La base de datos de productos es el cimiento de la trazabilidad; errores en el maestro de artículos se propagan a toda la cadena."}]},{"question":"¿La 'Revisión Total al $100\\%$' y el 'Muestreo' son actividades que ocurren durante la recepción y descarga de mercadería?","hint":"Ubique las acciones que se realizan inmediatamente después de descargar los camiones.","options":[{"label":"A","text":"Falso","isCorrect":false,"rationale":"El proceso de recepción incluye obligatoriamente una fase de inspección física que puede ser total o por muestreo estadístico."},{"label":"B","text":"Verdadero","isCorrect":true,"rationale":"Estas actividades de validación aseguran que lo recibido coincida con lo documentado antes de ingresar al inventario."}]},{"question":"¿La logística inversa es considerada un proceso independiente que no guarda relación con la satisfacción del cliente?","hint":"Piense en cómo se siente un cliente cuando el proceso de devolver un producto fallido es fácil o difícil.","options":[{"label":"A","text":"Falso","isCorrect":true,"rationale":"La gestión de retornos impacta directamente en la experiencia del cliente y es parte fundamental de la estrategia logística moderna."},{"label":"B","text":"Verdadero","isCorrect":false,"rationale":"Un proceso de devolución eficiente (logística inversa) es un factor clave para mantener la lealtad y satisfacción del cliente."}]},{"question":"¿El indicador $ERU$ se enfoca en medir qué tan bien está distribuido el inventario en las estanterías en términos de peso?","hint":"Relacione las siglas con el concepto de 'Ubicación' y 'Exactitud de Registro'.","options":[{"label":"A","text":"Verdadero","isCorrect":false,"rationale":"El $ERU$ mide la exactitud de los registros contables frente a la ubicación física, no la distribución de carga o peso."},{"label":"B","text":"Falso","isCorrect":true,"rationale":"Exactitud de Registro por Ubicación ($ERU$) se refiere a la veracidad de la información de ubicación en el sistema."}]},{"question":"¿En el proceso de 'Picking', la generación de tareas de extracción ocurre antes de la recepción de los pedidos?","hint":"Considere qué evento dispara la necesidad de ir a buscar un producto al almacén.","options":[{"label":"A","text":"Falso","isCorrect":true,"rationale":"La secuencia correcta inicia con la 'Recepción de Pedidos' y continúa con la 'Generación de tareas de extracción'."},{"label":"B","text":"Verdadero","isCorrect":false,"rationale":"No se pueden generar tareas de extracción si no se ha recibido y procesado previamente un pedido del cliente."}]},{"question":"¿El uso de indicadores de gestión permite revisar, corregir o incluso desarrollar nuevos procesos organizacionales?","hint":"Piense en la utilidad de los datos para la mejora continua de una empresa.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"Los $KPIs$ proporcionan el feedback necesario para identificar fallas y oportunidades de rediseño de procesos."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"Analizar la eficacia de las acciones actuales mediante indicadores es el paso previo indispensable para la innovación de procesos."}]},{"question":"¿La trazabilidad solo es relevante para empresas que manejan productos físicos, excluyendo servicios o procesos digitales?","hint":"Considere la definición general de trazabilidad mencionada al inicio del tema de transformación.","options":[{"label":"A","text":"Falso","isCorrect":true,"rationale":"La trazabilidad se define como el seguimiento de procesos y actividades dentro de la cadena, lo cual es transversal a distintos modelos de negocio."},{"label":"B","text":"Verdadero","isCorrect":false,"rationale":"Aunque el material se enfoca en productos, la trazabilidad es el seguimiento de procesos y actividades, aplicable a cualquier flujo de valor."}]}];
+const tr = {"correct":"¡Correcto!","incorrect":"Incorrecto","next":"Siguiente pregunta →","seeResults":"Ver resultados","complete":"¡Cuestionario completado!","scoreText":"Obtuviste {correct} de {total} correctas","tryAgain":"Intentar de nuevo","rightAnswer":"Respuesta correcta","notQuite":"No del todo"};
+let currentQ = 0, correctCount = 0, answered = false;
+
+function init() {
+  document.querySelectorAll('.question').forEach((q, i) => q.classList.toggle('active', i === 0));
+  updateProgress();
+  document.querySelectorAll('.option').forEach(opt => opt.addEventListener('click', () => selectOption(opt)));
+  document.querySelectorAll('.next-btn').forEach(btn => btn.addEventListener('click', nextQuestion));
+}
+
+function selectOption(opt) {
+  if (answered) return;
+  answered = true;
+  const q = opt.closest('.question');
+  const options = q.querySelectorAll('.option');
+  const nextBtn = q.querySelector('.next-btn');
+  const isCorrect = opt.dataset.correct === 'true';
+  
+  // Mark all options as disabled
+  options.forEach(o => o.classList.add('disabled'));
+  
+  // Style selected option
+  opt.classList.add('selected', isCorrect ? 'correct' : 'incorrect');
+  
+  // Show correct answer if wrong
+  if (!isCorrect) {
+    const correctOpt = [...options].find(o => o.dataset.correct === 'true');
+    if (correctOpt) correctOpt.classList.add('show-correct');
+  }
+  
+  if (isCorrect) correctCount++;
+  
+  // Show feedback for ALL options that have rationale
+  options.forEach(o => {
+    const wrapper = o.closest('.option-wrapper');
+    const feedback = wrapper.querySelector('.option-feedback');
+    const rationale = o.dataset.rationale;
+    const isThisCorrect = o.dataset.correct === 'true';
+    
+    if (rationale && rationale.trim()) {
+      feedback.classList.remove('hidden');
+      feedback.classList.add(isThisCorrect ? 'correct-feedback' : 'incorrect-feedback');
+      
+      const statusEl = feedback.querySelector('.feedback-status');
+      statusEl.className = 'feedback-status ' + (isThisCorrect ? 'correct' : 'incorrect');
+      statusEl.innerHTML = isThisCorrect 
+        ? '✓ ' + tr.rightAnswer
+        : '✗ ' + tr.notQuite;
+    }
+  });
+  
+  nextBtn.classList.remove('hidden');
+  if (currentQ === quizData.length - 1) nextBtn.textContent = tr.seeResults;
+}
+
+function nextQuestion() {
+  answered = false;
+  currentQ++;
+  if (currentQ >= quizData.length) { showResults(); return; }
+  document.querySelectorAll('.question').forEach((q, i) => q.classList.toggle('active', i === currentQ));
+  updateProgress();
+}
+
+function updateProgress() {
+  document.querySelector('.progress-fill').style.width = (currentQ / quizData.length * 100) + '%';
+}
+
+function showResults() {
+  document.querySelectorAll('.question').forEach(q => q.classList.remove('active'));
+  document.getElementById('results').classList.add('active');
+  const pct = Math.round((correctCount / quizData.length) * 100);
+  document.getElementById('score').textContent = pct + '%';
+  document.getElementById('score-text').textContent = tr.scoreText.replace('{correct}', correctCount).replace('{total}', quizData.length);
+  document.querySelector('.progress-fill').style.width = '100%';
+}
+
+function restart() {
+  currentQ = 0; correctCount = 0; answered = false;
+  document.getElementById('results').classList.remove('active');
+  document.querySelectorAll('.question').forEach((q, i) => {
+    q.classList.toggle('active', i === 0);
+    q.querySelectorAll('.option').forEach(o => o.classList.remove('selected', 'correct', 'incorrect', 'disabled', 'show-correct'));
+    q.querySelectorAll('.option-feedback').forEach(f => {
+      f.classList.add('hidden');
+      f.classList.remove('correct-feedback', 'incorrect-feedback');
+    });
+    const btn = q.querySelector('.next-btn');
+    btn.classList.add('hidden');
+    btn.textContent = tr.next;
+  });
+  updateProgress();
+}
+
+init();
+</script>
+</body>
+</html>
