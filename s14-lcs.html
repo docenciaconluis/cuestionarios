@@ -1,0 +1,1306 @@
+<!DOCTYPE html>
+<html lang="es" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>S14 - LCS</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  min-height: 100vh; padding: 20px; color: #333;
+}
+.container { max-width: 700px; margin: 0 auto; }
+.header { text-align: center; color: #fff; padding: 30px 20px; }
+.header h1 { font-size: 28px; font-weight: 700; margin-bottom: 8px; text-shadow: 0 2px 10px rgba(0,0,0,0.2); }
+.header .meta { font-size: 14px; opacity: 0.9; }
+.progress-bar { background: rgba(255,255,255,0.3); border-radius: 10px; height: 8px; margin: 20px 0; overflow: hidden; }
+.progress-fill { background: #fff; height: 100%; width: 0%; transition: width 0.4s ease; border-radius: 10px; }
+.question { background: #fff; border-radius: 16px; padding: 30px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); display: none; }
+.question.active { display: block; }
+.q-header { display: flex; justify-content: space-between; margin-bottom: 20px; font-size: 13px; color: #888; }
+.q-number { font-weight: 600; color: #667eea; }
+.q-text { font-size: 18px; font-weight: 600; line-height: 1.5; margin-bottom: 25px; color: #222; }
+.options { display: flex; flex-direction: column; gap: 12px; }
+.option-wrapper { display: flex; flex-direction: column; }
+.option {
+  display: flex; align-items: flex-start; gap: 14px; padding: 16px 18px;
+  border: 2px solid #e8e8e8; border-radius: 12px; background: #fafafa;
+  cursor: pointer; transition: all 0.2s; text-align: left; font-size: 15px; width: 100%;
+}
+[dir="rtl"] .option { text-align: right; flex-direction: row-reverse; }
+.option:hover:not(.disabled) { border-color: #667eea; background: #f5f3ff; }
+.option.selected { border-color: #667eea; background: #ede9fe; }
+.option.correct { border-color: #22c55e; background: #dcfce7; }
+.option.incorrect { border-color: #ef4444; background: #fee2e2; }
+.option.disabled { cursor: default; }
+.option.show-correct { border-color: #22c55e; background: #dcfce7; }
+.opt-label {
+  display: flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; border-radius: 50%; background: #e8e8e8;
+  font-weight: 700; font-size: 14px; flex-shrink: 0;
+}
+.option.selected .opt-label { background: #667eea; color: #fff; }
+.option.correct .opt-label { background: #22c55e; color: #fff; }
+.option.incorrect .opt-label { background: #ef4444; color: #fff; }
+.option.show-correct .opt-label { background: #22c55e; color: #fff; }
+.opt-text { padding-top: 5px; line-height: 1.5; }
+
+/* Individual option feedback */
+.option-feedback {
+  margin: 8px 0 4px 46px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+[dir="rtl"] .option-feedback { margin-left: 0; margin-right: 46px; }
+.option-feedback.correct-feedback {
+  background: #dcfce7;
+  border-left: 3px solid #22c55e;
+}
+.option-feedback.incorrect-feedback {
+  background: #fef3f2;
+  border-left: 3px solid #fca5a5;
+}
+[dir="rtl"] .option-feedback.correct-feedback,
+[dir="rtl"] .option-feedback.incorrect-feedback {
+  border-left: none;
+  border-right: 3px solid;
+}
+[dir="rtl"] .option-feedback.correct-feedback { border-right-color: #22c55e; }
+[dir="rtl"] .option-feedback.incorrect-feedback { border-right-color: #fca5a5; }
+.feedback-status {
+  font-weight: 600;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.feedback-status.correct { color: #166534; }
+.feedback-status.incorrect { color: #991b1b; }
+.feedback-rationale { color: #444; }
+
+/* Hint box */
+.hint-box {
+  margin: 12px 0;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+}
+.hint-toggle {
+  width: 100%;
+  padding: 10px 16px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  color: #92400e;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.hint-toggle:hover { background: #fef3c7; }
+.hint-content {
+  padding: 0 16px;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s, padding 0.3s;
+  font-size: 14px;
+  color: #78350f;
+  line-height: 1.5;
+}
+.hint-box.show .hint-content {
+  padding: 0 16px 12px;
+  max-height: 200px;
+}
+
+.next-btn {
+  margin-top: 20px; width: 100%; padding: 14px;
+  background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; border: none;
+  border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.next-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(102,126,234,0.4); }
+.hidden { display: none !important; }
+.results { background: #fff; border-radius: 16px; padding: 40px; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.15); display: none; }
+.results.active { display: block; }
+.results h2 { font-size: 28px; margin-bottom: 10px; color: #333; }
+.results .score { font-size: 64px; font-weight: 700; color: #667eea; margin: 20px 0; }
+.results .score-text { font-size: 18px; color: #666; margin-bottom: 30px; }
+.restart-btn {
+  padding: 14px 40px; background: linear-gradient(135deg, #667eea, #764ba2);
+  color: #fff; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer;
+}
+
+/* Math CSS */
+.math, .math-block { font-family: "Cambria Math", "Times New Roman", Times, serif; font-style: italic; }
+.math-block { display: block; text-align: center; margin: 10px 0; font-size: 110%; }
+.frac { display: inline-flex; flex-direction: column; align-items: center; vertical-align: middle; margin: 0 3px; font-size: 0.9em; }
+.frac-num { border-bottom: 1px solid currentColor; padding: 0 4px 2px; line-height: 1.2; }
+.frac-den { padding: 2px 4px 0; line-height: 1.2; }
+.sqrt { white-space: nowrap; }
+.sqrt-content { border-top: 1px solid currentColor; padding: 0 3px; margin-left: 2px; }
+sup, sub { font-size: 0.75em; }
+sup { vertical-align: super; }
+sub { vertical-align: sub; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>S14 - LCS</h1>
+    <div class="meta">26 preguntas</div>
+    <div class="progress-bar"><div class="progress-fill"></div></div>
+  </div>
+  <div id="quiz-container">
+        <div class="question" data-index="0">
+          <div class="q-header">
+            <span class="q-number">Pregunta 1</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">La implementación de tecnologías de Logística 4.0 es suficiente para corregir procesos internos que actualmente presentan desperdicios o pasos innecesarios.</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Recuerda la relación entre la 'limpieza de la casa' y el uso de 'superpoderes' tecnológicos.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="La tecnología por sí sola no arregla procesos rotos; es necesario aplicar primero la filosofía Lean para eliminar desperdicios antes de automatizar.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La tecnología por sí sola no arregla procesos rotos; es necesario aplicar primero la filosofía Lean para eliminar desperdicios antes de automatizar.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Automatizar un proceso ineficiente solo acelera la creación de desperdicios, por lo que Lean debe preceder a la tecnología 4.0.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Automatizar un proceso ineficiente solo acelera la creación de desperdicios, por lo que Lean debe preceder a la tecnología 4.0.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="1">
+          <div class="q-header">
+            <span class="q-number">Pregunta 2</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">El mayor obstáculo para la transformación hacia una gestión Lean en una organización es la adquisición de software especializado y hardware robótico.</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considera qué factor humano suele oponerse a nuevas metodologías de trabajo.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="El cambio cultural y la resistencia del personal representan los retos más significativos al implantar una cultura de mejora continua.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El cambio cultural y la resistencia del personal representan los retos más significativos al implantar una cultura de mejora continua.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Aunque la tecnología requiere inversión, el texto identifica que el desafío más crítico es la mentalidad y adaptabilidad de las personas.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aunque la tecnología requiere inversión, el texto identifica que el desafío más crítico es la mentalidad y adaptabilidad de las personas.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="2">
+          <div class="q-header">
+            <span class="q-number">Pregunta 3</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">La Logística de Última Milla es considerada el eslabón más costoso y complejo de la cadena de suministro debido a la impredecibilidad del entorno urbano.</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Analiza por qué el tramo final hasta el consumidor se diferencia de los traslados entre centros de distribución.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="La última milla es precisamente el área donde la variabilidad externa impacta con mayor fuerza en los márgenes de beneficio.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La última milla es precisamente el área donde la variabilidad externa impacta con mayor fuerza en los márgenes de beneficio.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Factores como el tráfico, zonas de difícil acceso y clientes ausentes elevan drásticamente los costos operativos en este tramo final.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Factores como el tráfico, zonas de difícil acceso y clientes ausentes elevan drásticamente los costos operativos en este tramo final.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="3">
+          <div class="q-header">
+            <span class="q-number">Pregunta 4</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">En el contexto de la Logística 4.0, el Internet de las Cosas (IoT) se limita exclusivamente al seguimiento de la ubicación por GPS de los vehículos de reparto.</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piensa en el ejemplo de BMW mencionado en el texto sobre el mantenimiento de sus máquinas.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="El IoT abarca mucho más que la ubicación, incluyendo el monitoreo de variables críticas como la temperatura de la carga y el estado de la maquinaria.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El IoT abarca mucho más que la ubicación, incluyendo el monitoreo de variables críticas como la temperatura de la carga y el estado de la maquinaria.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="El IoT permite la interconexión de sensores diversos para obtener datos en tiempo real sobre múltiples condiciones operativas y del producto.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El IoT permite la interconexión de sensores diversos para obtener datos en tiempo real sobre múltiples condiciones operativas y del producto.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="4">
+          <div class="q-header">
+            <span class="q-number">Pregunta 5</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">Amazon utiliza algoritmos de Machine Learning para posicionar productos en almacenes cercanos al cliente incluso antes de que se realice la compra formal.</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Recuerda cómo se mencionó que Amazon logra reducir los tiempos de envío mediante la anticipación.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Esta capacidad predictiva permite reducir los tiempos de entrega al anticiparse a la demanda mediante el análisis de datos históricos.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esta capacidad predictiva permite reducir los tiempos de entrega al anticiparse a la demanda mediante el análisis de datos históricos.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El uso de IA para la predicción de demanda es una de las estrategias pilares que le permite a Amazon dominar la logística moderna.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El uso de IA para la predicción de demanda es una de las estrategias pilares que le permite a Amazon dominar la logística moderna.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="5">
+          <div class="q-header">
+            <span class="q-number">Pregunta 6</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">El mantenimiento predictivo basado en IoT, como el aplicado por BMW, tiene como objetivo principal reducir el costo del personal de limpieza en la planta.</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Evalúa qué tipo de interrupción en la producción busca evitar una empresa automotriz de gran escala.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="El mantenimiento predictivo no se enfoca en limpieza, sino en evitar paradas no programadas en la línea de producción mediante la detección de fallas.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El mantenimiento predictivo no se enfoca en limpieza, sino en evitar paradas no programadas en la línea de producción mediante la detección de fallas.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="El propósito es detectar anomalías técnicas antes de que ocurra una avería, asegurando la continuidad del flujo de trabajo.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El propósito es detectar anomalías técnicas antes de que ocurra una avería, asegurando la continuidad del flujo de trabajo.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="6">
+          <div class="q-header">
+            <span class="q-number">Pregunta 7</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">La optimización de rutas mediante Big Data permite a empresas como DHL ignorar variables externas como el clima, centrándose únicamente en la distancia más corta.</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considera si la distancia más corta siempre equivale al menor tiempo o costo en una ciudad congestionada.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="La potencia del Big Data reside en analizar patrones climáticos y de tráfico para asegurar que las entregas sean puntuales y económicas.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La potencia del Big Data reside en analizar patrones climáticos y de tráfico para asegurar que las entregas sean puntuales y económicas.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El Big Data es valioso precisamente porque integra múltiples variables complejas, como el tráfico e historial climático, para encontrar la ruta más eficiente.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El Big Data es valioso precisamente porque integra múltiples variables complejas, como el tráfico e historial climático, para encontrar la ruta más eficiente.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="7">
+          <div class="q-header">
+            <span class="q-number">Pregunta 8</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">Los robots autónomos (AGV/AMR) en los centros de distribución modernos están diseñados para reemplazar totalmente la necesidad de supervisión estratégica de los ingenieros.</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Reflexiona sobre el debate planteado al inicio de la sesión respecto al rol de los ingenieros frente a los robots.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="La tecnología es una herramienta que potencia la capacidad operativa, exigiendo que el profesional sea el arquitecto de la estrategia logística.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La tecnología es una herramienta que potencia la capacidad operativa, exigiendo que el profesional sea el arquitecto de la estrategia logística.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="La automatización desplaza tareas operativas repetitivas, pero obliga a los ingenieros a asumir roles más estratégicos y de gestión de sistemas.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La automatización desplaza tareas operativas repetitivas, pero obliga a los ingenieros a asumir roles más estratégicos y de gestión de sistemas.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="8">
+          <div class="q-header">
+            <span class="q-number">Pregunta 9</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">El concepto de 'mudas' en la estrategia Lean se refiere exclusivamente a los productos defectuosos que son devueltos por los clientes finales.</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Busca una definición más amplia de desperdicio que incluya ineficiencias en el tiempo y el movimiento.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Las 'mudas' incluyen cualquier actividad que no agrega valor, como esperas, sobreprocesamiento o movimientos innecesarios, no solo defectos.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Las 'mudas' incluyen cualquier actividad que no agrega valor, como esperas, sobreprocesamiento o movimientos innecesarios, no solo defectos.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="El término abarca todos los desperdicios del proceso productivo y logístico que consumen recursos sin generar valor para el cliente.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El término abarca todos los desperdicios del proceso productivo y logístico que consumen recursos sin generar valor para el cliente.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="9">
+          <div class="q-header">
+            <span class="q-number">Pregunta 10</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">La integración de sistemas ERP con WMS es una solución de Logística 4.0 que busca mejorar la visibilidad y precisión del inventario en tiempo real.</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Relaciona estas siglas con la gestión de datos administrativos y operativos dentro de un almacén.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="La sincronización entre la gestión de recursos empresariales y la gestión de almacenes es vital para eliminar la incertidumbre sobre las existencias.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La sincronización entre la gestión de recursos empresariales y la gestión de almacenes es vital para eliminar la incertidumbre sobre las existencias.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Esta integración tecnológica es fundamental para evitar situaciones donde 'nadie sabe dónde está el inventario', un problema común en empresas tradicionales.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esta integración tecnológica es fundamental para evitar situaciones donde 'nadie sabe dónde está el inventario', un problema común en empresas tradicionales.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="10">
+          <div class="q-header">
+            <span class="q-number">Pregunta 11</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">El uso de códigos RFID es una tecnología obsoleta que ha sido reemplazada completamente por el ruteo dinámico en la Logística 4.0.</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considera cómo se identifican los productos sin contacto físico antes de ser enviados.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="El RFID y el ruteo dinámico son complementarios; uno identifica el objeto y el otro optimiza su movimiento en la red de transporte.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El RFID y el ruteo dinámico son complementarios; uno identifica el objeto y el otro optimiza su movimiento en la red de transporte.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El RFID sigue siendo una tecnología clave y vigente para la identificación automática y el seguimiento de mercancías en almacenes automatizados.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El RFID sigue siendo una tecnología clave y vigente para la identificación automática y el seguimiento de mercancías en almacenes automatizados.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="11">
+          <div class="q-header">
+            <span class="q-number">Pregunta 12</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">La 'última milla' comienza desde que el producto sale de la fábrica de origen hasta que llega al primer centro de consolidación regional.</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Pensa en el nombre 'última' y qué destino final representa para el flujo del producto.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Este concepto se refiere al último tramo de la entrega, que es el contacto directo con el cliente que realizó el pedido.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Este concepto se refiere al último tramo de la entrega, que es el contacto directo con el cliente que realizó el pedido.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="La última milla se define específicamente como el trayecto final desde el último centro de distribución hasta el consumidor final.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La última milla se define específicamente como el trayecto final desde el último centro de distribución hasta el consumidor final.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="12">
+          <div class="q-header">
+            <span class="q-number">Pregunta 13</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">Una empresa con una cultura tradicional suele caracterizarse por silos donde cada área se preocupa solo por sus propios objetivos internos.</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Reflexiona sobre cómo se comporta una organización antes de adoptar una visión de colaboración Lean.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Las estructuras tradicionales suelen carecer de la visión sistémica necesaria para la mejora continua coordinada.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Las estructuras tradicionales suelen carecer de la visión sistémica necesaria para la mejora continua coordinada.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="La fragmentación por áreas es una barrera que el enfoque Lean busca romper para permitir que el producto fluya de manera transversal.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La fragmentación por áreas es una barrera que el enfoque Lean busca romper para permitir que el producto fluya de manera transversal.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="13">
+          <div class="q-header">
+            <span class="q-number">Pregunta 14</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">La Inteligencia Artificial en logística se utiliza principalmente para automatizar la contabilidad financiera y los pagos de nómina de los choferes.</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Analiza las aplicaciones estratégicas mencionadas en el texto sobre el tráfico y la demanda.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Aunque puede usarse en finanzas, en logística su mayor impacto está en la predicción de demanda y la optimización de flujos operativos.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aunque puede usarse en finanzas, en logística su mayor impacto está en la predicción de demanda y la optimización de flujos operativos.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="La IA en Logística 4.0 se centra en la toma de decisiones estratégicas, análisis de datos masivos y optimización de la cadena de suministro.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La IA en Logística 4.0 se centra en la toma de decisiones estratégicas, análisis de datos masivos y optimización de la cadena de suministro.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="14">
+          <div class="q-header">
+            <span class="q-number">Pregunta 15</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">El despliegue de drones para entregas es una solución que Amazon ha explorado para resolver los retos de logística en zonas rurales.</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Recuerda las innovaciones específicas que el texto atribuye a la revolución logística de Amazon.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="La entrega con drones es una de las innovaciones más visibles en la estrategia de última milla de la compañía para diversificar sus métodos de reparto.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La entrega con drones es una de las innovaciones más visibles en la estrategia de última milla de la compañía para diversificar sus métodos de reparto.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Los drones permiten saltar obstáculos geográficos y de infraestructura en zonas menos densas, reduciendo tiempos de transporte.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Los drones permiten saltar obstáculos geográficos y de infraestructura en zonas menos densas, reduciendo tiempos de transporte.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="15">
+          <div class="q-header">
+            <span class="q-number">Pregunta 16</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">La metodología Lean sugiere que, ante un problema de entregas tardías, la primera acción debe ser contratar más choferes y comprar más camiones.</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considera la pregunta del docente: ¿de qué sirve comprar lo más caro si los procesos están llenos de pasos innecesarios?</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Añadir más recursos a un proceso ineficiente no resuelve la causa raíz; Lean busca optimizar lo existente mediante la agilidad.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Añadir más recursos a un proceso ineficiente no resuelve la causa raíz; Lean busca optimizar lo existente mediante la agilidad.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Lean propone primero analizar la raíz de las ineficiencias y eliminar desperdicios antes de aumentar la capacidad o invertir en activos.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Lean propone primero analizar la raíz de las ineficiencias y eliminar desperdicios antes de aumentar la capacidad o invertir en activos.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="16">
+          <div class="q-header">
+            <span class="q-number">Pregunta 17</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">El uso de chatbots en la última milla permite automatizar la comunicación con el cliente, mejorando la satisfacción mediante el seguimiento en tiempo real.</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Evalúa cómo una empresa puede mantener informado al cliente final sin depender de llamadas telefónicas manuales.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Estas herramientas alivian la carga de soporte al cliente y proporcionan respuestas inmediatas sobre el estado de sus pedidos.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Estas herramientas alivian la carga de soporte al cliente y proporcionan respuestas inmediatas sobre el estado de sus pedidos.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Los chatbots son una tecnología clave mencionada para gestionar la interacción en el eslabón más crítico para la percepción del cliente.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Los chatbots son una tecnología clave mencionada para gestionar la interacción en el eslabón más crítico para la percepción del cliente.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="17">
+          <div class="q-header">
+            <span class="q-number">Pregunta 18</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">La implementación de una cultura Lean en una empresa logística garantiza que la resistencia al cambio por parte de los trabajadores antiguos desaparezca de inmediato.</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Recuerda el ejemplo del trabajo grupal sobre cómo convencer a los choferes antiguos de usar nuevas aplicaciones.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="El cambio cultural es un proceso lento y difícil que requiere capacitación continua y gestión de la resistencia humana.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El cambio cultural es un proceso lento y difícil que requiere capacitación continua y gestión de la resistencia humana.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Vencer la resistencia al cambio es uno de los mayores desafíos constantes para los líderes que implementan metodologías Lean.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Vencer la resistencia al cambio es uno de los mayores desafíos constantes para los líderes que implementan metodologías Lean.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="18">
+          <div class="q-header">
+            <span class="q-number">Pregunta 19</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">En la Logística 4.0, la visibilidad en tiempo real se refiere a conocer el estado exacto de la carga, incluyendo factores como la humedad o inclinación, gracias a sensores IoT.</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piensa en el monitoreo de temperatura de la carga mencionado en la sección de teoría a profundidad.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="La visibilidad moderna va más allá de un simple punto en un mapa, abarcando la integridad física del producto durante el trayecto.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La visibilidad moderna va más allá de un simple punto en un mapa, abarcando la integridad física del producto durante el trayecto.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="La telemetría avanzada permite un control total sobre las condiciones de transporte, asegurando la calidad de productos sensibles.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La telemetría avanzada permite un control total sobre las condiciones de transporte, asegurando la calidad de productos sensibles.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="19">
+          <div class="q-header">
+            <span class="q-number">Pregunta 20</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">Los sistemas WMS (Warehouse Management System) son herramientas exclusivas para el control de la facturación legal de la empresa ante las autoridades tributarias.</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Relaciona el término 'Warehouse' con las actividades físicas que ocurren dentro de un centro de distribución.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Su función principal es optimizar las operaciones dentro del almacén para saber con precisión qué hay y dónde se encuentra.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Su función principal es optimizar las operaciones dentro del almacén para saber con precisión qué hay y dónde se encuentra.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El WMS se enfoca en la gestión operativa del almacén (inventario, picking, ubicación), no en funciones puramente contables o tributarias.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El WMS se enfoca en la gestión operativa del almacén (inventario, picking, ubicación), no en funciones puramente contables o tributarias.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="20">
+          <div class="q-header">
+            <span class="q-number">Pregunta 21</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">La aplicación de Big Data en logística permite identificar patrones de comportamiento del tráfico para reducir el consumo de combustible.</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Recuerda el caso de DHL y cómo ahorran millones mediante el análisis de patrones.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="La optimización milimétrica de rutas es una de las mayores aplicaciones prácticas del análisis de grandes volúmenes de datos en transporte.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La optimización milimétrica de rutas es una de las mayores aplicaciones prácticas del análisis de grandes volúmenes de datos en transporte.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Al evitar congestiones y optimizar las distancias, se logra una operación más sostenible y económica para la flota de transporte.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Al evitar congestiones y optimizar las distancias, se logra una operación más sostenible y económica para la flota de transporte.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="21">
+          <div class="q-header">
+            <span class="q-number">Pregunta 22</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">El término 'picking' se refiere al proceso de entrega del producto en la puerta del cliente durante la última milla.</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considera en qué lugar físico del centro de distribución operan los robots AGV mencionados en el texto.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="El 'picking' es la actividad de recolección de productos dentro del almacén para preparar un pedido, no la entrega final.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El 'picking' es la actividad de recolección de productos dentro del almacén para preparar un pedido, no la entrega final.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Es una fase interna del almacén donde los robots o trabajadores seleccionan los artículos de las estanterías.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Es una fase interna del almacén donde los robots o trabajadores seleccionan los artículos de las estanterías.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="22">
+          <div class="q-header">
+            <span class="q-number">Pregunta 23</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">Dominar la logística de última milla se ha convertido en una obligación de supervivencia para las empresas que compiten en el comercio moderno.</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Analiza las palabras finales de la sesión sobre la competitividad y el futuro de las empresas.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="La alta exigencia de los consumidores actuales hace que fallar en la entrega final resulte en la pérdida irremediable del cliente.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La alta exigencia de los consumidores actuales hace que fallar en la entrega final resulte en la pérdida irremediable del cliente.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El texto concluye que la automatización y la eficiencia en este tramo ya no son lujos, sino requisitos indispensables para competir.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El texto concluye que la automatización y la eficiencia en este tramo ya no son lujos, sino requisitos indispensables para competir.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="23">
+          <div class="q-header">
+            <span class="q-number">Pregunta 24</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">Para que un producto fluya sin detenerse en una cadena de suministro Lean, es necesario fomentar la colaboración entre todas las áreas de la empresa.</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piensa en el cambio de visión que se propone para pasar de una empresa tradicional a una Lean.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="La visión Lean requiere que todos los departamentos trabajen alineados para eliminar cuellos de botella y esperas innecesarias.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La visión Lean requiere que todos los departamentos trabajen alineados para eliminar cuellos de botella y esperas innecesarias.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Sin colaboración interdepartamental, los procesos tienden a estancarse en las interfaces entre una oficina y otra.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Sin colaboración interdepartamental, los procesos tienden a estancarse en las interfaces entre una oficina y otra.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="24">
+          <div class="q-header">
+            <span class="q-number">Pregunta 25</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">Los robots en los almacenes de Amazon llevan las estanterías hacia los trabajadores, en lugar de que los trabajadores caminen hacia los productos.</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considera cómo la robótica puede eliminar el desperdicio de movimiento innecesario de los empleados.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Este sistema 'goods-to-person' minimiza los desplazamientos humanos, eliminando uno de los desperdicios más comunes (movimiento excesivo).">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Este sistema 'goods-to-person' minimiza los desplazamientos humanos, eliminando uno de los desperdicios más comunes (movimiento excesivo).</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="La automatización de Amazon destaca por mover las estructuras de inventario de forma autónoma para agilizar el proceso de picking.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La automatización de Amazon destaca por mover las estructuras de inventario de forma autónoma para agilizar el proceso de picking.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="25">
+          <div class="q-header">
+            <span class="q-number">Pregunta 26</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">El ruteo dinámico en tiempo real es una estrategia de innovación en la última milla que ajusta las entregas considerando accidentes de tráfico ocurridos al instante.</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Reflexiona sobre qué tecnología permite asegurar que el cliente reciba su producto a tiempo a pesar del tráfico urbano.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="La capacidad de respuesta ante eventos inesperados en la ciudad es una característica vital de la logística moderna asistida por tecnología.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La capacidad de respuesta ante eventos inesperados en la ciudad es una característica vital de la logística moderna asistida por tecnología.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="A diferencia de las rutas estáticas, el ruteo dinámico permite reaccionar ante imprevistos para cumplir con las ventanas de entrega.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">A diferencia de las rutas estáticas, el ruteo dinámico permite reaccionar ante imprevistos para cumplir con las ventanas de entrega.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      </div>
+  <div class="results" id="results">
+    <h2>¡Cuestionario completado!</h2>
+    <div class="score" id="score">0%</div>
+    <div class="score-text" id="score-text"></div>
+    <button class="restart-btn" onclick="restart()">Intentar de nuevo</button>
+  </div>
+</div>
+<script>
+const quizData = [{"question":"La implementación de tecnologías de Logística 4.0 es suficiente para corregir procesos internos que actualmente presentan desperdicios o pasos innecesarios.","hint":"Recuerda la relación entre la 'limpieza de la casa' y el uso de 'superpoderes' tecnológicos.","options":[{"label":"A","text":"Verdadero","isCorrect":false,"rationale":"La tecnología por sí sola no arregla procesos rotos; es necesario aplicar primero la filosofía Lean para eliminar desperdicios antes de automatizar."},{"label":"B","text":"Falso","isCorrect":true,"rationale":"Automatizar un proceso ineficiente solo acelera la creación de desperdicios, por lo que Lean debe preceder a la tecnología 4.0."}]},{"question":"El mayor obstáculo para la transformación hacia una gestión Lean en una organización es la adquisición de software especializado y hardware robótico.","hint":"Considera qué factor humano suele oponerse a nuevas metodologías de trabajo.","options":[{"label":"A","text":"Falso","isCorrect":true,"rationale":"El cambio cultural y la resistencia del personal representan los retos más significativos al implantar una cultura de mejora continua."},{"label":"B","text":"Verdadero","isCorrect":false,"rationale":"Aunque la tecnología requiere inversión, el texto identifica que el desafío más crítico es la mentalidad y adaptabilidad de las personas."}]},{"question":"La Logística de Última Milla es considerada el eslabón más costoso y complejo de la cadena de suministro debido a la impredecibilidad del entorno urbano.","hint":"Analiza por qué el tramo final hasta el consumidor se diferencia de los traslados entre centros de distribución.","options":[{"label":"A","text":"Falso","isCorrect":false,"rationale":"La última milla es precisamente el área donde la variabilidad externa impacta con mayor fuerza en los márgenes de beneficio."},{"label":"B","text":"Verdadero","isCorrect":true,"rationale":"Factores como el tráfico, zonas de difícil acceso y clientes ausentes elevan drásticamente los costos operativos en este tramo final."}]},{"question":"En el contexto de la Logística 4.0, el Internet de las Cosas (IoT) se limita exclusivamente al seguimiento de la ubicación por GPS de los vehículos de reparto.","hint":"Piensa en el ejemplo de BMW mencionado en el texto sobre el mantenimiento de sus máquinas.","options":[{"label":"A","text":"Verdadero","isCorrect":false,"rationale":"El IoT abarca mucho más que la ubicación, incluyendo el monitoreo de variables críticas como la temperatura de la carga y el estado de la maquinaria."},{"label":"B","text":"Falso","isCorrect":true,"rationale":"El IoT permite la interconexión de sensores diversos para obtener datos en tiempo real sobre múltiples condiciones operativas y del producto."}]},{"question":"Amazon utiliza algoritmos de Machine Learning para posicionar productos en almacenes cercanos al cliente incluso antes de que se realice la compra formal.","hint":"Recuerda cómo se mencionó que Amazon logra reducir los tiempos de envío mediante la anticipación.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"Esta capacidad predictiva permite reducir los tiempos de entrega al anticiparse a la demanda mediante el análisis de datos históricos."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"El uso de IA para la predicción de demanda es una de las estrategias pilares que le permite a Amazon dominar la logística moderna."}]},{"question":"El mantenimiento predictivo basado en IoT, como el aplicado por BMW, tiene como objetivo principal reducir el costo del personal de limpieza en la planta.","hint":"Evalúa qué tipo de interrupción en la producción busca evitar una empresa automotriz de gran escala.","options":[{"label":"A","text":"Verdadero","isCorrect":false,"rationale":"El mantenimiento predictivo no se enfoca en limpieza, sino en evitar paradas no programadas en la línea de producción mediante la detección de fallas."},{"label":"B","text":"Falso","isCorrect":true,"rationale":"El propósito es detectar anomalías técnicas antes de que ocurra una avería, asegurando la continuidad del flujo de trabajo."}]},{"question":"La optimización de rutas mediante Big Data permite a empresas como DHL ignorar variables externas como el clima, centrándose únicamente en la distancia más corta.","hint":"Considera si la distancia más corta siempre equivale al menor tiempo o costo en una ciudad congestionada.","options":[{"label":"A","text":"Falso","isCorrect":true,"rationale":"La potencia del Big Data reside en analizar patrones climáticos y de tráfico para asegurar que las entregas sean puntuales y económicas."},{"label":"B","text":"Verdadero","isCorrect":false,"rationale":"El Big Data es valioso precisamente porque integra múltiples variables complejas, como el tráfico e historial climático, para encontrar la ruta más eficiente."}]},{"question":"Los robots autónomos (AGV/AMR) en los centros de distribución modernos están diseñados para reemplazar totalmente la necesidad de supervisión estratégica de los ingenieros.","hint":"Reflexiona sobre el debate planteado al inicio de la sesión respecto al rol de los ingenieros frente a los robots.","options":[{"label":"A","text":"Falso","isCorrect":true,"rationale":"La tecnología es una herramienta que potencia la capacidad operativa, exigiendo que el profesional sea el arquitecto de la estrategia logística."},{"label":"B","text":"Verdadero","isCorrect":false,"rationale":"La automatización desplaza tareas operativas repetitivas, pero obliga a los ingenieros a asumir roles más estratégicos y de gestión de sistemas."}]},{"question":"El concepto de 'mudas' en la estrategia Lean se refiere exclusivamente a los productos defectuosos que son devueltos por los clientes finales.","hint":"Busca una definición más amplia de desperdicio que incluya ineficiencias en el tiempo y el movimiento.","options":[{"label":"A","text":"Verdadero","isCorrect":false,"rationale":"Las 'mudas' incluyen cualquier actividad que no agrega valor, como esperas, sobreprocesamiento o movimientos innecesarios, no solo defectos."},{"label":"B","text":"Falso","isCorrect":true,"rationale":"El término abarca todos los desperdicios del proceso productivo y logístico que consumen recursos sin generar valor para el cliente."}]},{"question":"La integración de sistemas ERP con WMS es una solución de Logística 4.0 que busca mejorar la visibilidad y precisión del inventario en tiempo real.","hint":"Relaciona estas siglas con la gestión de datos administrativos y operativos dentro de un almacén.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"La sincronización entre la gestión de recursos empresariales y la gestión de almacenes es vital para eliminar la incertidumbre sobre las existencias."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"Esta integración tecnológica es fundamental para evitar situaciones donde 'nadie sabe dónde está el inventario', un problema común en empresas tradicionales."}]},{"question":"El uso de códigos RFID es una tecnología obsoleta que ha sido reemplazada completamente por el ruteo dinámico en la Logística 4.0.","hint":"Considera cómo se identifican los productos sin contacto físico antes de ser enviados.","options":[{"label":"A","text":"Falso","isCorrect":true,"rationale":"El RFID y el ruteo dinámico son complementarios; uno identifica el objeto y el otro optimiza su movimiento en la red de transporte."},{"label":"B","text":"Verdadero","isCorrect":false,"rationale":"El RFID sigue siendo una tecnología clave y vigente para la identificación automática y el seguimiento de mercancías en almacenes automatizados."}]},{"question":"La 'última milla' comienza desde que el producto sale de la fábrica de origen hasta que llega al primer centro de consolidación regional.","hint":"Pensa en el nombre 'última' y qué destino final representa para el flujo del producto.","options":[{"label":"A","text":"Falso","isCorrect":true,"rationale":"Este concepto se refiere al último tramo de la entrega, que es el contacto directo con el cliente que realizó el pedido."},{"label":"B","text":"Verdadero","isCorrect":false,"rationale":"La última milla se define específicamente como el trayecto final desde el último centro de distribución hasta el consumidor final."}]},{"question":"Una empresa con una cultura tradicional suele caracterizarse por silos donde cada área se preocupa solo por sus propios objetivos internos.","hint":"Reflexiona sobre cómo se comporta una organización antes de adoptar una visión de colaboración Lean.","options":[{"label":"A","text":"Falso","isCorrect":false,"rationale":"Las estructuras tradicionales suelen carecer de la visión sistémica necesaria para la mejora continua coordinada."},{"label":"B","text":"Verdadero","isCorrect":true,"rationale":"La fragmentación por áreas es una barrera que el enfoque Lean busca romper para permitir que el producto fluya de manera transversal."}]},{"question":"La Inteligencia Artificial en logística se utiliza principalmente para automatizar la contabilidad financiera y los pagos de nómina de los choferes.","hint":"Analiza las aplicaciones estratégicas mencionadas en el texto sobre el tráfico y la demanda.","options":[{"label":"A","text":"Verdadero","isCorrect":false,"rationale":"Aunque puede usarse en finanzas, en logística su mayor impacto está en la predicción de demanda y la optimización de flujos operativos."},{"label":"B","text":"Falso","isCorrect":true,"rationale":"La IA en Logística 4.0 se centra en la toma de decisiones estratégicas, análisis de datos masivos y optimización de la cadena de suministro."}]},{"question":"El despliegue de drones para entregas es una solución que Amazon ha explorado para resolver los retos de logística en zonas rurales.","hint":"Recuerda las innovaciones específicas que el texto atribuye a la revolución logística de Amazon.","options":[{"label":"A","text":"Falso","isCorrect":false,"rationale":"La entrega con drones es una de las innovaciones más visibles en la estrategia de última milla de la compañía para diversificar sus métodos de reparto."},{"label":"B","text":"Verdadero","isCorrect":true,"rationale":"Los drones permiten saltar obstáculos geográficos y de infraestructura en zonas menos densas, reduciendo tiempos de transporte."}]},{"question":"La metodología Lean sugiere que, ante un problema de entregas tardías, la primera acción debe ser contratar más choferes y comprar más camiones.","hint":"Considera la pregunta del docente: ¿de qué sirve comprar lo más caro si los procesos están llenos de pasos innecesarios?","options":[{"label":"A","text":"Falso","isCorrect":true,"rationale":"Añadir más recursos a un proceso ineficiente no resuelve la causa raíz; Lean busca optimizar lo existente mediante la agilidad."},{"label":"B","text":"Verdadero","isCorrect":false,"rationale":"Lean propone primero analizar la raíz de las ineficiencias y eliminar desperdicios antes de aumentar la capacidad o invertir en activos."}]},{"question":"El uso de chatbots en la última milla permite automatizar la comunicación con el cliente, mejorando la satisfacción mediante el seguimiento en tiempo real.","hint":"Evalúa cómo una empresa puede mantener informado al cliente final sin depender de llamadas telefónicas manuales.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"Estas herramientas alivian la carga de soporte al cliente y proporcionan respuestas inmediatas sobre el estado de sus pedidos."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"Los chatbots son una tecnología clave mencionada para gestionar la interacción en el eslabón más crítico para la percepción del cliente."}]},{"question":"La implementación de una cultura Lean en una empresa logística garantiza que la resistencia al cambio por parte de los trabajadores antiguos desaparezca de inmediato.","hint":"Recuerda el ejemplo del trabajo grupal sobre cómo convencer a los choferes antiguos de usar nuevas aplicaciones.","options":[{"label":"A","text":"Verdadero","isCorrect":false,"rationale":"El cambio cultural es un proceso lento y difícil que requiere capacitación continua y gestión de la resistencia humana."},{"label":"B","text":"Falso","isCorrect":true,"rationale":"Vencer la resistencia al cambio es uno de los mayores desafíos constantes para los líderes que implementan metodologías Lean."}]},{"question":"En la Logística 4.0, la visibilidad en tiempo real se refiere a conocer el estado exacto de la carga, incluyendo factores como la humedad o inclinación, gracias a sensores IoT.","hint":"Piensa en el monitoreo de temperatura de la carga mencionado en la sección de teoría a profundidad.","options":[{"label":"A","text":"Falso","isCorrect":false,"rationale":"La visibilidad moderna va más allá de un simple punto en un mapa, abarcando la integridad física del producto durante el trayecto."},{"label":"B","text":"Verdadero","isCorrect":true,"rationale":"La telemetría avanzada permite un control total sobre las condiciones de transporte, asegurando la calidad de productos sensibles."}]},{"question":"Los sistemas WMS (Warehouse Management System) son herramientas exclusivas para el control de la facturación legal de la empresa ante las autoridades tributarias.","hint":"Relaciona el término 'Warehouse' con las actividades físicas que ocurren dentro de un centro de distribución.","options":[{"label":"A","text":"Falso","isCorrect":true,"rationale":"Su función principal es optimizar las operaciones dentro del almacén para saber con precisión qué hay y dónde se encuentra."},{"label":"B","text":"Verdadero","isCorrect":false,"rationale":"El WMS se enfoca en la gestión operativa del almacén (inventario, picking, ubicación), no en funciones puramente contables o tributarias."}]},{"question":"La aplicación de Big Data en logística permite identificar patrones de comportamiento del tráfico para reducir el consumo de combustible.","hint":"Recuerda el caso de DHL y cómo ahorran millones mediante el análisis de patrones.","options":[{"label":"A","text":"Falso","isCorrect":false,"rationale":"La optimización milimétrica de rutas es una de las mayores aplicaciones prácticas del análisis de grandes volúmenes de datos en transporte."},{"label":"B","text":"Verdadero","isCorrect":true,"rationale":"Al evitar congestiones y optimizar las distancias, se logra una operación más sostenible y económica para la flota de transporte."}]},{"question":"El término 'picking' se refiere al proceso de entrega del producto en la puerta del cliente durante la última milla.","hint":"Considera en qué lugar físico del centro de distribución operan los robots AGV mencionados en el texto.","options":[{"label":"A","text":"Verdadero","isCorrect":false,"rationale":"El 'picking' es la actividad de recolección de productos dentro del almacén para preparar un pedido, no la entrega final."},{"label":"B","text":"Falso","isCorrect":true,"rationale":"Es una fase interna del almacén donde los robots o trabajadores seleccionan los artículos de las estanterías."}]},{"question":"Dominar la logística de última milla se ha convertido en una obligación de supervivencia para las empresas que compiten en el comercio moderno.","hint":"Analiza las palabras finales de la sesión sobre la competitividad y el futuro de las empresas.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"La alta exigencia de los consumidores actuales hace que fallar en la entrega final resulte en la pérdida irremediable del cliente."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"El texto concluye que la automatización y la eficiencia en este tramo ya no son lujos, sino requisitos indispensables para competir."}]},{"question":"Para que un producto fluya sin detenerse en una cadena de suministro Lean, es necesario fomentar la colaboración entre todas las áreas de la empresa.","hint":"Piensa en el cambio de visión que se propone para pasar de una empresa tradicional a una Lean.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"La visión Lean requiere que todos los departamentos trabajen alineados para eliminar cuellos de botella y esperas innecesarias."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"Sin colaboración interdepartamental, los procesos tienden a estancarse en las interfaces entre una oficina y otra."}]},{"question":"Los robots en los almacenes de Amazon llevan las estanterías hacia los trabajadores, en lugar de que los trabajadores caminen hacia los productos.","hint":"Considera cómo la robótica puede eliminar el desperdicio de movimiento innecesario de los empleados.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"Este sistema 'goods-to-person' minimiza los desplazamientos humanos, eliminando uno de los desperdicios más comunes (movimiento excesivo)."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"La automatización de Amazon destaca por mover las estructuras de inventario de forma autónoma para agilizar el proceso de picking."}]},{"question":"El ruteo dinámico en tiempo real es una estrategia de innovación en la última milla que ajusta las entregas considerando accidentes de tráfico ocurridos al instante.","hint":"Reflexiona sobre qué tecnología permite asegurar que el cliente reciba su producto a tiempo a pesar del tráfico urbano.","options":[{"label":"A","text":"Falso","isCorrect":false,"rationale":"La capacidad de respuesta ante eventos inesperados en la ciudad es una característica vital de la logística moderna asistida por tecnología."},{"label":"B","text":"Verdadero","isCorrect":true,"rationale":"A diferencia de las rutas estáticas, el ruteo dinámico permite reaccionar ante imprevistos para cumplir con las ventanas de entrega."}]}];
+const tr = {"correct":"¡Correcto!","incorrect":"Incorrecto","next":"Siguiente pregunta →","seeResults":"Ver resultados","complete":"¡Cuestionario completado!","scoreText":"Obtuviste {correct} de {total} correctas","tryAgain":"Intentar de nuevo","rightAnswer":"Respuesta correcta","notQuite":"No del todo"};
+let currentQ = 0, correctCount = 0, answered = false;
+
+function init() {
+  document.querySelectorAll('.question').forEach((q, i) => q.classList.toggle('active', i === 0));
+  updateProgress();
+  document.querySelectorAll('.option').forEach(opt => opt.addEventListener('click', () => selectOption(opt)));
+  document.querySelectorAll('.next-btn').forEach(btn => btn.addEventListener('click', nextQuestion));
+}
+
+function selectOption(opt) {
+  if (answered) return;
+  answered = true;
+  const q = opt.closest('.question');
+  const options = q.querySelectorAll('.option');
+  const nextBtn = q.querySelector('.next-btn');
+  const isCorrect = opt.dataset.correct === 'true';
+  
+  // Mark all options as disabled
+  options.forEach(o => o.classList.add('disabled'));
+  
+  // Style selected option
+  opt.classList.add('selected', isCorrect ? 'correct' : 'incorrect');
+  
+  // Show correct answer if wrong
+  if (!isCorrect) {
+    const correctOpt = [...options].find(o => o.dataset.correct === 'true');
+    if (correctOpt) correctOpt.classList.add('show-correct');
+  }
+  
+  if (isCorrect) correctCount++;
+  
+  // Show feedback for ALL options that have rationale
+  options.forEach(o => {
+    const wrapper = o.closest('.option-wrapper');
+    const feedback = wrapper.querySelector('.option-feedback');
+    const rationale = o.dataset.rationale;
+    const isThisCorrect = o.dataset.correct === 'true';
+    
+    if (rationale && rationale.trim()) {
+      feedback.classList.remove('hidden');
+      feedback.classList.add(isThisCorrect ? 'correct-feedback' : 'incorrect-feedback');
+      
+      const statusEl = feedback.querySelector('.feedback-status');
+      statusEl.className = 'feedback-status ' + (isThisCorrect ? 'correct' : 'incorrect');
+      statusEl.innerHTML = isThisCorrect 
+        ? '✓ ' + tr.rightAnswer
+        : '✗ ' + tr.notQuite;
+    }
+  });
+  
+  nextBtn.classList.remove('hidden');
+  if (currentQ === quizData.length - 1) nextBtn.textContent = tr.seeResults;
+}
+
+function nextQuestion() {
+  answered = false;
+  currentQ++;
+  if (currentQ >= quizData.length) { showResults(); return; }
+  document.querySelectorAll('.question').forEach((q, i) => q.classList.toggle('active', i === currentQ));
+  updateProgress();
+}
+
+function updateProgress() {
+  document.querySelector('.progress-fill').style.width = (currentQ / quizData.length * 100) + '%';
+}
+
+function showResults() {
+  document.querySelectorAll('.question').forEach(q => q.classList.remove('active'));
+  document.getElementById('results').classList.add('active');
+  const pct = Math.round((correctCount / quizData.length) * 100);
+  document.getElementById('score').textContent = pct + '%';
+  document.getElementById('score-text').textContent = tr.scoreText.replace('{correct}', correctCount).replace('{total}', quizData.length);
+  document.querySelector('.progress-fill').style.width = '100%';
+}
+
+function restart() {
+  currentQ = 0; correctCount = 0; answered = false;
+  document.getElementById('results').classList.remove('active');
+  document.querySelectorAll('.question').forEach((q, i) => {
+    q.classList.toggle('active', i === 0);
+    q.querySelectorAll('.option').forEach(o => o.classList.remove('selected', 'correct', 'incorrect', 'disabled', 'show-correct'));
+    q.querySelectorAll('.option-feedback').forEach(f => {
+      f.classList.add('hidden');
+      f.classList.remove('correct-feedback', 'incorrect-feedback');
+    });
+    const btn = q.querySelector('.next-btn');
+    btn.classList.add('hidden');
+    btn.textContent = tr.next;
+  });
+  updateProgress();
+}
+
+init();
+</script>
+</body>
+</html>
