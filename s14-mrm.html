@@ -1,0 +1,1878 @@
+<!DOCTYPE html>
+<html lang="es" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>S14 - MRM</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  min-height: 100vh; padding: 20px; color: #333;
+}
+.container { max-width: 700px; margin: 0 auto; }
+.header { text-align: center; color: #fff; padding: 30px 20px; }
+.header h1 { font-size: 28px; font-weight: 700; margin-bottom: 8px; text-shadow: 0 2px 10px rgba(0,0,0,0.2); }
+.header .meta { font-size: 14px; opacity: 0.9; }
+.progress-bar { background: rgba(255,255,255,0.3); border-radius: 10px; height: 8px; margin: 20px 0; overflow: hidden; }
+.progress-fill { background: #fff; height: 100%; width: 0%; transition: width 0.4s ease; border-radius: 10px; }
+.question { background: #fff; border-radius: 16px; padding: 30px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); display: none; }
+.question.active { display: block; }
+.q-header { display: flex; justify-content: space-between; margin-bottom: 20px; font-size: 13px; color: #888; }
+.q-number { font-weight: 600; color: #667eea; }
+.q-text { font-size: 18px; font-weight: 600; line-height: 1.5; margin-bottom: 25px; color: #222; }
+.options { display: flex; flex-direction: column; gap: 12px; }
+.option-wrapper { display: flex; flex-direction: column; }
+.option {
+  display: flex; align-items: flex-start; gap: 14px; padding: 16px 18px;
+  border: 2px solid #e8e8e8; border-radius: 12px; background: #fafafa;
+  cursor: pointer; transition: all 0.2s; text-align: left; font-size: 15px; width: 100%;
+}
+[dir="rtl"] .option { text-align: right; flex-direction: row-reverse; }
+.option:hover:not(.disabled) { border-color: #667eea; background: #f5f3ff; }
+.option.selected { border-color: #667eea; background: #ede9fe; }
+.option.correct { border-color: #22c55e; background: #dcfce7; }
+.option.incorrect { border-color: #ef4444; background: #fee2e2; }
+.option.disabled { cursor: default; }
+.option.show-correct { border-color: #22c55e; background: #dcfce7; }
+.opt-label {
+  display: flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; border-radius: 50%; background: #e8e8e8;
+  font-weight: 700; font-size: 14px; flex-shrink: 0;
+}
+.option.selected .opt-label { background: #667eea; color: #fff; }
+.option.correct .opt-label { background: #22c55e; color: #fff; }
+.option.incorrect .opt-label { background: #ef4444; color: #fff; }
+.option.show-correct .opt-label { background: #22c55e; color: #fff; }
+.opt-text { padding-top: 5px; line-height: 1.5; }
+
+/* Individual option feedback */
+.option-feedback {
+  margin: 8px 0 4px 46px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+[dir="rtl"] .option-feedback { margin-left: 0; margin-right: 46px; }
+.option-feedback.correct-feedback {
+  background: #dcfce7;
+  border-left: 3px solid #22c55e;
+}
+.option-feedback.incorrect-feedback {
+  background: #fef3f2;
+  border-left: 3px solid #fca5a5;
+}
+[dir="rtl"] .option-feedback.correct-feedback,
+[dir="rtl"] .option-feedback.incorrect-feedback {
+  border-left: none;
+  border-right: 3px solid;
+}
+[dir="rtl"] .option-feedback.correct-feedback { border-right-color: #22c55e; }
+[dir="rtl"] .option-feedback.incorrect-feedback { border-right-color: #fca5a5; }
+.feedback-status {
+  font-weight: 600;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.feedback-status.correct { color: #166534; }
+.feedback-status.incorrect { color: #991b1b; }
+.feedback-rationale { color: #444; }
+
+/* Hint box */
+.hint-box {
+  margin: 12px 0;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+}
+.hint-toggle {
+  width: 100%;
+  padding: 10px 16px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  color: #92400e;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.hint-toggle:hover { background: #fef3c7; }
+.hint-content {
+  padding: 0 16px;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s, padding 0.3s;
+  font-size: 14px;
+  color: #78350f;
+  line-height: 1.5;
+}
+.hint-box.show .hint-content {
+  padding: 0 16px 12px;
+  max-height: 200px;
+}
+
+.next-btn {
+  margin-top: 20px; width: 100%; padding: 14px;
+  background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; border: none;
+  border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.next-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(102,126,234,0.4); }
+.hidden { display: none !important; }
+.results { background: #fff; border-radius: 16px; padding: 40px; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.15); display: none; }
+.results.active { display: block; }
+.results h2 { font-size: 28px; margin-bottom: 10px; color: #333; }
+.results .score { font-size: 64px; font-weight: 700; color: #667eea; margin: 20px 0; }
+.results .score-text { font-size: 18px; color: #666; margin-bottom: 30px; }
+.restart-btn {
+  padding: 14px 40px; background: linear-gradient(135deg, #667eea, #764ba2);
+  color: #fff; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer;
+}
+
+/* Math CSS */
+.math, .math-block { font-family: "Cambria Math", "Times New Roman", Times, serif; font-style: italic; }
+.math-block { display: block; text-align: center; margin: 10px 0; font-size: 110%; }
+.frac { display: inline-flex; flex-direction: column; align-items: center; vertical-align: middle; margin: 0 3px; font-size: 0.9em; }
+.frac-num { border-bottom: 1px solid currentColor; padding: 0 4px 2px; line-height: 1.2; }
+.frac-den { padding: 2px 4px 0; line-height: 1.2; }
+.sqrt { white-space: nowrap; }
+.sqrt-content { border-top: 1px solid currentColor; padding: 0 3px; margin-left: 2px; }
+sup, sub { font-size: 0.75em; }
+sup { vertical-align: super; }
+sub { vertical-align: sub; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>S14 - MRM</h1>
+    <div class="meta">26 preguntas</div>
+    <div class="progress-bar"><div class="progress-fill"></div></div>
+  </div>
+  <div id="quiz-container">
+        <div class="question" data-index="0">
+          <div class="q-header">
+            <span class="q-number">Pregunta 1</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿Cuál es la característica principal que diferencia al grafeno del acero en términos de resistencia mecánica según el material proporcionado?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Compara la magnitud de la capacidad de carga entre ambos materiales.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="El texto destaca que una sola capa de átomos de carbono del grafeno supera enormemente la resistencia del acero convencional.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Es aproximadamente <span class="math">200</span> veces más resistente que el acero.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El texto destaca que una sola capa de átomos de carbono del grafeno supera enormemente la resistencia del acero convencional.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El grafeno es conocido por su ligereza y resistencia, no por ser más pesado que los metales tradicionales.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Es <span class="math">200</span> veces más pesado que el acero por unidad de volumen.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El grafeno es conocido por su ligereza y resistencia, no por ser más pesado que los metales tradicionales.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="El grafeno posee una resistencia a la tracción excepcional, lo que lo hace ideal para aplicaciones estructurales avanzadas.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Es un material frágil que no soporta esfuerzos de tracción.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El grafeno posee una resistencia a la tracción excepcional, lo que lo hace ideal para aplicaciones estructurales avanzadas.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Los nanomateriales como el grafeno suelen tener módulos de elasticidad mucho más altos que los materiales macroscópicos.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Tiene un Módulo de Elasticidad (<span class="math">E</span>) inferior al del acero.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Los nanomateriales como el grafeno suelen tener módulos de elasticidad mucho más altos que los materiales macroscópicos.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="1">
+          <div class="q-header">
+            <span class="q-number">Pregunta 2</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">En el contexto del curso, ¿cómo se define la fórmula para calcular el Factor de Seguridad (<span class="math">FS</span>)?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Recuerda que el valor debe ser usualmente mayor a 1 para garantizar la integridad.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Esta relación daría un valor menor a $1$ en condiciones seguras, lo cual es opuesto a la convención de ingeniería.">
+            <span class="opt-label">A</span>
+            <span class="opt-text"><span class="math">FS = fractextEsfuerzo PermisibletextEsfuerzo de Falla</span></span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esta relación daría un valor menor a <span class="math">1</span> en condiciones seguras, lo cual es opuesto a la convención de ingeniería.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El factor de seguridad es una relación adimensional y no el producto del Módulo de Elasticidad por el esfuerzo.">
+            <span class="opt-label">B</span>
+            <span class="opt-text"><span class="math">FS = E × textEsfuerzo de Falla</span></span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El factor de seguridad es una relación adimensional y no el producto del Módulo de Elasticidad por el esfuerzo.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="true" data-rationale="El factor de seguridad relaciona la capacidad máxima de resistencia del material con la carga de trabajo segura.">
+            <span class="opt-label">C</span>
+            <span class="opt-text"><span class="math">FS = fractextEsfuerzo de FallatextEsfuerzo Permisible</span></span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El factor de seguridad relaciona la capacidad máxima de resistencia del material con la carga de trabajo segura.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="El módulo de elasticidad mide la rigidez, no la seguridad estructural frente a la falla.">
+            <span class="opt-label">D</span>
+            <span class="opt-text"><span class="math">FS = fractextMódulo de ElasticidadtextEsfuerzo de Rotura</span></span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El módulo de elasticidad mide la rigidez, no la seguridad estructural frente a la falla.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="2">
+          <div class="q-header">
+            <span class="q-number">Pregunta 3</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿Por qué el Aerogel de Sílice es de particular interés en la ingeniería industrial para plantas de procesamiento?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piensa en su aplicación para proteger contra variaciones de temperatura.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Su estructura porosa le otorga propiedades térmicas únicas y una densidad extremadamente baja.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Funciona como un aislante térmico extremo siendo el sólido más ligero del mundo.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Su estructura porosa le otorga propiedades térmicas únicas y una densidad extremadamente baja.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El aerogel es muy poroso y frágil, teniendo un módulo de elasticidad bajo en comparación con el grafeno o los nanotubos.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Es el material con el mayor Módulo de Elasticidad (<span class="math">E</span>) conocido.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El aerogel es muy poroso y frágil, teniendo un módulo de elasticidad bajo en comparación con el grafeno o los nanotubos.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Aunque es ligero, su fragilidad lo hace poco apto para cables que requieran alta resistencia a la tracción.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Se utiliza para fabricar cables de ascensores espaciales por su alta ductilidad.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aunque es ligero, su fragilidad lo hace poco apto para cables que requieran alta resistencia a la tracción.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Su baja resistencia mecánica estructural impide su uso como reemplazo directo de vigas de acero.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Sustituye al acero en vigas estructurales de carga pesada.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Su baja resistencia mecánica estructural impide su uso como reemplazo directo de vigas de acero.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="3">
+          <div class="q-header">
+            <span class="q-number">Pregunta 4</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">Si un grupo de estudiantes utiliza Nanocelulosa para un proyecto, ¿con qué material tradicional compararían su resistencia a la tracción según la guía?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Busca un metal común conocido por ser ligero pero resistente.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="El bronce no es el referente de ligereza y resistencia específica mencionado para la nanocelulosa.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Bronce.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El bronce no es el referente de ligereza y resistencia específica mencionado para la nanocelulosa.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="El material de origen vegetal presenta una resistencia específica comparable a la de aleaciones ligeras como el aluminio.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Aluminio.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El material de origen vegetal presenta una resistencia específica comparable a la de aleaciones ligeras como el aluminio.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Aunque es fuerte para ser biológico, su resistencia no iguala de forma general a los aceros de grado estructural.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Acero de alta resistencia.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aunque es fuerte para ser biológico, su resistencia no iguala de forma general a los aceros de grado estructural.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="El concreto destaca en compresión, mientras que la nanocelulosa se destaca por su ligereza y tracción.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Concreto armado.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El concreto destaca en compresión, mientras que la nanocelulosa se destaca por su ligereza y tracción.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="4">
+          <div class="q-header">
+            <span class="q-number">Pregunta 5</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿Cuál es la función principal de las Nanopartículas de Dióxido de Titanio (<span class="math">TiO<sub>2</sub></span>) en recubrimientos industriales?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considera cómo estas partículas afectan la interacción de la superficie con el entorno.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Como recubrimiento, su aporte a la reducción de peso total del componente es insignificante.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Reducir el peso de los ejes de transmisión de potencia.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Como recubrimiento, su aporte a la reducción de peso total del componente es insignificante.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Las propiedades químicas del $TiO_{2}$ a escala nano permiten la descomposición de materia orgánica y protección galvánica.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Crear superficies autolimpiantes y ultra resistentes a la corrosión.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Las propiedades químicas del <span class="math">TiO<sub>2</sub></span> a escala nano permiten la descomposición de materia orgánica y protección galvánica.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="No es su aplicación principal; para ello se prefieren materiales porosos o espumas.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Servir como aislante acústico en salas de máquinas.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">No es su aplicación principal; para ello se prefieren materiales porosos o espumas.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="El $TiO_{2}$ se usa como recubrimiento superficial, no cambia las propiedades geométricas de la viga frente al pandeo.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Aumentar el factor de seguridad de las vigas estructurales contra el pandeo.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El <span class="math">TiO<sub>2</sub></span> se usa como recubrimiento superficial, no cambia las propiedades geométricas de la viga frente al pandeo.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="5">
+          <div class="q-header">
+            <span class="q-number">Pregunta 6</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿Qué ventaja ofrecen las Espumas Metálicas Nanocristalinas en el diseño de maquinaria?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Enfócate en la relación entre su estructura porosa y la seguridad contra colisiones.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Su estructura de porosidad controlada a escala nano permite una gran disipación de energía cinética.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Son extremadamente ligeras y pueden absorber impactos masivos.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Su estructura de porosidad controlada a escala nano permite una gran disipación de energía cinética.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Todos los materiales tienen un límite de rigidez; las espumas son generalmente menos rígidas que los metales compactos.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Poseen un Módulo de Elasticidad (<span class="math">E</span>) infinito.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Todos los materiales tienen un límite de rigidez; las espumas son generalmente menos rígidas que los metales compactos.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Las espumas, al ser mayormente aire, suelen tener conductividades térmicas menores que el metal sólido.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Tienen una conductividad térmica superior a la del cobre puro.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Las espumas, al ser mayormente aire, suelen tener conductividades térmicas menores que el metal sólido.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Ningún material, por avanzado que sea, elimina la necesidad de un margen de seguridad en ingeniería industrial.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Eliminan la necesidad de usar Factores de Seguridad en el diseño.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Ningún material, por avanzado que sea, elimina la necesidad de un margen de seguridad en ingeniería industrial.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="6">
+          <div class="q-header">
+            <span class="q-number">Pregunta 7</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">Sobre la obtención de información para la Semana 15, ¿por qué los estudiantes no pueden usar solo la bibliografía básica del curso?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considera la antigüedad y el enfoque de los textos de ingeniería tradicionales.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="La Biblioteca Virtual es una sugerencia, pero el motivo real es la ausencia de datos actualizados en textos clásicos.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Porque el curso solo permite el uso de la Biblioteca Virtual UPN.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La Biblioteca Virtual es una sugerencia, pero el motivo real es la ausencia de datos actualizados en textos clásicos.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Los libros clásicos de resistencia de materiales se centran en metales, maderas y polímeros convencionales.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Porque las tablas de propiedades mecánicas tradicionales no incluyen nanomateriales específicos.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Los libros clásicos de resistencia de materiales se centran en metales, maderas y polímeros convencionales.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Todos los materiales sólidos poseen propiedades mecánicas medibles, aunque sean a nanoescala.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Porque los nanomateriales no tienen un Módulo de Elasticidad (<span class="math">E</span>) definido.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Todos los materiales sólidos poseen propiedades mecánicas medibles, aunque sean a nanoescala.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="El sílabo no prohíbe los libros físicos, sino que señala que la información de frontera no está contenida en ellos.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Porque el sílabo prohíbe el uso de libros físicos para el examen final.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El sílabo no prohíbe los libros físicos, sino que señala que la información de frontera no está contenida en ellos.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="7">
+          <div class="q-header">
+            <span class="q-number">Pregunta 8</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">Los Nanotubos de Carbono (CNT) son descritos como ideales para:</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Su forma cilíndrica a escala molecular les otorga una rigidez excepcional.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Los CNT son estructuras sólidas cilíndricas, no fluidos lubricantes.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Ser utilizados como lubricantes líquidos en motores de combustión.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Los CNT son estructuras sólidas cilíndricas, no fluidos lubricantes.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Los nanotubos de carbono suelen tener una excelente conductividad eléctrica, lo opuesto a un aislante.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Actuar como aislantes eléctricos en cables de alta tensión.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Los nanotubos de carbono suelen tener una excelente conductividad eléctrica, lo opuesto a un aislante.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="true" data-rationale="Su alta rigidez estructural mejora significativamente las propiedades de matrices plásticas en compuestos.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Reforzar polímeros debido a su altísimo módulo de elasticidad.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Su alta rigidez estructural mejora significativamente las propiedades de matrices plásticas en compuestos.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Actualmente, los CNT tienen un costo de producción muy elevado para aplicaciones de volumen masivo como el concreto.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Reemplazar el concreto en cimentaciones profundas por su bajo costo.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Actualmente, los CNT tienen un costo de producción muy elevado para aplicaciones de volumen masivo como el concreto.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="8">
+          <div class="q-header">
+            <span class="q-number">Pregunta 9</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿Qué característica define a los MXenos mencionados en el Grupo 8?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Son compuestos de metales de transición que atraen el agua.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Los MXenos son materiales bidimensionales ($2\text{D}$), no fibras macroscópicas fundidas.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Fibras continuas obtenidas por procesos de fundición tradicional.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Los MXenos son materiales bidimensionales (<span class="math">2textD</span>), no fibras macroscópicas fundidas.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Esta combinación de propiedades los hace únicos para el almacenamiento de energía y aplicaciones industriales líquidas.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Materiales <span class="math">2textD</span> con conductividad metálica e hidrofilia.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esta combinación de propiedades los hace únicos para el almacenamiento de energía y aplicaciones industriales líquidas.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Los MXenos son sólidos cristalinos a nivel atómico.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Gases nobles utilizados para la refrigeración de reactores.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Los MXenos son sólidos cristalinos a nivel atómico.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Esa descripción corresponde a la nanocelulosa, no a los carburos de metales de transición (MXenos).">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Polímeros naturales extraídos de la pared celular de las plantas.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esa descripción corresponde a la nanocelulosa, no a los carburos de metales de transición (MXenos).</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="9">
+          <div class="q-header">
+            <span class="q-number">Pregunta 10</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">Al realizar la &quot;Radiografía&quot; de las propiedades mecánicas, ¿qué representa el Esfuerzo de Rotura o Falla a Tracción (<span class="math">σ<sub>u</sub></span>)?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Se refiere al valor máximo en el diagrama de esfuerzo-deformación antes del colapso.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="El esfuerzo de rotura es una propiedad intrínseca del material, no depende del factor de seguridad elegido.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">La relación entre la carga aplicada y el factor de seguridad.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El esfuerzo de rotura es una propiedad intrínseca del material, no depende del factor de seguridad elegido.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Es el punto crítico de diseño que determina el límite último de seguridad del material.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">La máxima intensidad de fuerza interna que el material soporta antes de romperse.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Es el punto crítico de diseño que determina el límite último de seguridad del material.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="El esfuerzo de rotura es una medida de fuerza por unidad de área, no de deformación (alargamiento).">
+            <span class="opt-label">C</span>
+            <span class="opt-text">La deformación permanente que sufre el material al ser golpeado.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El esfuerzo de rotura es una medida de fuerza por unidad de área, no de deformación (alargamiento).</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="La rigidez está definida por el Módulo de Elasticidad ($E$), no por el esfuerzo de falla.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">La rigidez del material dentro del rango elástico.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La rigidez está definida por el Módulo de Elasticidad (<span class="math">E</span>), no por el esfuerzo de falla.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="10">
+          <div class="q-header">
+            <span class="q-number">Pregunta 11</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿Qué se busca evaluar cuando se les pide a los estudiantes identificar la &quot;Desventaja/Limitación Actual&quot; del nanomaterial?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considera por qué no vemos edificios hechos completamente de grafeno todavía.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Las propiedades se pueden medir; el reto es la implementación industrial masiva.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">La imposibilidad de medir sus propiedades con instrumentos modernos.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Las propiedades se pueden medir; el reto es la implementación industrial masiva.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Muchos nanomateriales son excelentes en el laboratorio pero difíciles o costosos de fabricar masivamente.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">La viabilidad económica y logística de su producción a gran escala.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Muchos nanomateriales son excelentes en el laboratorio pero difíciles o costosos de fabricar masivamente.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Todos los materiales físicos cumplen con las leyes fundamentales de la mecánica.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Si el material cumple con las Leyes de Newton.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Todos los materiales físicos cumplen con las leyes fundamentales de la mecánica.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Cualquier material puede ser analizado bajo el criterio del factor de seguridad en diseño.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">La incapacidad del material para poseer un factor de seguridad.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Cualquier material puede ser analizado bajo el criterio del factor de seguridad en diseño.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="11">
+          <div class="q-header">
+            <span class="q-number">Pregunta 12</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">En la actividad grupal, los estudiantes actúan como &quot;firmas consultoras&quot;. ¿Cuál es el objetivo comunicativo de su presentación de 7 minutos?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">El enfoque es la persuasión profesional basada en datos de ingeniería.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="La actividad es una sustentación de proyecto aplicativo final, no un examen de resolución de problemas tradicionales.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Resolver un examen escrito sobre vigas y ejes en tiempo real.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La actividad es una sustentación de proyecto aplicativo final, no un examen de resolución de problemas tradicionales.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Se busca que el estudiante no solo calcule, sino que sustente con criterio profesional la aplicación tecnológica.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">&quot;Vender&quot; la viabilidad técnica y económica del nanomaterial a una gerencia global.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Se busca que el estudiante no solo calcule, sino que sustente con criterio profesional la aplicación tecnológica.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="El enfoque es la innovación y el uso de materiales de frontera, no la memorización de datos tradicionales.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Demostrar que pueden memorizar las tablas de propiedades del acero.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El enfoque es la innovación y el uso de materiales de frontera, no la memorización de datos tradicionales.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="La presentación debe ser técnica y enfocada en propiedades mecánicas y aplicaciones actuales.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Explicar la historia de la nanotecnología desde el siglo XVIII.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La presentación debe ser técnica y enfocada en propiedades mecánicas y aplicaciones actuales.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="12">
+          <div class="q-header">
+            <span class="q-number">Pregunta 13</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">Las Fibras Electrohiladas (Nanofibras Poliméricas) se destacan en la industria principalmente por su uso en:</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piensa en aplicaciones que requieren una gran área superficial en espacios pequeños.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Aunque son resistentes a su escala, las fibras electrohiladas no se usan para cargas estructurales macroscópicas civiles.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Estructuras de soporte para puentes colgantes.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aunque son resistentes a su escala, las fibras electrohiladas no se usan para cargas estructurales macroscópicas civiles.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El blindaje requiere materiales densos como el plomo, no fibras poliméricas delgadas.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Blindaje de reactores nucleares contra la radiación gamma.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El blindaje requiere materiales densos como el plomo, no fibras poliméricas delgadas.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="true" data-rationale="Su alta relación superficie-volumen las hace extremadamente eficientes para capturar partículas diminutas.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Sistemas de filtración industrial y biomanufactura.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Su alta relación superficie-volumen las hace extremadamente eficientes para capturar partículas diminutas.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Son materiales estructurales o funcionales, no fuentes de energía térmica.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Reemplazo de combustibles fósiles en calderas.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Son materiales estructurales o funcionales, no fuentes de energía térmica.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="13">
+          <div class="q-header">
+            <span class="q-number">Pregunta 14</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿Qué relación existe entre el logro de la sesión de la Semana 15 y el sílabo oficial del curso?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Observa cómo se vincula la teoría de materiales con las metas del plan de estudios.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Complementa y aplica lo aprendido, integrando conceptos de esfuerzos y diseño.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Sustituye por completo los temas de estática vistos al inicio.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Complementa y aplica lo aprendido, integrando conceptos de esfuerzos y diseño.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El material indica que es el &quot;cierre perfecto&quot; y parte de las sustentaciones finales obligatorias.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Es una actividad opcional que no afecta la calificación final.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El material indica que es el &quot;cierre perfecto&quot; y parte de las sustentaciones finales obligatorias.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Se exige calcular el factor de seguridad y proponer esfuerzos permisibles.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Es una actividad exclusivamente teórica sin cálculos matemáticos.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Se exige calcular el factor de seguridad y proponer esfuerzos permisibles.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="true" data-rationale="El sílabo destina la semana 15 a las sustentaciones y el curso tiene como eje el desarrollo tecnológico.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Cumple con la sustentación de proyectos finales y fomenta la investigación e innovación.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El sílabo destina la semana 15 a las sustentaciones y el curso tiene como eje el desarrollo tecnológico.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="14">
+          <div class="q-header">
+            <span class="q-number">Pregunta 15</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">Si un material tiene un Esfuerzo de Falla de <span class="math">1000 text MPa</span> y se decide usar un Esfuerzo Permisible de <span class="math">250 text MPa</span>, ¿cuál es su Factor de Seguridad (<span class="math">FS</span>)?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Divide la resistencia máxima entre el valor de diseño seguro.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="$FS = \frac{1000}{250} = 4$. Esto significa que el material está trabajando al $25\%$ de su capacidad máxima.">
+            <span class="opt-label">A</span>
+            <span class="opt-text"><span class="math">4</span></span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale"><span class="math">FS = <span class="frac"><span class="frac-num">1000</span><span class="frac-den">250</span></span> = 4</span>. Esto significa que el material está trabajando al <span class="math">25%</span> de su capacidad máxima.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El factor de seguridad es una división, no una resta de valores de esfuerzo.">
+            <span class="opt-label">B</span>
+            <span class="opt-text"><span class="math">750</span></span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El factor de seguridad es una división, no una resta de valores de esfuerzo.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Un $FS$ de $0.25$ indicaría que el material ya ha fallado, pues la carga aplicada supera la resistencia.">
+            <span class="opt-label">C</span>
+            <span class="opt-text"><span class="math">0.25</span></span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Un <span class="math">FS</span> de <span class="math">0.25</span> indicaría que el material ya ha fallado, pues la carga aplicada supera la resistencia.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Este resultado es un error de cálculo aritmético simple en la división.">
+            <span class="opt-label">D</span>
+            <span class="opt-text"><span class="math">2.5</span></span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Este resultado es un error de cálculo aritmético simple en la división.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="15">
+          <div class="q-header">
+            <span class="q-number">Pregunta 16</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿Por qué es vital para un ingeniero industrial conocer el comportamiento dominante (dúctil o frágil) de un nanomaterial?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considera el tipo de deformación previa a la rotura total.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Los materiales dúctiles se deforman notablemente antes de romperse, mientras que los frágiles fallan sin previo aviso.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Para predecir si el componente avisará antes de fallar o si colapsará súbitamente.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Los materiales dúctiles se deforman notablemente antes de romperse, mientras que los frágiles fallan sin previo aviso.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Los materiales frágiles suelen requerir factores de seguridad más altos, no menores.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Porque los materiales frágiles siempre tienen un Factor de Seguridad (<span class="math">FS</span>) de <span class="math">1</span>.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Los materiales frágiles suelen requerir factores de seguridad más altos, no menores.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="La ductilidad y fragilidad son propiedades mecánicas, no eléctricas.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Para saber si el material puede conducir electricidad o no.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La ductilidad y fragilidad son propiedades mecánicas, no eléctricas.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Estas propiedades no tienen relación directa con las características ópticas o estéticas.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Para determinar el color final del producto manufacturado.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Estas propiedades no tienen relación directa con las características ópticas o estéticas.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="16">
+          <div class="q-header">
+            <span class="q-number">Pregunta 17</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿Cuál es la utilidad de comparar el Módulo de Elasticidad (<span class="math">E</span>) de un nanomaterial frente al acero?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">El módulo <span class="math">E</span> indica la resistencia a ser deformado elásticamente.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="La dureza y el módulo de elasticidad son conceptos distintos, aunque a veces están relacionados.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Evaluar la dureza superficial del material.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La dureza y el módulo de elasticidad son conceptos distintos, aunque a veces están relacionados.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="La oxidación es una propiedad química, mientras que el módulo $E$ es una propiedad mecánica.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Saber si el material se oxidará más rápido que el acero.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La oxidación es una propiedad química, mientras que el módulo <span class="math">E</span> es una propiedad mecánica.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="true" data-rationale="El módulo de elasticidad es la medida de la rigidez de un material frente a la deformación elástica.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Determinar qué tan rígido es el nuevo material en comparación con el estándar industrial.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El módulo de elasticidad es la medida de la rigidez de un material frente a la deformación elástica.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="El peso depende de la densidad y el volumen, no directamente del módulo de elasticidad.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Calcular el peso total de la estructura.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El peso depende de la densidad y el volumen, no directamente del módulo de elasticidad.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="17">
+          <div class="q-header">
+            <span class="q-number">Pregunta 18</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">Dentro del reto analítico de la sustentación, ¿qué debe &quot;inventar&quot; el grupo de estudiantes?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Se trata de proponer una aplicación práctica basada en parámetros de seguridad.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="El texto explícitamente pide investigar en fuentes externas como artículos científicos o fichas técnicas.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Los datos del Módulo de Elasticidad (<span class="math">E</span>) sin investigar.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El texto explícitamente pide investigar en fuentes externas como artículos científicos o fichas técnicas.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Se busca que apliquen la teoría a una situación hipotética de ingeniería en una planta industrial.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Un caso de diseño con una pieza y un Esfuerzo Permisible realista.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Se busca que apliquen la teoría a una situación hipotética de ingeniería en una planta industrial.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Los nombres de los materiales ya están establecidos por la ciencia.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Un nuevo nombre para el nanomaterial asignado.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Los nombres de los materiales ya están establecidos por la ciencia.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="El objetivo es aplicar las leyes existentes a materiales innovadores.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Una nueva ley de la física que reemplace a la estática.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El objetivo es aplicar las leyes existentes a materiales innovadores.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="18">
+          <div class="q-header">
+            <span class="q-number">Pregunta 19</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">Según la conclusión del curso, ¿qué conocimientos previos han integrado los estudiantes para llegar a la Semana 15?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Repasa la progresión temática desde el inicio del ciclo académico.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="El contenido descrito es mecánico y estructural, no informático.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Programación de software para inteligencia artificial.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El contenido descrito es mecánico y estructural, no informático.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="La resistencia de materiales construye sobre la estática para predecir el comportamiento interno de las estructuras.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Leyes de Newton, cálculos de reacciones, esfuerzos normales, cortantes y pandeo.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La resistencia de materiales construye sobre la estática para predecir el comportamiento interno de las estructuras.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="El curso se centra en la física de los materiales, no en la gestión financiera minera.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Contabilidad de costos aplicada a la minería.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El curso se centra en la física de los materiales, no en la gestión financiera minera.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Aunque la feria tiene un tono de &quot;venta&quot;, el núcleo es el análisis de ingeniería y resistencia.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Únicamente principios de marketing y ventas industriales.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aunque la feria tiene un tono de &quot;venta&quot;, el núcleo es el análisis de ingeniería y resistencia.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="19">
+          <div class="q-header">
+            <span class="q-number">Pregunta 20</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿Qué nanomaterial se describe como una &quot;sola capa de átomos de carbono&quot;?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Es un material bidimensional (<span class="math">2textD</span>) de carbono puro.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Los MXenos contienen metales de transición además de carbono o nitrógeno.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">MXenos.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Los MXenos contienen metales de transición además de carbono o nitrógeno.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Los nanotubos son láminas enrolladas en forma de cilindro, no una capa plana simple.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Nanotubos de Carbono.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Los nanotubos son láminas enrolladas en forma de cilindro, no una capa plana simple.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="true" data-rationale="Es la definición clásica del grafeno: una red hexagonal bidimensional de carbono.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Grafeno.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Es la definición clásica del grafeno: una red hexagonal bidimensional de carbono.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="El aerogel suele basarse en sílice u otros compuestos químicos, no solo en carbono elemental.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Aerogel.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El aerogel suele basarse en sílice u otros compuestos químicos, no solo en carbono elemental.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="20">
+          <div class="q-header">
+            <span class="q-number">Pregunta 21</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">Al investigar artículos científicos para la feria, ¿qué base de datos se sugiere explícitamente en el material?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Es una herramienta de investigación propia de tu universidad.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="LinkedIn es para redes profesionales, no es una base de datos de investigación científica primaria.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Redes sociales profesionales como LinkedIn.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">LinkedIn es para redes profesionales, no es una base de datos de investigación científica primaria.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Aunque es útil para conceptos generales, no se menciona como fuente de artículos científicos o fichas técnicas en el texto.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Wikipedia en español.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aunque es útil para conceptos generales, no se menciona como fuente de artículos científicos o fichas técnicas en el texto.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="true" data-rationale="Es el recurso institucional recomendado para acceder a información técnica confiable.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Biblioteca Virtual UPN.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Es el recurso institucional recomendado para acceder a información técnica confiable.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="No proporcionan la información técnica de propiedades mecánicas requerida.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Buscadores de ofertas de empleo.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">No proporcionan la información técnica de propiedades mecánicas requerida.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="21">
+          <div class="q-header">
+            <span class="q-number">Pregunta 22</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿Qué significa que un material tenga &quot;conductividad metálica e hidrofilia asombrosa&quot; como los MXenos?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Analiza las raíces de las palabras: conductividad e hidro-filia.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="La hidrofilia es la propiedad de atraer o mezclarse con el agua, lo cual es inusual en materiales tan conductores.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Que conduce electricidad como un metal y tiene afinidad por el agua.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La hidrofilia es la propiedad de atraer o mezclarse con el agua, lo cual es inusual en materiales tan conductores.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Sus propiedades justamente lo hacen apto para almacenamiento de energía y procesos en medios líquidos.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Que solo puede usarse en ambientes secos y sin electricidad.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Sus propiedades justamente lo hacen apto para almacenamiento de energía y procesos en medios líquidos.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Los MXenos son inorgánicos, compuestos de carburos o nitruros de metales.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Que es un material orgánico derivado del petróleo.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Los MXenos son inorgánicos, compuestos de carburos o nitruros de metales.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Esto sería hidrofobia y comportamiento dieléctrico, lo opuesto a lo descrito.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Que repele el agua y es un aislante eléctrico perfecto.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esto sería hidrofobia y comportamiento dieléctrico, lo opuesto a lo descrito.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="22">
+          <div class="q-header">
+            <span class="q-number">Pregunta 23</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿Cuál es el propósito de definir un &quot;Esfuerzo Permisible&quot; en un diseño de ingeniería?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Es una medida de precaución en la aplicación de cargas.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Si el esfuerzo permisible fuera igual al de falla, el factor de seguridad sería $1$, lo cual es muy riesgoso.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Igualar el esfuerzo aplicado al esfuerzo de falla del material.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Si el esfuerzo permisible fuera igual al de falla, el factor de seguridad sería <span class="math">1</span>, lo cual es muy riesgoso.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="El esfuerzo permisible es la carga máxima de operación segura autorizada para el componente.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Asegurar que el material trabaje lejos de su límite de rotura para evitar fallas imprevistas.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El esfuerzo permisible es la carga máxima de operación segura autorizada para el componente.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="El objetivo es la seguridad y eficiencia, no el encarecimiento arbitrario.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Incrementar el costo de los materiales para obtener mayores ganancias.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El objetivo es la seguridad y eficiencia, no el encarecimiento arbitrario.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="El esfuerzo permisible es un valor de cálculo de diseño, no altera las propiedades físicas del material.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Hacer que el material sea más dúctil de lo que es originalmente.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El esfuerzo permisible es un valor de cálculo de diseño, no altera las propiedades físicas del material.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="23">
+          <div class="q-header">
+            <span class="q-number">Pregunta 24</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿En qué semana del curso se realiza la &quot;Feria de Innovación Nanotecnológica&quot; según la propuesta?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Es la última semana académica antes de finalizar el curso.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="La semana $14$ es donde se planifica y se da la instrucción, pero la feria es en la $15$.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Semana <span class="math">14</span>.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La semana <span class="math">14</span> es donde se planifica y se da la instrucción, pero la feria es en la <span class="math">15</span>.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El examen parcial ocurre a mitad de ciclo, no es el cierre magistral con nanomateriales.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">En el examen parcial.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El examen parcial ocurre a mitad de ciclo, no es el cierre magistral con nanomateriales.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="true" data-rationale="El material indica claramente que es el cierre magistral destinado a las sustentaciones finales.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Semana <span class="math">15</span>.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El material indica claramente que es el cierre magistral destinado a las sustentaciones finales.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="En la semana $1$ se introducen los conceptos básicos, no se realiza la sustentación final.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Semana <span class="math">1</span>.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">En la semana <span class="math">1</span> se introducen los conceptos básicos, no se realiza la sustentación final.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="24">
+          <div class="q-header">
+            <span class="q-number">Pregunta 25</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">Los Nanotubos de Carbono (CNT) se describen como &quot;Cilindros a nanoescala&quot;. ¿Qué implicación mecánica suele tener esta geometría?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considera la dirección en la que las fuerzas actúan sobre una estructura tubular.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Los nanotubos de carbono son químicamente estables en condiciones normales.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Provoca que el material se oxide instantáneamente en contacto con el aire.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Los nanotubos de carbono son químicamente estables en condiciones normales.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Su estructura molecular permite soportar tensiones axiales extremadamente altas.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Aumenta drásticamente la resistencia a lo largo del eje longitudinal del tubo.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Su estructura molecular permite soportar tensiones axiales extremadamente altas.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Al contrario, su forma y tamaño los hacen excelentes para integrarse en matrices poliméricas.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Impide que el material pueda mezclarse con polímeros.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Al contrario, su forma y tamaño los hacen excelentes para integrarse en matrices poliméricas.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Al ser huecos y de carbono, son extremadamente ligeros.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Hace que el material sea muy pesado y difícil de transportar.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Al ser huecos y de carbono, son extremadamente ligeros.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="25">
+          <div class="q-header">
+            <span class="q-number">Pregunta 26</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">Si se desea diseñar un chasis de auto hiperligero que resista impactos, ¿qué nanomaterial del material de lectura sería el más adecuado por su capacidad de absorción?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Busca el material que combina ligereza con disipación de energía cinética.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Se usan principalmente para filtros, no como estructura primaria de absorción de colisiones.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Nanofibras Poliméricas.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Se usan principalmente para filtros, no como estructura primaria de absorción de colisiones.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El aerogel es demasiado frágil para soportar los esfuerzos mecánicos de un impacto vehicular.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Aerogel de Sílice.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El aerogel es demasiado frágil para soportar los esfuerzos mecánicos de un impacto vehicular.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="true" data-rationale="El texto menciona específicamente su capacidad para absorber impactos masivos siendo ligeras.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Espumas Metálicas Nanocristalinas.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El texto menciona específicamente su capacidad para absorber impactos masivos siendo ligeras.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Estas se usan para recubrimientos, no para la estructura principal de absorción de energía de un chasis.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Nanopartículas de Dióxido de Titanio.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Estas se usan para recubrimientos, no para la estructura principal de absorción de energía de un chasis.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      </div>
+  <div class="results" id="results">
+    <h2>¡Cuestionario completado!</h2>
+    <div class="score" id="score">0%</div>
+    <div class="score-text" id="score-text"></div>
+    <button class="restart-btn" onclick="restart()">Intentar de nuevo</button>
+  </div>
+</div>
+<script>
+const quizData = [{"question":"¿Cuál es la característica principal que diferencia al grafeno del acero en términos de resistencia mecánica según el material proporcionado?","hint":"Compara la magnitud de la capacidad de carga entre ambos materiales.","options":[{"label":"A","text":"Es aproximadamente $200$ veces más resistente que el acero.","isCorrect":true,"rationale":"El texto destaca que una sola capa de átomos de carbono del grafeno supera enormemente la resistencia del acero convencional."},{"label":"B","text":"Es $200$ veces más pesado que el acero por unidad de volumen.","isCorrect":false,"rationale":"El grafeno es conocido por su ligereza y resistencia, no por ser más pesado que los metales tradicionales."},{"label":"C","text":"Es un material frágil que no soporta esfuerzos de tracción.","isCorrect":false,"rationale":"El grafeno posee una resistencia a la tracción excepcional, lo que lo hace ideal para aplicaciones estructurales avanzadas."},{"label":"D","text":"Tiene un Módulo de Elasticidad ($E$) inferior al del acero.","isCorrect":false,"rationale":"Los nanomateriales como el grafeno suelen tener módulos de elasticidad mucho más altos que los materiales macroscópicos."}]},{"question":"En el contexto del curso, ¿cómo se define la fórmula para calcular el Factor de Seguridad ($FS$)?","hint":"Recuerda que el valor debe ser usualmente mayor a 1 para garantizar la integridad.","options":[{"label":"A","text":"$FS = \\frac{\\text{Esfuerzo Permisible}}{\\text{Esfuerzo de Falla}}$","isCorrect":false,"rationale":"Esta relación daría un valor menor a $1$ en condiciones seguras, lo cual es opuesto a la convención de ingeniería."},{"label":"B","text":"$FS = E \\times \\text{Esfuerzo de Falla}$","isCorrect":false,"rationale":"El factor de seguridad es una relación adimensional y no el producto del Módulo de Elasticidad por el esfuerzo."},{"label":"C","text":"$FS = \\frac{\\text{Esfuerzo de Falla}}{\\text{Esfuerzo Permisible}}$","isCorrect":true,"rationale":"El factor de seguridad relaciona la capacidad máxima de resistencia del material con la carga de trabajo segura."},{"label":"D","text":"$FS = \\frac{\\text{Módulo de Elasticidad}}{\\text{Esfuerzo de Rotura}}$","isCorrect":false,"rationale":"El módulo de elasticidad mide la rigidez, no la seguridad estructural frente a la falla."}]},{"question":"¿Por qué el Aerogel de Sílice es de particular interés en la ingeniería industrial para plantas de procesamiento?","hint":"Piensa en su aplicación para proteger contra variaciones de temperatura.","options":[{"label":"A","text":"Funciona como un aislante térmico extremo siendo el sólido más ligero del mundo.","isCorrect":true,"rationale":"Su estructura porosa le otorga propiedades térmicas únicas y una densidad extremadamente baja."},{"label":"B","text":"Es el material con el mayor Módulo de Elasticidad ($E$) conocido.","isCorrect":false,"rationale":"El aerogel es muy poroso y frágil, teniendo un módulo de elasticidad bajo en comparación con el grafeno o los nanotubos."},{"label":"C","text":"Se utiliza para fabricar cables de ascensores espaciales por su alta ductilidad.","isCorrect":false,"rationale":"Aunque es ligero, su fragilidad lo hace poco apto para cables que requieran alta resistencia a la tracción."},{"label":"D","text":"Sustituye al acero en vigas estructurales de carga pesada.","isCorrect":false,"rationale":"Su baja resistencia mecánica estructural impide su uso como reemplazo directo de vigas de acero."}]},{"question":"Si un grupo de estudiantes utiliza Nanocelulosa para un proyecto, ¿con qué material tradicional compararían su resistencia a la tracción según la guía?","hint":"Busca un metal común conocido por ser ligero pero resistente.","options":[{"label":"A","text":"Bronce.","isCorrect":false,"rationale":"El bronce no es el referente de ligereza y resistencia específica mencionado para la nanocelulosa."},{"label":"B","text":"Aluminio.","isCorrect":true,"rationale":"El material de origen vegetal presenta una resistencia específica comparable a la de aleaciones ligeras como el aluminio."},{"label":"C","text":"Acero de alta resistencia.","isCorrect":false,"rationale":"Aunque es fuerte para ser biológico, su resistencia no iguala de forma general a los aceros de grado estructural."},{"label":"D","text":"Concreto armado.","isCorrect":false,"rationale":"El concreto destaca en compresión, mientras que la nanocelulosa se destaca por su ligereza y tracción."}]},{"question":"¿Cuál es la función principal de las Nanopartículas de Dióxido de Titanio ($TiO_2$) en recubrimientos industriales?","hint":"Considera cómo estas partículas afectan la interacción de la superficie con el entorno.","options":[{"label":"A","text":"Reducir el peso de los ejes de transmisión de potencia.","isCorrect":false,"rationale":"Como recubrimiento, su aporte a la reducción de peso total del componente es insignificante."},{"label":"B","text":"Crear superficies autolimpiantes y ultra resistentes a la corrosión.","isCorrect":true,"rationale":"Las propiedades químicas del $TiO_{2}$ a escala nano permiten la descomposición de materia orgánica y protección galvánica."},{"label":"C","text":"Servir como aislante acústico en salas de máquinas.","isCorrect":false,"rationale":"No es su aplicación principal; para ello se prefieren materiales porosos o espumas."},{"label":"D","text":"Aumentar el factor de seguridad de las vigas estructurales contra el pandeo.","isCorrect":false,"rationale":"El $TiO_{2}$ se usa como recubrimiento superficial, no cambia las propiedades geométricas de la viga frente al pandeo."}]},{"question":"¿Qué ventaja ofrecen las Espumas Metálicas Nanocristalinas en el diseño de maquinaria?","hint":"Enfócate en la relación entre su estructura porosa y la seguridad contra colisiones.","options":[{"label":"A","text":"Son extremadamente ligeras y pueden absorber impactos masivos.","isCorrect":true,"rationale":"Su estructura de porosidad controlada a escala nano permite una gran disipación de energía cinética."},{"label":"B","text":"Poseen un Módulo de Elasticidad ($E$) infinito.","isCorrect":false,"rationale":"Todos los materiales tienen un límite de rigidez; las espumas son generalmente menos rígidas que los metales compactos."},{"label":"C","text":"Tienen una conductividad térmica superior a la del cobre puro.","isCorrect":false,"rationale":"Las espumas, al ser mayormente aire, suelen tener conductividades térmicas menores que el metal sólido."},{"label":"D","text":"Eliminan la necesidad de usar Factores de Seguridad en el diseño.","isCorrect":false,"rationale":"Ningún material, por avanzado que sea, elimina la necesidad de un margen de seguridad en ingeniería industrial."}]},{"question":"Sobre la obtención de información para la Semana 15, ¿por qué los estudiantes no pueden usar solo la bibliografía básica del curso?","hint":"Considera la antigüedad y el enfoque de los textos de ingeniería tradicionales.","options":[{"label":"A","text":"Porque el curso solo permite el uso de la Biblioteca Virtual UPN.","isCorrect":false,"rationale":"La Biblioteca Virtual es una sugerencia, pero el motivo real es la ausencia de datos actualizados en textos clásicos."},{"label":"B","text":"Porque las tablas de propiedades mecánicas tradicionales no incluyen nanomateriales específicos.","isCorrect":true,"rationale":"Los libros clásicos de resistencia de materiales se centran en metales, maderas y polímeros convencionales."},{"label":"C","text":"Porque los nanomateriales no tienen un Módulo de Elasticidad ($E$) definido.","isCorrect":false,"rationale":"Todos los materiales sólidos poseen propiedades mecánicas medibles, aunque sean a nanoescala."},{"label":"D","text":"Porque el sílabo prohíbe el uso de libros físicos para el examen final.","isCorrect":false,"rationale":"El sílabo no prohíbe los libros físicos, sino que señala que la información de frontera no está contenida en ellos."}]},{"question":"Los Nanotubos de Carbono (CNT) son descritos como ideales para:","hint":"Su forma cilíndrica a escala molecular les otorga una rigidez excepcional.","options":[{"label":"A","text":"Ser utilizados como lubricantes líquidos en motores de combustión.","isCorrect":false,"rationale":"Los CNT son estructuras sólidas cilíndricas, no fluidos lubricantes."},{"label":"B","text":"Actuar como aislantes eléctricos en cables de alta tensión.","isCorrect":false,"rationale":"Los nanotubos de carbono suelen tener una excelente conductividad eléctrica, lo opuesto a un aislante."},{"label":"C","text":"Reforzar polímeros debido a su altísimo módulo de elasticidad.","isCorrect":true,"rationale":"Su alta rigidez estructural mejora significativamente las propiedades de matrices plásticas en compuestos."},{"label":"D","text":"Reemplazar el concreto en cimentaciones profundas por su bajo costo.","isCorrect":false,"rationale":"Actualmente, los CNT tienen un costo de producción muy elevado para aplicaciones de volumen masivo como el concreto."}]},{"question":"¿Qué característica define a los MXenos mencionados en el Grupo 8?","hint":"Son compuestos de metales de transición que atraen el agua.","options":[{"label":"A","text":"Fibras continuas obtenidas por procesos de fundición tradicional.","isCorrect":false,"rationale":"Los MXenos son materiales bidimensionales ($2\\text{D}$), no fibras macroscópicas fundidas."},{"label":"B","text":"Materiales $2\\text{D}$ con conductividad metálica e hidrofilia.","isCorrect":true,"rationale":"Esta combinación de propiedades los hace únicos para el almacenamiento de energía y aplicaciones industriales líquidas."},{"label":"C","text":"Gases nobles utilizados para la refrigeración de reactores.","isCorrect":false,"rationale":"Los MXenos son sólidos cristalinos a nivel atómico."},{"label":"D","text":"Polímeros naturales extraídos de la pared celular de las plantas.","isCorrect":false,"rationale":"Esa descripción corresponde a la nanocelulosa, no a los carburos de metales de transición (MXenos)."}]},{"question":"Al realizar la \"Radiografía\" de las propiedades mecánicas, ¿qué representa el Esfuerzo de Rotura o Falla a Tracción ($\\sigma_{u}$)?","hint":"Se refiere al valor máximo en el diagrama de esfuerzo-deformación antes del colapso.","options":[{"label":"A","text":"La relación entre la carga aplicada y el factor de seguridad.","isCorrect":false,"rationale":"El esfuerzo de rotura es una propiedad intrínseca del material, no depende del factor de seguridad elegido."},{"label":"B","text":"La máxima intensidad de fuerza interna que el material soporta antes de romperse.","isCorrect":true,"rationale":"Es el punto crítico de diseño que determina el límite último de seguridad del material."},{"label":"C","text":"La deformación permanente que sufre el material al ser golpeado.","isCorrect":false,"rationale":"El esfuerzo de rotura es una medida de fuerza por unidad de área, no de deformación (alargamiento)."},{"label":"D","text":"La rigidez del material dentro del rango elástico.","isCorrect":false,"rationale":"La rigidez está definida por el Módulo de Elasticidad ($E$), no por el esfuerzo de falla."}]},{"question":"¿Qué se busca evaluar cuando se les pide a los estudiantes identificar la \"Desventaja/Limitación Actual\" del nanomaterial?","hint":"Considera por qué no vemos edificios hechos completamente de grafeno todavía.","options":[{"label":"A","text":"La imposibilidad de medir sus propiedades con instrumentos modernos.","isCorrect":false,"rationale":"Las propiedades se pueden medir; el reto es la implementación industrial masiva."},{"label":"B","text":"La viabilidad económica y logística de su producción a gran escala.","isCorrect":true,"rationale":"Muchos nanomateriales son excelentes en el laboratorio pero difíciles o costosos de fabricar masivamente."},{"label":"C","text":"Si el material cumple con las Leyes de Newton.","isCorrect":false,"rationale":"Todos los materiales físicos cumplen con las leyes fundamentales de la mecánica."},{"label":"D","text":"La incapacidad del material para poseer un factor de seguridad.","isCorrect":false,"rationale":"Cualquier material puede ser analizado bajo el criterio del factor de seguridad en diseño."}]},{"question":"En la actividad grupal, los estudiantes actúan como \"firmas consultoras\". ¿Cuál es el objetivo comunicativo de su presentación de 7 minutos?","hint":"El enfoque es la persuasión profesional basada en datos de ingeniería.","options":[{"label":"A","text":"Resolver un examen escrito sobre vigas y ejes en tiempo real.","isCorrect":false,"rationale":"La actividad es una sustentación de proyecto aplicativo final, no un examen de resolución de problemas tradicionales."},{"label":"B","text":"\"Vender\" la viabilidad técnica y económica del nanomaterial a una gerencia global.","isCorrect":true,"rationale":"Se busca que el estudiante no solo calcule, sino que sustente con criterio profesional la aplicación tecnológica."},{"label":"C","text":"Demostrar que pueden memorizar las tablas de propiedades del acero.","isCorrect":false,"rationale":"El enfoque es la innovación y el uso de materiales de frontera, no la memorización de datos tradicionales."},{"label":"D","text":"Explicar la historia de la nanotecnología desde el siglo XVIII.","isCorrect":false,"rationale":"La presentación debe ser técnica y enfocada en propiedades mecánicas y aplicaciones actuales."}]},{"question":"Las Fibras Electrohiladas (Nanofibras Poliméricas) se destacan en la industria principalmente por su uso en:","hint":"Piensa en aplicaciones que requieren una gran área superficial en espacios pequeños.","options":[{"label":"A","text":"Estructuras de soporte para puentes colgantes.","isCorrect":false,"rationale":"Aunque son resistentes a su escala, las fibras electrohiladas no se usan para cargas estructurales macroscópicas civiles."},{"label":"B","text":"Blindaje de reactores nucleares contra la radiación gamma.","isCorrect":false,"rationale":"El blindaje requiere materiales densos como el plomo, no fibras poliméricas delgadas."},{"label":"C","text":"Sistemas de filtración industrial y biomanufactura.","isCorrect":true,"rationale":"Su alta relación superficie-volumen las hace extremadamente eficientes para capturar partículas diminutas."},{"label":"D","text":"Reemplazo de combustibles fósiles en calderas.","isCorrect":false,"rationale":"Son materiales estructurales o funcionales, no fuentes de energía térmica."}]},{"question":"¿Qué relación existe entre el logro de la sesión de la Semana 15 y el sílabo oficial del curso?","hint":"Observa cómo se vincula la teoría de materiales con las metas del plan de estudios.","options":[{"label":"A","text":"Sustituye por completo los temas de estática vistos al inicio.","isCorrect":false,"rationale":"Complementa y aplica lo aprendido, integrando conceptos de esfuerzos y diseño."},{"label":"B","text":"Es una actividad opcional que no afecta la calificación final.","isCorrect":false,"rationale":"El material indica que es el \"cierre perfecto\" y parte de las sustentaciones finales obligatorias."},{"label":"C","text":"Es una actividad exclusivamente teórica sin cálculos matemáticos.","isCorrect":false,"rationale":"Se exige calcular el factor de seguridad y proponer esfuerzos permisibles."},{"label":"D","text":"Cumple con la sustentación de proyectos finales y fomenta la investigación e innovación.","isCorrect":true,"rationale":"El sílabo destina la semana 15 a las sustentaciones y el curso tiene como eje el desarrollo tecnológico."}]},{"question":"Si un material tiene un Esfuerzo de Falla de $1000 \\text{ MPa}$ y se decide usar un Esfuerzo Permisible de $250 \\text{ MPa}$, ¿cuál es su Factor de Seguridad ($FS$)?","hint":"Divide la resistencia máxima entre el valor de diseño seguro.","options":[{"label":"A","text":"$4$","isCorrect":true,"rationale":"$FS = \\frac{1000}{250} = 4$. Esto significa que el material está trabajando al $25\\%$ de su capacidad máxima."},{"label":"B","text":"$750$","isCorrect":false,"rationale":"El factor de seguridad es una división, no una resta de valores de esfuerzo."},{"label":"C","text":"$0.25$","isCorrect":false,"rationale":"Un $FS$ de $0.25$ indicaría que el material ya ha fallado, pues la carga aplicada supera la resistencia."},{"label":"D","text":"$2.5$","isCorrect":false,"rationale":"Este resultado es un error de cálculo aritmético simple en la división."}]},{"question":"¿Por qué es vital para un ingeniero industrial conocer el comportamiento dominante (dúctil o frágil) de un nanomaterial?","hint":"Considera el tipo de deformación previa a la rotura total.","options":[{"label":"A","text":"Para predecir si el componente avisará antes de fallar o si colapsará súbitamente.","isCorrect":true,"rationale":"Los materiales dúctiles se deforman notablemente antes de romperse, mientras que los frágiles fallan sin previo aviso."},{"label":"B","text":"Porque los materiales frágiles siempre tienen un Factor de Seguridad ($FS$) de $1$.","isCorrect":false,"rationale":"Los materiales frágiles suelen requerir factores de seguridad más altos, no menores."},{"label":"C","text":"Para saber si el material puede conducir electricidad o no.","isCorrect":false,"rationale":"La ductilidad y fragilidad son propiedades mecánicas, no eléctricas."},{"label":"D","text":"Para determinar el color final del producto manufacturado.","isCorrect":false,"rationale":"Estas propiedades no tienen relación directa con las características ópticas o estéticas."}]},{"question":"¿Cuál es la utilidad de comparar el Módulo de Elasticidad ($E$) de un nanomaterial frente al acero?","hint":"El módulo $E$ indica la resistencia a ser deformado elásticamente.","options":[{"label":"A","text":"Evaluar la dureza superficial del material.","isCorrect":false,"rationale":"La dureza y el módulo de elasticidad son conceptos distintos, aunque a veces están relacionados."},{"label":"B","text":"Saber si el material se oxidará más rápido que el acero.","isCorrect":false,"rationale":"La oxidación es una propiedad química, mientras que el módulo $E$ es una propiedad mecánica."},{"label":"C","text":"Determinar qué tan rígido es el nuevo material en comparación con el estándar industrial.","isCorrect":true,"rationale":"El módulo de elasticidad es la medida de la rigidez de un material frente a la deformación elástica."},{"label":"D","text":"Calcular el peso total de la estructura.","isCorrect":false,"rationale":"El peso depende de la densidad y el volumen, no directamente del módulo de elasticidad."}]},{"question":"Dentro del reto analítico de la sustentación, ¿qué debe \"inventar\" el grupo de estudiantes?","hint":"Se trata de proponer una aplicación práctica basada en parámetros de seguridad.","options":[{"label":"A","text":"Los datos del Módulo de Elasticidad ($E$) sin investigar.","isCorrect":false,"rationale":"El texto explícitamente pide investigar en fuentes externas como artículos científicos o fichas técnicas."},{"label":"B","text":"Un caso de diseño con una pieza y un Esfuerzo Permisible realista.","isCorrect":true,"rationale":"Se busca que apliquen la teoría a una situación hipotética de ingeniería en una planta industrial."},{"label":"C","text":"Un nuevo nombre para el nanomaterial asignado.","isCorrect":false,"rationale":"Los nombres de los materiales ya están establecidos por la ciencia."},{"label":"D","text":"Una nueva ley de la física que reemplace a la estática.","isCorrect":false,"rationale":"El objetivo es aplicar las leyes existentes a materiales innovadores."}]},{"question":"Según la conclusión del curso, ¿qué conocimientos previos han integrado los estudiantes para llegar a la Semana 15?","hint":"Repasa la progresión temática desde el inicio del ciclo académico.","options":[{"label":"A","text":"Programación de software para inteligencia artificial.","isCorrect":false,"rationale":"El contenido descrito es mecánico y estructural, no informático."},{"label":"B","text":"Leyes de Newton, cálculos de reacciones, esfuerzos normales, cortantes y pandeo.","isCorrect":true,"rationale":"La resistencia de materiales construye sobre la estática para predecir el comportamiento interno de las estructuras."},{"label":"C","text":"Contabilidad de costos aplicada a la minería.","isCorrect":false,"rationale":"El curso se centra en la física de los materiales, no en la gestión financiera minera."},{"label":"D","text":"Únicamente principios de marketing y ventas industriales.","isCorrect":false,"rationale":"Aunque la feria tiene un tono de \"venta\", el núcleo es el análisis de ingeniería y resistencia."}]},{"question":"¿Qué nanomaterial se describe como una \"sola capa de átomos de carbono\"?","hint":"Es un material bidimensional ($2\\text{D}$) de carbono puro.","options":[{"label":"A","text":"MXenos.","isCorrect":false,"rationale":"Los MXenos contienen metales de transición además de carbono o nitrógeno."},{"label":"B","text":"Nanotubos de Carbono.","isCorrect":false,"rationale":"Los nanotubos son láminas enrolladas en forma de cilindro, no una capa plana simple."},{"label":"C","text":"Grafeno.","isCorrect":true,"rationale":"Es la definición clásica del grafeno: una red hexagonal bidimensional de carbono."},{"label":"D","text":"Aerogel.","isCorrect":false,"rationale":"El aerogel suele basarse en sílice u otros compuestos químicos, no solo en carbono elemental."}]},{"question":"Al investigar artículos científicos para la feria, ¿qué base de datos se sugiere explícitamente en el material?","hint":"Es una herramienta de investigación propia de tu universidad.","options":[{"label":"A","text":"Redes sociales profesionales como LinkedIn.","isCorrect":false,"rationale":"LinkedIn es para redes profesionales, no es una base de datos de investigación científica primaria."},{"label":"B","text":"Wikipedia en español.","isCorrect":false,"rationale":"Aunque es útil para conceptos generales, no se menciona como fuente de artículos científicos o fichas técnicas en el texto."},{"label":"C","text":"Biblioteca Virtual UPN.","isCorrect":true,"rationale":"Es el recurso institucional recomendado para acceder a información técnica confiable."},{"label":"D","text":"Buscadores de ofertas de empleo.","isCorrect":false,"rationale":"No proporcionan la información técnica de propiedades mecánicas requerida."}]},{"question":"¿Qué significa que un material tenga \"conductividad metálica e hidrofilia asombrosa\" como los MXenos?","hint":"Analiza las raíces de las palabras: conductividad e hidro-filia.","options":[{"label":"A","text":"Que conduce electricidad como un metal y tiene afinidad por el agua.","isCorrect":true,"rationale":"La hidrofilia es la propiedad de atraer o mezclarse con el agua, lo cual es inusual en materiales tan conductores."},{"label":"B","text":"Que solo puede usarse en ambientes secos y sin electricidad.","isCorrect":false,"rationale":"Sus propiedades justamente lo hacen apto para almacenamiento de energía y procesos en medios líquidos."},{"label":"C","text":"Que es un material orgánico derivado del petróleo.","isCorrect":false,"rationale":"Los MXenos son inorgánicos, compuestos de carburos o nitruros de metales."},{"label":"D","text":"Que repele el agua y es un aislante eléctrico perfecto.","isCorrect":false,"rationale":"Esto sería hidrofobia y comportamiento dieléctrico, lo opuesto a lo descrito."}]},{"question":"¿Cuál es el propósito de definir un \"Esfuerzo Permisible\" en un diseño de ingeniería?","hint":"Es una medida de precaución en la aplicación de cargas.","options":[{"label":"A","text":"Igualar el esfuerzo aplicado al esfuerzo de falla del material.","isCorrect":false,"rationale":"Si el esfuerzo permisible fuera igual al de falla, el factor de seguridad sería $1$, lo cual es muy riesgoso."},{"label":"B","text":"Asegurar que el material trabaje lejos de su límite de rotura para evitar fallas imprevistas.","isCorrect":true,"rationale":"El esfuerzo permisible es la carga máxima de operación segura autorizada para el componente."},{"label":"C","text":"Incrementar el costo de los materiales para obtener mayores ganancias.","isCorrect":false,"rationale":"El objetivo es la seguridad y eficiencia, no el encarecimiento arbitrario."},{"label":"D","text":"Hacer que el material sea más dúctil de lo que es originalmente.","isCorrect":false,"rationale":"El esfuerzo permisible es un valor de cálculo de diseño, no altera las propiedades físicas del material."}]},{"question":"¿En qué semana del curso se realiza la \"Feria de Innovación Nanotecnológica\" según la propuesta?","hint":"Es la última semana académica antes de finalizar el curso.","options":[{"label":"A","text":"Semana $14$.","isCorrect":false,"rationale":"La semana $14$ es donde se planifica y se da la instrucción, pero la feria es en la $15$."},{"label":"B","text":"En el examen parcial.","isCorrect":false,"rationale":"El examen parcial ocurre a mitad de ciclo, no es el cierre magistral con nanomateriales."},{"label":"C","text":"Semana $15$.","isCorrect":true,"rationale":"El material indica claramente que es el cierre magistral destinado a las sustentaciones finales."},{"label":"D","text":"Semana $1$.","isCorrect":false,"rationale":"En la semana $1$ se introducen los conceptos básicos, no se realiza la sustentación final."}]},{"question":"Los Nanotubos de Carbono (CNT) se describen como \"Cilindros a nanoescala\". ¿Qué implicación mecánica suele tener esta geometría?","hint":"Considera la dirección en la que las fuerzas actúan sobre una estructura tubular.","options":[{"label":"A","text":"Provoca que el material se oxide instantáneamente en contacto con el aire.","isCorrect":false,"rationale":"Los nanotubos de carbono son químicamente estables en condiciones normales."},{"label":"B","text":"Aumenta drásticamente la resistencia a lo largo del eje longitudinal del tubo.","isCorrect":true,"rationale":"Su estructura molecular permite soportar tensiones axiales extremadamente altas."},{"label":"C","text":"Impide que el material pueda mezclarse con polímeros.","isCorrect":false,"rationale":"Al contrario, su forma y tamaño los hacen excelentes para integrarse en matrices poliméricas."},{"label":"D","text":"Hace que el material sea muy pesado y difícil de transportar.","isCorrect":false,"rationale":"Al ser huecos y de carbono, son extremadamente ligeros."}]},{"question":"Si se desea diseñar un chasis de auto hiperligero que resista impactos, ¿qué nanomaterial del material de lectura sería el más adecuado por su capacidad de absorción?","hint":"Busca el material que combina ligereza con disipación de energía cinética.","options":[{"label":"A","text":"Nanofibras Poliméricas.","isCorrect":false,"rationale":"Se usan principalmente para filtros, no como estructura primaria de absorción de colisiones."},{"label":"B","text":"Aerogel de Sílice.","isCorrect":false,"rationale":"El aerogel es demasiado frágil para soportar los esfuerzos mecánicos de un impacto vehicular."},{"label":"C","text":"Espumas Metálicas Nanocristalinas.","isCorrect":true,"rationale":"El texto menciona específicamente su capacidad para absorber impactos masivos siendo ligeras."},{"label":"D","text":"Nanopartículas de Dióxido de Titanio.","isCorrect":false,"rationale":"Estas se usan para recubrimientos, no para la estructura principal de absorción de energía de un chasis."}]}];
+const tr = {"correct":"¡Correcto!","incorrect":"Incorrecto","next":"Siguiente pregunta →","seeResults":"Ver resultados","complete":"¡Cuestionario completado!","scoreText":"Obtuviste {correct} de {total} correctas","tryAgain":"Intentar de nuevo","rightAnswer":"Respuesta correcta","notQuite":"No del todo"};
+let currentQ = 0, correctCount = 0, answered = false;
+
+function init() {
+  document.querySelectorAll('.question').forEach((q, i) => q.classList.toggle('active', i === 0));
+  updateProgress();
+  document.querySelectorAll('.option').forEach(opt => opt.addEventListener('click', () => selectOption(opt)));
+  document.querySelectorAll('.next-btn').forEach(btn => btn.addEventListener('click', nextQuestion));
+}
+
+function selectOption(opt) {
+  if (answered) return;
+  answered = true;
+  const q = opt.closest('.question');
+  const options = q.querySelectorAll('.option');
+  const nextBtn = q.querySelector('.next-btn');
+  const isCorrect = opt.dataset.correct === 'true';
+  
+  // Mark all options as disabled
+  options.forEach(o => o.classList.add('disabled'));
+  
+  // Style selected option
+  opt.classList.add('selected', isCorrect ? 'correct' : 'incorrect');
+  
+  // Show correct answer if wrong
+  if (!isCorrect) {
+    const correctOpt = [...options].find(o => o.dataset.correct === 'true');
+    if (correctOpt) correctOpt.classList.add('show-correct');
+  }
+  
+  if (isCorrect) correctCount++;
+  
+  // Show feedback for ALL options that have rationale
+  options.forEach(o => {
+    const wrapper = o.closest('.option-wrapper');
+    const feedback = wrapper.querySelector('.option-feedback');
+    const rationale = o.dataset.rationale;
+    const isThisCorrect = o.dataset.correct === 'true';
+    
+    if (rationale && rationale.trim()) {
+      feedback.classList.remove('hidden');
+      feedback.classList.add(isThisCorrect ? 'correct-feedback' : 'incorrect-feedback');
+      
+      const statusEl = feedback.querySelector('.feedback-status');
+      statusEl.className = 'feedback-status ' + (isThisCorrect ? 'correct' : 'incorrect');
+      statusEl.innerHTML = isThisCorrect 
+        ? '✓ ' + tr.rightAnswer
+        : '✗ ' + tr.notQuite;
+    }
+  });
+  
+  nextBtn.classList.remove('hidden');
+  if (currentQ === quizData.length - 1) nextBtn.textContent = tr.seeResults;
+}
+
+function nextQuestion() {
+  answered = false;
+  currentQ++;
+  if (currentQ >= quizData.length) { showResults(); return; }
+  document.querySelectorAll('.question').forEach((q, i) => q.classList.toggle('active', i === currentQ));
+  updateProgress();
+}
+
+function updateProgress() {
+  document.querySelector('.progress-fill').style.width = (currentQ / quizData.length * 100) + '%';
+}
+
+function showResults() {
+  document.querySelectorAll('.question').forEach(q => q.classList.remove('active'));
+  document.getElementById('results').classList.add('active');
+  const pct = Math.round((correctCount / quizData.length) * 100);
+  document.getElementById('score').textContent = pct + '%';
+  document.getElementById('score-text').textContent = tr.scoreText.replace('{correct}', correctCount).replace('{total}', quizData.length);
+  document.querySelector('.progress-fill').style.width = '100%';
+}
+
+function restart() {
+  currentQ = 0; correctCount = 0; answered = false;
+  document.getElementById('results').classList.remove('active');
+  document.querySelectorAll('.question').forEach((q, i) => {
+    q.classList.toggle('active', i === 0);
+    q.querySelectorAll('.option').forEach(o => o.classList.remove('selected', 'correct', 'incorrect', 'disabled', 'show-correct'));
+    q.querySelectorAll('.option-feedback').forEach(f => {
+      f.classList.add('hidden');
+      f.classList.remove('correct-feedback', 'incorrect-feedback');
+    });
+    const btn = q.querySelector('.next-btn');
+    btn.classList.add('hidden');
+    btn.textContent = tr.next;
+  });
+  updateProgress();
+}
+
+init();
+</script>
+</body>
+</html>
