@@ -1,0 +1,866 @@
+<!DOCTYPE html>
+<html lang="es" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Introducción al mercado laboral - Cuestionario</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  min-height: 100vh; padding: 20px; color: #333;
+}
+.container { max-width: 700px; margin: 0 auto; }
+.header { text-align: center; color: #fff; padding: 30px 20px; }
+.header h1 { font-size: 28px; font-weight: 700; margin-bottom: 8px; text-shadow: 0 2px 10px rgba(0,0,0,0.2); }
+.header .meta { font-size: 14px; opacity: 0.9; }
+.progress-bar { background: rgba(255,255,255,0.3); border-radius: 10px; height: 8px; margin: 20px 0; overflow: hidden; }
+.progress-fill { background: #fff; height: 100%; width: 0%; transition: width 0.4s ease; border-radius: 10px; }
+.question { background: #fff; border-radius: 16px; padding: 30px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); display: none; }
+.question.active { display: block; }
+.q-header { display: flex; justify-content: space-between; margin-bottom: 20px; font-size: 13px; color: #888; }
+.q-number { font-weight: 600; color: #667eea; }
+.q-text { font-size: 18px; font-weight: 600; line-height: 1.5; margin-bottom: 25px; color: #222; }
+.options { display: flex; flex-direction: column; gap: 12px; }
+.option-wrapper { display: flex; flex-direction: column; }
+.option {
+  display: flex; align-items: flex-start; gap: 14px; padding: 16px 18px;
+  border: 2px solid #e8e8e8; border-radius: 12px; background: #fafafa;
+  cursor: pointer; transition: all 0.2s; text-align: left; font-size: 15px; width: 100%;
+}
+[dir="rtl"] .option { text-align: right; flex-direction: row-reverse; }
+.option:hover:not(.disabled) { border-color: #667eea; background: #f5f3ff; }
+.option.selected { border-color: #667eea; background: #ede9fe; }
+.option.correct { border-color: #22c55e; background: #dcfce7; }
+.option.incorrect { border-color: #ef4444; background: #fee2e2; }
+.option.disabled { cursor: default; }
+.option.show-correct { border-color: #22c55e; background: #dcfce7; }
+.opt-label {
+  display: flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; border-radius: 50%; background: #e8e8e8;
+  font-weight: 700; font-size: 14px; flex-shrink: 0;
+}
+.option.selected .opt-label { background: #667eea; color: #fff; }
+.option.correct .opt-label { background: #22c55e; color: #fff; }
+.option.incorrect .opt-label { background: #ef4444; color: #fff; }
+.option.show-correct .opt-label { background: #22c55e; color: #fff; }
+.opt-text { padding-top: 5px; line-height: 1.5; }
+
+/* Individual option feedback */
+.option-feedback {
+  margin: 8px 0 4px 46px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+[dir="rtl"] .option-feedback { margin-left: 0; margin-right: 46px; }
+.option-feedback.correct-feedback {
+  background: #dcfce7;
+  border-left: 3px solid #22c55e;
+}
+.option-feedback.incorrect-feedback {
+  background: #fef3f2;
+  border-left: 3px solid #fca5a5;
+}
+[dir="rtl"] .option-feedback.correct-feedback,
+[dir="rtl"] .option-feedback.incorrect-feedback {
+  border-left: none;
+  border-right: 3px solid;
+}
+[dir="rtl"] .option-feedback.correct-feedback { border-right-color: #22c55e; }
+[dir="rtl"] .option-feedback.incorrect-feedback { border-right-color: #fca5a5; }
+.feedback-status {
+  font-weight: 600;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.feedback-status.correct { color: #166534; }
+.feedback-status.incorrect { color: #991b1b; }
+.feedback-rationale { color: #444; }
+
+/* Hint box */
+.hint-box {
+  margin: 12px 0;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+}
+.hint-toggle {
+  width: 100%;
+  padding: 10px 16px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  color: #92400e;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.hint-toggle:hover { background: #fef3c7; }
+.hint-content {
+  padding: 0 16px;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s, padding 0.3s;
+  font-size: 14px;
+  color: #78350f;
+  line-height: 1.5;
+}
+.hint-box.show .hint-content {
+  padding: 0 16px 12px;
+  max-height: 200px;
+}
+
+.next-btn {
+  margin-top: 20px; width: 100%; padding: 14px;
+  background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; border: none;
+  border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.next-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(102,126,234,0.4); }
+.hidden { display: none !important; }
+.results { background: #fff; border-radius: 16px; padding: 40px; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.15); display: none; }
+.results.active { display: block; }
+.results h2 { font-size: 28px; margin-bottom: 10px; color: #333; }
+.results .score { font-size: 64px; font-weight: 700; color: #667eea; margin: 20px 0; }
+.results .score-text { font-size: 18px; color: #666; margin-bottom: 30px; }
+.restart-btn {
+  padding: 14px 40px; background: linear-gradient(135deg, #667eea, #764ba2);
+  color: #fff; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer;
+}
+
+/* Math CSS */
+.math, .math-block { font-family: "Cambria Math", "Times New Roman", Times, serif; font-style: italic; }
+.math-block { display: block; text-align: center; margin: 10px 0; font-size: 110%; }
+.frac { display: inline-flex; flex-direction: column; align-items: center; vertical-align: middle; margin: 0 3px; font-size: 0.9em; }
+.frac-num { border-bottom: 1px solid currentColor; padding: 0 4px 2px; line-height: 1.2; }
+.frac-den { padding: 2px 4px 0; line-height: 1.2; }
+.sqrt { white-space: nowrap; }
+.sqrt-content { border-top: 1px solid currentColor; padding: 0 3px; margin-left: 2px; }
+sup, sub { font-size: 0.75em; }
+sup { vertical-align: super; }
+sub { vertical-align: sub; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>Introducción al mercado laboral - Cuestionario</h1>
+    <div class="meta">15 preguntas</div>
+    <div class="progress-bar"><div class="progress-fill"></div></div>
+  </div>
+  <div id="quiz-container">
+        <div class="question" data-index="0">
+          <div class="q-header">
+            <span class="q-number">Pregunta 1</span>
+            <span class="q-of">/ 15</span>
+          </div>
+          <div class="q-text">Alcanzar el punto de equilibrio en una transición laboral significa que el valor neto aportado por el profesional es exactamente igual al valor que ha consumido de la organización.</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Reflexiona sobre la definición de equilibrio entre inversión y retorno.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Este concepto describe el momento en que la inversión realizada por la empresa en el nuevo colaborador se compensa con su productividad real.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Este concepto describe el momento en que la inversión realizada por la empresa en el nuevo colaborador se compensa con su productividad real.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Si el valor aportado no igualara al consumido, el profesional seguiría siendo un consumidor neto de recursos o ya habría pasado a ser un generador neto.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Si el valor aportado no igualara al consumido, el profesional seguiría siendo un consumidor neto de recursos o ya habría pasado a ser un generador neto.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="1">
+          <div class="q-header">
+            <span class="q-number">Pregunta 2</span>
+            <span class="q-of">/ 15</span>
+          </div>
+          <div class="q-text">La 'falacia de la acción inmediata' es un error fatal que implica la necesidad de implementar cambios estructurales profundos durante la primera semana para ganar respeto.</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considera si es prudente cambiar la estructura antes de conocer el contexto organizacional.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Actuar sin un diagnóstico previo es un error común; la eficacia requiere comprender primero la cultura y las variables reales del negocio.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Actuar sin un diagnóstico previo es un error común; la eficacia requiere comprender primero la cultura y las variables reales del negocio.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Watkins advierte que la urgencia por tomar decisiones drásticas antes de entender el contexto suele llevar al descarrilamiento laboral.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Watkins advierte que la urgencia por tomar decisiones drásticas antes de entender el contexto suele llevar al descarrilamiento laboral.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="2">
+          <div class="q-header">
+            <span class="q-number">Pregunta 3</span>
+            <span class="q-of">/ 15</span>
+          </div>
+          <div class="q-text">En el modelo STARS, el escenario de 'Realineamiento' (Realign) se caracteriza porque el éxito es aparente, pero existen problemas ocultos que requieren despertar urgencia de cambio.</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piensa en el reto de liderar cuando el equipo cree que todo va bien.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Esta descripción corresponde precisamente al Realineamiento; si los problemas fueran evidentes y profundos, se trataría de un Turnaround.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esta descripción corresponde precisamente al Realineamiento; si los problemas fueran evidentes y profundos, se trataría de un Turnaround.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="El desafío principal en este entorno es movilizar a la organización antes de que los problemas ocultos se conviertan en una crisis abierta.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El desafío principal en este entorno es movilizar a la organización antes de que los problemas ocultos se conviertan en una crisis abierta.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="3">
+          <div class="q-header">
+            <span class="q-number">Pregunta 4</span>
+            <span class="q-of">/ 15</span>
+          </div>
+          <div class="q-text">La conversación sobre el 'estilo' con el jefe directo tiene como objetivo principal negociar el presupuesto y los recursos financieros asignados al área.</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Diferencia entre el 'qué' se necesita y el 'cómo' se prefiere la interacción humana.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="La negociación de presupuestos pertenece a la 'conversación sobre recursos', no a la de estilo de comunicación.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La negociación de presupuestos pertenece a la 'conversación sobre recursos', no a la de estilo de comunicación.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Esta conversación busca entender las preferencias de interacción del supervisor, como la frecuencia de las reuniones y el nivel de detalle de los reportes.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esta conversación busca entender las preferencias de interacción del supervisor, como la frecuencia de las reuniones y el nivel de detalle de los reportes.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="4">
+          <div class="q-header">
+            <span class="q-number">Pregunta 5</span>
+            <span class="q-of">/ 15</span>
+          </div>
+          <div class="q-text">Las 'victorias tempranas' (Early Wins) deben ser proyectos de baja complejidad y alto impacto para construir credibilidad de manera acelerada.</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Recuerda el concepto de 'frutas al alcance de la mano' (low-hanging fruits).</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Se enfocan en resolver puntos de dolor históricos de forma limpia y rápida, lo que genera confianza con los stakeholders clave.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Se enfocan en resolver puntos de dolor históricos de forma limpia y rápida, lo que genera confianza con los stakeholders clave.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Elegir proyectos de alta complejidad técnica al inicio aumenta el riesgo de fracaso y retrasa la percepción de valor del nuevo líder.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Elegir proyectos de alta complejidad técnica al inicio aumenta el riesgo de fracaso y retrasa la percepción de valor del nuevo líder.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="5">
+          <div class="q-header">
+            <span class="q-number">Pregunta 6</span>
+            <span class="q-of">/ 15</span>
+          </div>
+          <div class="q-text">Según Watkins, la transición a un nuevo rol comienza oficialmente el primer día en que el profesional se presenta físicamente en su nuevo lugar de trabajo.</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">¿Cuándo debe empezar realmente el cambio de mentalidad profesional?</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="La transición comienza desde que se acepta la oferta, requiriendo un cambio de mentalidad y un pre-boarding estratégico.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La transición comienza desde que se acepta la oferta, requiriendo un cambio de mentalidad y un pre-boarding estratégico.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Esperar al primer día es un error; el proceso de 'promoverse a sí mismo' y desconectarse del rol anterior debe ser previo.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esperar al primer día es un error; el proceso de 'promoverse a sí mismo' y desconectarse del rol anterior debe ser previo.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="6">
+          <div class="q-header">
+            <span class="q-number">Pregunta 7</span>
+            <span class="q-of">/ 15</span>
+          </div>
+          <div class="q-text">En un escenario de 'Inversión de marcha' (Turnaround), la prioridad del profesional es tomar decisiones rápidas y difíciles para cortar lo que no funciona.</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Imagina una situación de emergencia empresarial donde el tiempo es el peor enemigo.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="La precaución extrema o el mantenimiento del statu quo en una crisis solo acelera el deterioro de la organización.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La precaución extrema o el mantenimiento del statu quo en una crisis solo acelera el deterioro de la organización.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Debido a que la unidad está en una crisis profunda, la velocidad en la toma de decisiones críticas es vital para la supervivencia operativa.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Debido a que la unidad está en una crisis profunda, la velocidad en la toma de decisiones críticas es vital para la supervivencia operativa.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="7">
+          <div class="q-header">
+            <span class="q-number">Pregunta 8</span>
+            <span class="q-of">/ 15</span>
+          </div>
+          <div class="q-text">El diagnóstico sistemático de aprendizaje debe limitarse únicamente al análisis de los datos técnicos y financieros para evitar sesgos culturales.</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considera si los números son suficientes para entender cómo funciona realmente una empresa.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Ignorar la cultura y el clima organizacional impide entender cómo se toman las decisiones realmente y quiénes ostentan el poder informal.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Ignorar la cultura y el clima organizacional impide entender cómo se toman las decisiones realmente y quiénes ostentan el poder informal.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Un diagnóstico robusto requiere analizar tres dimensiones: cultura/clima, estructura de negocio y datos operativos/financieros.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Un diagnóstico robusto requiere analizar tres dimensiones: cultura/clima, estructura de negocio y datos operativos/financieros.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="8">
+          <div class="q-header">
+            <span class="q-number">Pregunta 9</span>
+            <span class="q-of">/ 15</span>
+          </div>
+          <div class="q-text">Contar con autoridad formal (el organigrama) es suficiente para garantizar el éxito de los proyectos sin necesidad de mapear la red informal de la organización.</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Reflexiona sobre el papel de la política interna y el 'sistema inmunológico' organizacional.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="El poder formal no garantiza la colaboración; es indispensable identificar aliados clave y persuadir a los bloqueadores en la red horizontal.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El poder formal no garantiza la colaboración; es indispensable identificar aliados clave y persuadir a los bloqueadores en la red horizontal.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Muchos proyectos fracasan debido a la resistencia de bloqueadores potenciales en la red informal que no fueron considerados.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Muchos proyectos fracasan debido a la resistencia de bloqueadores potenciales en la red informal que no fueron considerados.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="9">
+          <div class="q-header">
+            <span class="q-number">Pregunta 10</span>
+            <span class="q-of">/ 15</span>
+          </div>
+          <div class="q-text">La arquitectura organizacional del rol implica que la estrategia y los sistemas deben estar alineados con las habilidades del equipo y la cultura existente.</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Imagina los pilares de la organización como piezas interconectadas de un motor.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Estos cuatro elementos funcionan como un sistema engranado; si uno falla o está desalineado, el plan estratégico se vuelve inviable.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Estos cuatro elementos funcionan como un sistema engranado; si uno falla o está desalineado, el plan estratégico se vuelve inviable.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="La desalineación entre la estrategia y las habilidades del equipo suele ser una causa principal de ineficiencia y fracaso en los primeros meses.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La desalineación entre la estrategia y las habilidades del equipo suele ser una causa principal de ineficiencia y fracaso en los primeros meses.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="10">
+          <div class="q-header">
+            <span class="q-number">Pregunta 11</span>
+            <span class="q-of">/ 15</span>
+          </div>
+          <div class="q-text">El error de 'llegar con la respuesta correcta' ocurre cuando el profesional asume que posee la verdad absoluta y que la organización actual está equivocada.</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Se relaciona con la soberbia intelectual al entrar a un entorno desconocido.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Este sesgo cognitivo es precisamente el que impide una integración armónica y el respeto por el conocimiento acumulado de la empresa.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Este sesgo cognitivo es precisamente el que impide una integración armónica y el respeto por el conocimiento acumulado de la empresa.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Esta actitud genera una resistencia inmediata en los equipos preexistentes y bloquea la capacidad de aprendizaje del nuevo integrante.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esta actitud genera una resistencia inmediata en los equipos preexistentes y bloquea la capacidad de aprendizaje del nuevo integrante.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="11">
+          <div class="q-header">
+            <span class="q-number">Pregunta 12</span>
+            <span class="q-of">/ 15</span>
+          </div>
+          <div class="q-text">En el escenario de 'Éxito sostenido' (Sustaining Success), el nuevo líder debe enfocarse principalmente en desmantelar los procesos actuales para innovar rápidamente.</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Si algo no está roto, piensa en cuál debería ser el nivel de intervención.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="En este escenario, la prioridad es preservar lo que funciona y solo buscar optimizaciones marginales para no dañar el éxito actual.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">En este escenario, la prioridad es preservar lo que funciona y solo buscar optimizaciones marginales para no dañar el éxito actual.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Cambiar radicalmente un área que opera de forma óptima es un error; el enfoque debe ser la mejora continua y la preservación del talento.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Cambiar radicalmente un área que opera de forma óptima es un error; el enfoque debe ser la mejora continua y la preservación del talento.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="12">
+          <div class="q-header">
+            <span class="q-number">Pregunta 13</span>
+            <span class="q-of">/ 15</span>
+          </div>
+          <div class="q-text">Para que una victoria temprana sea efectiva, el profesional debe establecer un indicador clave (<span class="math">&quot;KPI&quot;</span>) y una meta cuantitativa que demuestre el éxito antes del día 60.</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considera la importancia de los datos cuantitativos para validar el desempeño.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Sin una métrica clara, es difícil demostrar el valor real de la victoria temprana ante los superiores y el equipo.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Sin una métrica clara, es difícil demostrar el valor real de la victoria temprana ante los superiores y el equipo.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="La medición objetiva es fundamental para transformar una percepción subjetiva de mejora en una credibilidad sólida basada en datos.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La medición objetiva es fundamental para transformar una percepción subjetiva de mejora en una credibilidad sólida basada en datos.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="13">
+          <div class="q-header">
+            <span class="q-number">Pregunta 14</span>
+            <span class="q-of">/ 15</span>
+          </div>
+          <div class="q-text">La conversación sobre 'expectativas' con el jefe directo se centra en definir qué constituye el éxito a los 30, 60 y 90 días.</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Se trata de establecer la hoja de ruta de los entregables iniciales.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Alinear lo que el jefe espera con lo que el profesional planea ejecutar es el factor más determinante para evitar malentendidos tempranos.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Alinear lo que el jefe espera con lo que el profesional planea ejecutar es el factor más determinante para evitar malentendidos tempranos.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Esta conversación es vital; omitirla deja al azar la percepción del desempeño durante el trimestre más crítico.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esta conversación es vital; omitirla deja al azar la percepción del desempeño durante el trimestre más crítico.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="14">
+          <div class="q-header">
+            <span class="q-number">Pregunta 15</span>
+            <span class="q-of">/ 15</span>
+          </div>
+          <div class="q-text">El objetivo de la inserción laboral científica es extender el periodo de consumo de valor del profesional para asegurar que aprenda todo sobre la empresa.</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piensa en el impacto financiero de un periodo de adaptación demasiado lento.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="El objetivo es exactamente el opuesto: comprimir el tiempo de aprendizaje para llegar al punto de equilibrio lo antes posible.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El objetivo es exactamente el opuesto: comprimir el tiempo de aprendizaje para llegar al punto de equilibrio lo antes posible.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="La meta estratégica es mover la curva del punto de equilibrio hacia la izquierda, minimizando el tiempo en que el profesional es una carga para la organización.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La meta estratégica es mover la curva del punto de equilibrio hacia la izquierda, minimizando el tiempo en que el profesional es una carga para la organización.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      </div>
+  <div class="results" id="results">
+    <h2>¡Cuestionario completado!</h2>
+    <div class="score" id="score">0%</div>
+    <div class="score-text" id="score-text"></div>
+    <button class="restart-btn" onclick="restart()">Intentar de nuevo</button>
+  </div>
+</div>
+<script>
+const quizData = [{"question":"Alcanzar el punto de equilibrio en una transición laboral significa que el valor neto aportado por el profesional es exactamente igual al valor que ha consumido de la organización.","hint":"Reflexiona sobre la definición de equilibrio entre inversión y retorno.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"Este concepto describe el momento en que la inversión realizada por la empresa en el nuevo colaborador se compensa con su productividad real."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"Si el valor aportado no igualara al consumido, el profesional seguiría siendo un consumidor neto de recursos o ya habría pasado a ser un generador neto."}]},{"question":"La 'falacia de la acción inmediata' es un error fatal que implica la necesidad de implementar cambios estructurales profundos durante la primera semana para ganar respeto.","hint":"Considera si es prudente cambiar la estructura antes de conocer el contexto organizacional.","options":[{"label":"A","text":"Verdadero","isCorrect":false,"rationale":"Actuar sin un diagnóstico previo es un error común; la eficacia requiere comprender primero la cultura y las variables reales del negocio."},{"label":"B","text":"Falso","isCorrect":true,"rationale":"Watkins advierte que la urgencia por tomar decisiones drásticas antes de entender el contexto suele llevar al descarrilamiento laboral."}]},{"question":"En el modelo STARS, el escenario de 'Realineamiento' (Realign) se caracteriza porque el éxito es aparente, pero existen problemas ocultos que requieren despertar urgencia de cambio.","hint":"Piensa en el reto de liderar cuando el equipo cree que todo va bien.","options":[{"label":"A","text":"Falso","isCorrect":false,"rationale":"Esta descripción corresponde precisamente al Realineamiento; si los problemas fueran evidentes y profundos, se trataría de un Turnaround."},{"label":"B","text":"Verdadero","isCorrect":true,"rationale":"El desafío principal en este entorno es movilizar a la organización antes de que los problemas ocultos se conviertan en una crisis abierta."}]},{"question":"La conversación sobre el 'estilo' con el jefe directo tiene como objetivo principal negociar el presupuesto y los recursos financieros asignados al área.","hint":"Diferencia entre el 'qué' se necesita y el 'cómo' se prefiere la interacción humana.","options":[{"label":"A","text":"Verdadero","isCorrect":false,"rationale":"La negociación de presupuestos pertenece a la 'conversación sobre recursos', no a la de estilo de comunicación."},{"label":"B","text":"Falso","isCorrect":true,"rationale":"Esta conversación busca entender las preferencias de interacción del supervisor, como la frecuencia de las reuniones y el nivel de detalle de los reportes."}]},{"question":"Las 'victorias tempranas' (Early Wins) deben ser proyectos de baja complejidad y alto impacto para construir credibilidad de manera acelerada.","hint":"Recuerda el concepto de 'frutas al alcance de la mano' (low-hanging fruits).","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"Se enfocan en resolver puntos de dolor históricos de forma limpia y rápida, lo que genera confianza con los stakeholders clave."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"Elegir proyectos de alta complejidad técnica al inicio aumenta el riesgo de fracaso y retrasa la percepción de valor del nuevo líder."}]},{"question":"Según Watkins, la transición a un nuevo rol comienza oficialmente el primer día en que el profesional se presenta físicamente en su nuevo lugar de trabajo.","hint":"¿Cuándo debe empezar realmente el cambio de mentalidad profesional?","options":[{"label":"A","text":"Verdadero","isCorrect":false,"rationale":"La transición comienza desde que se acepta la oferta, requiriendo un cambio de mentalidad y un pre-boarding estratégico."},{"label":"B","text":"Falso","isCorrect":true,"rationale":"Esperar al primer día es un error; el proceso de 'promoverse a sí mismo' y desconectarse del rol anterior debe ser previo."}]},{"question":"En un escenario de 'Inversión de marcha' (Turnaround), la prioridad del profesional es tomar decisiones rápidas y difíciles para cortar lo que no funciona.","hint":"Imagina una situación de emergencia empresarial donde el tiempo es el peor enemigo.","options":[{"label":"A","text":"Falso","isCorrect":false,"rationale":"La precaución extrema o el mantenimiento del statu quo en una crisis solo acelera el deterioro de la organización."},{"label":"B","text":"Verdadero","isCorrect":true,"rationale":"Debido a que la unidad está en una crisis profunda, la velocidad en la toma de decisiones críticas es vital para la supervivencia operativa."}]},{"question":"El diagnóstico sistemático de aprendizaje debe limitarse únicamente al análisis de los datos técnicos y financieros para evitar sesgos culturales.","hint":"Considera si los números son suficientes para entender cómo funciona realmente una empresa.","options":[{"label":"A","text":"Verdadero","isCorrect":false,"rationale":"Ignorar la cultura y el clima organizacional impide entender cómo se toman las decisiones realmente y quiénes ostentan el poder informal."},{"label":"B","text":"Falso","isCorrect":true,"rationale":"Un diagnóstico robusto requiere analizar tres dimensiones: cultura/clima, estructura de negocio y datos operativos/financieros."}]},{"question":"Contar con autoridad formal (el organigrama) es suficiente para garantizar el éxito de los proyectos sin necesidad de mapear la red informal de la organización.","hint":"Reflexiona sobre el papel de la política interna y el 'sistema inmunológico' organizacional.","options":[{"label":"A","text":"Falso","isCorrect":true,"rationale":"El poder formal no garantiza la colaboración; es indispensable identificar aliados clave y persuadir a los bloqueadores en la red horizontal."},{"label":"B","text":"Verdadero","isCorrect":false,"rationale":"Muchos proyectos fracasan debido a la resistencia de bloqueadores potenciales en la red informal que no fueron considerados."}]},{"question":"La arquitectura organizacional del rol implica que la estrategia y los sistemas deben estar alineados con las habilidades del equipo y la cultura existente.","hint":"Imagina los pilares de la organización como piezas interconectadas de un motor.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"Estos cuatro elementos funcionan como un sistema engranado; si uno falla o está desalineado, el plan estratégico se vuelve inviable."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"La desalineación entre la estrategia y las habilidades del equipo suele ser una causa principal de ineficiencia y fracaso en los primeros meses."}]},{"question":"El error de 'llegar con la respuesta correcta' ocurre cuando el profesional asume que posee la verdad absoluta y que la organización actual está equivocada.","hint":"Se relaciona con la soberbia intelectual al entrar a un entorno desconocido.","options":[{"label":"A","text":"Falso","isCorrect":false,"rationale":"Este sesgo cognitivo es precisamente el que impide una integración armónica y el respeto por el conocimiento acumulado de la empresa."},{"label":"B","text":"Verdadero","isCorrect":true,"rationale":"Esta actitud genera una resistencia inmediata en los equipos preexistentes y bloquea la capacidad de aprendizaje del nuevo integrante."}]},{"question":"En el escenario de 'Éxito sostenido' (Sustaining Success), el nuevo líder debe enfocarse principalmente en desmantelar los procesos actuales para innovar rápidamente.","hint":"Si algo no está roto, piensa en cuál debería ser el nivel de intervención.","options":[{"label":"A","text":"Verdadero","isCorrect":false,"rationale":"En este escenario, la prioridad es preservar lo que funciona y solo buscar optimizaciones marginales para no dañar el éxito actual."},{"label":"B","text":"Falso","isCorrect":true,"rationale":"Cambiar radicalmente un área que opera de forma óptima es un error; el enfoque debe ser la mejora continua y la preservación del talento."}]},{"question":"Para que una victoria temprana sea efectiva, el profesional debe establecer un indicador clave ($\"KPI\"$) y una meta cuantitativa que demuestre el éxito antes del día 60.","hint":"Considera la importancia de los datos cuantitativos para validar el desempeño.","options":[{"label":"A","text":"Falso","isCorrect":false,"rationale":"Sin una métrica clara, es difícil demostrar el valor real de la victoria temprana ante los superiores y el equipo."},{"label":"B","text":"Verdadero","isCorrect":true,"rationale":"La medición objetiva es fundamental para transformar una percepción subjetiva de mejora en una credibilidad sólida basada en datos."}]},{"question":"La conversación sobre 'expectativas' con el jefe directo se centra en definir qué constituye el éxito a los 30, 60 y 90 días.","hint":"Se trata de establecer la hoja de ruta de los entregables iniciales.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"Alinear lo que el jefe espera con lo que el profesional planea ejecutar es el factor más determinante para evitar malentendidos tempranos."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"Esta conversación es vital; omitirla deja al azar la percepción del desempeño durante el trimestre más crítico."}]},{"question":"El objetivo de la inserción laboral científica es extender el periodo de consumo de valor del profesional para asegurar que aprenda todo sobre la empresa.","hint":"Piensa en el impacto financiero de un periodo de adaptación demasiado lento.","options":[{"label":"A","text":"Verdadero","isCorrect":false,"rationale":"El objetivo es exactamente el opuesto: comprimir el tiempo de aprendizaje para llegar al punto de equilibrio lo antes posible."},{"label":"B","text":"Falso","isCorrect":true,"rationale":"La meta estratégica es mover la curva del punto de equilibrio hacia la izquierda, minimizando el tiempo en que el profesional es una carga para la organización."}]}];
+const tr = {"correct":"¡Correcto!","incorrect":"Incorrecto","next":"Siguiente pregunta →","seeResults":"Ver resultados","complete":"¡Cuestionario completado!","scoreText":"Obtuviste {correct} de {total} correctas","tryAgain":"Intentar de nuevo","rightAnswer":"Respuesta correcta","notQuite":"No del todo"};
+let currentQ = 0, correctCount = 0, answered = false;
+
+function init() {
+  document.querySelectorAll('.question').forEach((q, i) => q.classList.toggle('active', i === 0));
+  updateProgress();
+  document.querySelectorAll('.option').forEach(opt => opt.addEventListener('click', () => selectOption(opt)));
+  document.querySelectorAll('.next-btn').forEach(btn => btn.addEventListener('click', nextQuestion));
+}
+
+function selectOption(opt) {
+  if (answered) return;
+  answered = true;
+  const q = opt.closest('.question');
+  const options = q.querySelectorAll('.option');
+  const nextBtn = q.querySelector('.next-btn');
+  const isCorrect = opt.dataset.correct === 'true';
+  
+  // Mark all options as disabled
+  options.forEach(o => o.classList.add('disabled'));
+  
+  // Style selected option
+  opt.classList.add('selected', isCorrect ? 'correct' : 'incorrect');
+  
+  // Show correct answer if wrong
+  if (!isCorrect) {
+    const correctOpt = [...options].find(o => o.dataset.correct === 'true');
+    if (correctOpt) correctOpt.classList.add('show-correct');
+  }
+  
+  if (isCorrect) correctCount++;
+  
+  // Show feedback for ALL options that have rationale
+  options.forEach(o => {
+    const wrapper = o.closest('.option-wrapper');
+    const feedback = wrapper.querySelector('.option-feedback');
+    const rationale = o.dataset.rationale;
+    const isThisCorrect = o.dataset.correct === 'true';
+    
+    if (rationale && rationale.trim()) {
+      feedback.classList.remove('hidden');
+      feedback.classList.add(isThisCorrect ? 'correct-feedback' : 'incorrect-feedback');
+      
+      const statusEl = feedback.querySelector('.feedback-status');
+      statusEl.className = 'feedback-status ' + (isThisCorrect ? 'correct' : 'incorrect');
+      statusEl.innerHTML = isThisCorrect 
+        ? '✓ ' + tr.rightAnswer
+        : '✗ ' + tr.notQuite;
+    }
+  });
+  
+  nextBtn.classList.remove('hidden');
+  if (currentQ === quizData.length - 1) nextBtn.textContent = tr.seeResults;
+}
+
+function nextQuestion() {
+  answered = false;
+  currentQ++;
+  if (currentQ >= quizData.length) { showResults(); return; }
+  document.querySelectorAll('.question').forEach((q, i) => q.classList.toggle('active', i === currentQ));
+  updateProgress();
+}
+
+function updateProgress() {
+  document.querySelector('.progress-fill').style.width = (currentQ / quizData.length * 100) + '%';
+}
+
+function showResults() {
+  document.querySelectorAll('.question').forEach(q => q.classList.remove('active'));
+  document.getElementById('results').classList.add('active');
+  const pct = Math.round((correctCount / quizData.length) * 100);
+  document.getElementById('score').textContent = pct + '%';
+  document.getElementById('score-text').textContent = tr.scoreText.replace('{correct}', correctCount).replace('{total}', quizData.length);
+  document.querySelector('.progress-fill').style.width = '100%';
+}
+
+function restart() {
+  currentQ = 0; correctCount = 0; answered = false;
+  document.getElementById('results').classList.remove('active');
+  document.querySelectorAll('.question').forEach((q, i) => {
+    q.classList.toggle('active', i === 0);
+    q.querySelectorAll('.option').forEach(o => o.classList.remove('selected', 'correct', 'incorrect', 'disabled', 'show-correct'));
+    q.querySelectorAll('.option-feedback').forEach(f => {
+      f.classList.add('hidden');
+      f.classList.remove('correct-feedback', 'incorrect-feedback');
+    });
+    const btn = q.querySelector('.next-btn');
+    btn.classList.add('hidden');
+    btn.textContent = tr.next;
+  });
+  updateProgress();
+}
+
+init();
+</script>
+</body>
+</html>
