@@ -1,0 +1,1878 @@
+<!DOCTYPE html>
+<html lang="es" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>S14 - GP</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  min-height: 100vh; padding: 20px; color: #333;
+}
+.container { max-width: 700px; margin: 0 auto; }
+.header { text-align: center; color: #fff; padding: 30px 20px; }
+.header h1 { font-size: 28px; font-weight: 700; margin-bottom: 8px; text-shadow: 0 2px 10px rgba(0,0,0,0.2); }
+.header .meta { font-size: 14px; opacity: 0.9; }
+.progress-bar { background: rgba(255,255,255,0.3); border-radius: 10px; height: 8px; margin: 20px 0; overflow: hidden; }
+.progress-fill { background: #fff; height: 100%; width: 0%; transition: width 0.4s ease; border-radius: 10px; }
+.question { background: #fff; border-radius: 16px; padding: 30px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); display: none; }
+.question.active { display: block; }
+.q-header { display: flex; justify-content: space-between; margin-bottom: 20px; font-size: 13px; color: #888; }
+.q-number { font-weight: 600; color: #667eea; }
+.q-text { font-size: 18px; font-weight: 600; line-height: 1.5; margin-bottom: 25px; color: #222; }
+.options { display: flex; flex-direction: column; gap: 12px; }
+.option-wrapper { display: flex; flex-direction: column; }
+.option {
+  display: flex; align-items: flex-start; gap: 14px; padding: 16px 18px;
+  border: 2px solid #e8e8e8; border-radius: 12px; background: #fafafa;
+  cursor: pointer; transition: all 0.2s; text-align: left; font-size: 15px; width: 100%;
+}
+[dir="rtl"] .option { text-align: right; flex-direction: row-reverse; }
+.option:hover:not(.disabled) { border-color: #667eea; background: #f5f3ff; }
+.option.selected { border-color: #667eea; background: #ede9fe; }
+.option.correct { border-color: #22c55e; background: #dcfce7; }
+.option.incorrect { border-color: #ef4444; background: #fee2e2; }
+.option.disabled { cursor: default; }
+.option.show-correct { border-color: #22c55e; background: #dcfce7; }
+.opt-label {
+  display: flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; border-radius: 50%; background: #e8e8e8;
+  font-weight: 700; font-size: 14px; flex-shrink: 0;
+}
+.option.selected .opt-label { background: #667eea; color: #fff; }
+.option.correct .opt-label { background: #22c55e; color: #fff; }
+.option.incorrect .opt-label { background: #ef4444; color: #fff; }
+.option.show-correct .opt-label { background: #22c55e; color: #fff; }
+.opt-text { padding-top: 5px; line-height: 1.5; }
+
+/* Individual option feedback */
+.option-feedback {
+  margin: 8px 0 4px 46px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+[dir="rtl"] .option-feedback { margin-left: 0; margin-right: 46px; }
+.option-feedback.correct-feedback {
+  background: #dcfce7;
+  border-left: 3px solid #22c55e;
+}
+.option-feedback.incorrect-feedback {
+  background: #fef3f2;
+  border-left: 3px solid #fca5a5;
+}
+[dir="rtl"] .option-feedback.correct-feedback,
+[dir="rtl"] .option-feedback.incorrect-feedback {
+  border-left: none;
+  border-right: 3px solid;
+}
+[dir="rtl"] .option-feedback.correct-feedback { border-right-color: #22c55e; }
+[dir="rtl"] .option-feedback.incorrect-feedback { border-right-color: #fca5a5; }
+.feedback-status {
+  font-weight: 600;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.feedback-status.correct { color: #166534; }
+.feedback-status.incorrect { color: #991b1b; }
+.feedback-rationale { color: #444; }
+
+/* Hint box */
+.hint-box {
+  margin: 12px 0;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+}
+.hint-toggle {
+  width: 100%;
+  padding: 10px 16px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  color: #92400e;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.hint-toggle:hover { background: #fef3c7; }
+.hint-content {
+  padding: 0 16px;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s, padding 0.3s;
+  font-size: 14px;
+  color: #78350f;
+  line-height: 1.5;
+}
+.hint-box.show .hint-content {
+  padding: 0 16px 12px;
+  max-height: 200px;
+}
+
+.next-btn {
+  margin-top: 20px; width: 100%; padding: 14px;
+  background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; border: none;
+  border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.next-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(102,126,234,0.4); }
+.hidden { display: none !important; }
+.results { background: #fff; border-radius: 16px; padding: 40px; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.15); display: none; }
+.results.active { display: block; }
+.results h2 { font-size: 28px; margin-bottom: 10px; color: #333; }
+.results .score { font-size: 64px; font-weight: 700; color: #667eea; margin: 20px 0; }
+.results .score-text { font-size: 18px; color: #666; margin-bottom: 30px; }
+.restart-btn {
+  padding: 14px 40px; background: linear-gradient(135deg, #667eea, #764ba2);
+  color: #fff; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer;
+}
+
+/* Math CSS */
+.math, .math-block { font-family: "Cambria Math", "Times New Roman", Times, serif; font-style: italic; }
+.math-block { display: block; text-align: center; margin: 10px 0; font-size: 110%; }
+.frac { display: inline-flex; flex-direction: column; align-items: center; vertical-align: middle; margin: 0 3px; font-size: 0.9em; }
+.frac-num { border-bottom: 1px solid currentColor; padding: 0 4px 2px; line-height: 1.2; }
+.frac-den { padding: 2px 4px 0; line-height: 1.2; }
+.sqrt { white-space: nowrap; }
+.sqrt-content { border-top: 1px solid currentColor; padding: 0 3px; margin-left: 2px; }
+sup, sub { font-size: 0.75em; }
+sup { vertical-align: super; }
+sub { vertical-align: sub; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>S14 - GP</h1>
+    <div class="meta">26 preguntas</div>
+    <div class="progress-bar"><div class="progress-fill"></div></div>
+  </div>
+  <div id="quiz-container">
+        <div class="question" data-index="0">
+          <div class="q-header">
+            <span class="q-number">Pregunta 1</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿Cuál es la premisa fundamental del empirismo en la cual se basan marcos como Scrum?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Relaciona el concepto con la experimentación y la observación real de los hechos.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="El empirismo sostiene que la experimentación constante y los resultados tangibles son los que guían la resolución de problemas complejos.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">El conocimiento proviene de la experiencia y de la toma de decisiones basada en lo observado.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El empirismo sostiene que la experimentación constante y los resultados tangibles son los que guían la resolución de problemas complejos.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Esta idea pertenece a los modelos predictivos o de cascada, que se oponen a la naturaleza adaptativa de la agilidad.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">La planificación detallada a largo plazo reduce el riesgo de errores técnicos.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esta idea pertenece a los modelos predictivos o de cascada, que se oponen a la naturaleza adaptativa de la agilidad.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="La agilidad prioriza la entrega de valor y la retroalimentación sobre el seguimiento ciego de procesos rígidos.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">El éxito depende exclusivamente del cumplimiento riguroso de los procesos definidos.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La agilidad prioriza la entrega de valor y la retroalimentación sobre el seguimiento ciego de procesos rígidos.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="En Scrum no existen jerarquías internas, ya que se fomenta la autogestión y la multifuncionalidad.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">La jerarquía del equipo garantiza que el conocimiento técnico se distribuya correctamente.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">En Scrum no existen jerarquías internas, ya que se fomenta la autogestión y la multifuncionalidad.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="1">
+          <div class="q-header">
+            <span class="q-number">Pregunta 2</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">En el contexto de los pilares de Scrum, ¿qué implica realmente la transparencia?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Se trata de que el equipo y los interesados tengan una visión compartida y honesta de la realidad del proyecto.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="La transparencia en Scrum se refiere a la visibilidad de los artefactos y el progreso, no necesariamente a la apertura de la propiedad intelectual.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Que el código fuente del producto sea de acceso libre para cualquier miembro de la empresa.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La transparencia en Scrum se refiere a la visibilidad de los artefactos y el progreso, no necesariamente a la apertura de la propiedad intelectual.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Scrum se enfoca en el valor entregado y la transparencia del progreso, no en el control microscópico del tiempo individual.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Que cada desarrollador debe reportar sus horas trabajadas diariamente en un software de gestión.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Scrum se enfoca en el valor entregado y la transparencia del progreso, no en el control microscópico del tiempo individual.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="El Product Owner gestiona el negocio y el valor, mientras que las decisiones técnicas corresponden a los Developers.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Que el Product Owner debe explicar cada decisión técnica al cliente final.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El Product Owner gestiona el negocio y el valor, mientras que las decisiones técnicas corresponden a los Developers.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="true" data-rationale="La transparencia asegura que todos compartan la misma información sobre el estado real del proyecto para evitar sorpresas o retrasos ocultos.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Que los aspectos significativos del proceso deben ser visibles para quienes reciben el trabajo.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La transparencia asegura que todos compartan la misma información sobre el estado real del proyecto para evitar sorpresas o retrasos ocultos.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="2">
+          <div class="q-header">
+            <span class="q-number">Pregunta 3</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">Si un equipo Scrum detecta que sus procesos internos están afectando la calidad del incremento, ¿qué pilar están ejerciendo al decidir cambiar su forma de trabajar?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considera el paso que sigue después de haber detectado una falla en el camino.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="La autogestión es una característica del equipo, no uno de los tres pilares teóricos fundamentales de Scrum.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Autogestión</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La autogestión es una característica del equipo, no uno de los tres pilares teóricos fundamentales de Scrum.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Este pilar permite ajustar los procesos o el producto tan pronto como la inspección revela desviaciones fuera de los límites aceptables.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Adaptación</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Este pilar permite ajustar los procesos o el producto tan pronto como la inspección revela desviaciones fuera de los límites aceptables.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Aunque es el paso previo, la inspección solo consiste en revisar el trabajo; el acto de cambiar la forma de trabajar es la adaptación.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Inspección</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aunque es el paso previo, la inspección solo consiste en revisar el trabajo; el acto de cambiar la forma de trabajar es la adaptación.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="La transparencia es la visibilidad necesaria para poder inspeccionar, pero no es el cambio proactivo en sí mismo.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Transparencia</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La transparencia es la visibilidad necesaria para poder inspeccionar, pero no es el cambio proactivo en sí mismo.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="3">
+          <div class="q-header">
+            <span class="q-number">Pregunta 4</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿Quién es el único responsable de ordenar los elementos del Product Backlog para maximizar el valor?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piensa en quién actúa como el puente principal entre el negocio y el equipo técnico.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Su función es facilitar el marco de trabajo y eliminar bloqueos, no decidir qué funcionalidades son más importantes para el negocio.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Scrum Master</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Su función es facilitar el marco de trabajo y eliminar bloqueos, no decidir qué funcionalidades son más importantes para el negocio.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Aunque influyen en el Product Owner, no tienen la autoridad directa para priorizar la lista de requerimientos del equipo.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Stakeholders</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aunque influyen en el Product Owner, no tienen la autoridad directa para priorizar la lista de requerimientos del equipo.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="true" data-rationale="Es la persona encargada de representar los intereses del cliente y asegurar que el equipo trabaje en lo más valioso en cada momento.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Product Owner</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Es la persona encargada de representar los intereses del cliente y asegurar que el equipo trabaje en lo más valioso en cada momento.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Scrum elimina la figura del jefe o líder tradicional, distribuyendo sus responsabilidades entre los roles del equipo.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Líder de Proyecto</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Scrum elimina la figura del jefe o líder tradicional, distribuyendo sus responsabilidades entre los roles del equipo.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="4">
+          <div class="q-header">
+            <span class="q-number">Pregunta 5</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿Cuál es la función principal del Scrum Master con respecto a los impedimentos que enfrenta el equipo?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Su rol se define como un 'líder de servicio' que despeja el camino.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Los desarrolladores son autogestionados y ellos mismos deciden qué tareas tomar; el Scrum Master no asigna trabajo.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Asignar las tareas diarias a los desarrolladores para evitar retrasos.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Los desarrolladores son autogestionados y ellos mismos deciden qué tareas tomar; el Scrum Master no asigna trabajo.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El Scrum Master promueve un entorno colaborativo y de mejora, no ejerce una autoridad punitiva o jerárquica.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Sancionar a los miembros del equipo que no cumplen con los tiempos del Sprint.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El Scrum Master promueve un entorno colaborativo y de mejora, no ejerce una autoridad punitiva o jerárquica.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Esta es una tarea compartida entre el Product Owner y los Developers para asegurar la calidad y el valor.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Redactar los criterios de aceptación técnica de cada historia de usuario.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esta es una tarea compartida entre el Product Owner y los Developers para asegurar la calidad y el valor.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="true" data-rationale="Como líder de servicio, su labor es facilitar que el equipo trabaje sin interrupciones externas o trabas burocráticas.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Eliminar activamente los bloqueos que impiden el progreso de los Developers.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Como líder de servicio, su labor es facilitar que el equipo trabaje sin interrupciones externas o trabas burocráticas.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="5">
+          <div class="q-header">
+            <span class="q-number">Pregunta 6</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">Dentro de un Sprint, ¿cuál es el propósito fundamental de la Daily Scrum?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Es un evento exclusivo para quienes construyen el incremento y dura muy poco tiempo.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Scrum no utiliza diagramas de Gantt tradicionales y la Daily no es para informar a la dirección.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Actualizar el cronograma de Gantt del proyecto para los directivos.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Scrum no utiliza diagramas de Gantt tradicionales y la Daily no es para informar a la dirección.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="La Daily no es una herramienta de control de personal, sino un evento de sincronización técnica.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Evaluar el desempeño individual de cada programador durante el día anterior.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La Daily no es una herramienta de control de personal, sino un evento de sincronización técnica.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="true" data-rationale="Es una reunión de planificación diaria de 15 minutos para que los Developers coordinen su trabajo inmediato.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Inspeccionar el progreso hacia el Sprint Goal y adaptar el Sprint Backlog si es necesario.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Es una reunión de planificación diaria de 15 minutos para que los Developers coordinen su trabajo inmediato.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="La presentación al cliente ocurre en la Sprint Review, no en la reunión diaria del equipo técnico.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Presentar los avances del producto al cliente para recibir aprobación.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La presentación al cliente ocurre en la Sprint Review, no en la reunión diaria del equipo técnico.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="6">
+          <div class="q-header">
+            <span class="q-number">Pregunta 7</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿Qué diferencia sustancial existe entre la Sprint Review y la Sprint Retrospective?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considera qué se inspecciona en cada reunión: ¿el resultado externo o el funcionamiento interno?</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="El Product Owner es parte del Scrum Team y su participación en la Retrospective es vital para mejorar la colaboración.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">El Product Owner no asiste a la Retrospective por ser una reunión técnica.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El Product Owner es parte del Scrum Team y su participación en la Retrospective es vital para mejorar la colaboración.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Ambos son eventos fundamentales de Scrum y deben realizarse en cada Sprint para garantizar la mejora continua.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">La Review es obligatoria y la Retrospective es opcional según el rendimiento del equipo.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Ambos son eventos fundamentales de Scrum y deben realizarse en cada Sprint para garantizar la mejora continua.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="La Daily es la que dura 15 minutos; los otros eventos tienen sus propios marcos de tiempo proporcionales a la duración del Sprint.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">La Review dura 15 minutos y la Retrospective dura todo el día final del Sprint.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La Daily es la que dura 15 minutos; los otros eventos tienen sus propios marcos de tiempo proporcionales a la duración del Sprint.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="true" data-rationale="La Review busca retroalimentación sobre el 'qué' se hizo, mientras que la Retrospective busca mejorar el 'cómo' se trabajó.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">La Review se enfoca en el producto y los interesados, mientras la Retrospective se enfoca en el equipo y sus procesos.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La Review busca retroalimentación sobre el 'qué' se hizo, mientras que la Retrospective busca mejorar el 'cómo' se trabajó.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="7">
+          <div class="q-header">
+            <span class="q-number">Pregunta 8</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿Qué define si un incremento de producto puede considerarse realmente 'terminado'?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Busca el artefacto o acuerdo que garantiza la transparencia sobre la calidad del trabajo.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="El estado de 'terminado' se basa en criterios de calidad técnica, no en métricas financieras.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Que el presupuesto asignado para esa funcionalidad se haya agotado.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El estado de 'terminado' se basa en criterios de calidad técnica, no en métricas financieras.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="La DoD es el estándar de calidad compartido que asegura que el incremento es funcional y seguro para su entrega.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">El cumplimiento estricto de la Definition of Done (DoD).</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La DoD es el estándar de calidad compartido que asegura que el incremento es funcional y seguro para su entrega.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="El Scrum Master no valida la calidad técnica del producto; eso es responsabilidad de los Developers bajo los criterios de la DoD.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">La aprobación verbal del Scrum Master al finalizar la tarea.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El Scrum Master no valida la calidad técnica del producto; eso es responsabilidad de los Developers bajo los criterios de la DoD.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Escribir código es solo una parte; para que esté 'terminado' suele requerir pruebas, documentación y despliegue.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Que el desarrollador haya terminado de escribir el código en su entorno local.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Escribir código es solo una parte; para que esté 'terminado' suele requerir pruebas, documentación y despliegue.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="8">
+          <div class="q-header">
+            <span class="q-number">Pregunta 9</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">En el método Kanban, ¿cuál es el objetivo primordial de limitar el Work in Progress (WIP)?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Se relaciona con el concepto de 'dejar de empezar y empezar a terminar'.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Al contrario, el WIP busca reducir la multitarea para concentrar el esfuerzo y reducir el desperdicio.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Asegurar que cada miembro del equipo trabaje en al menos tres tareas a la vez.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Al contrario, el WIP busca reducir la multitarea para concentrar el esfuerzo y reducir el desperdicio.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El límite WIP es una herramienta de gestión de flujo, no una métrica de desempeño punitiva.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Reducir el salario de los trabajadores que no pueden manejar múltiples proyectos.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El límite WIP es una herramienta de gestión de flujo, no una métrica de desempeño punitiva.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="true" data-rationale="Limitar el trabajo simultáneo obliga a terminar las tareas pendientes antes de iniciar nuevas, mejorando la velocidad de entrega.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Evitar la sobrecarga del equipo y hacer visibles los cuellos de botella en el flujo de trabajo.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Limitar el trabajo simultáneo obliga a terminar las tareas pendientes antes de iniciar nuevas, mejorando la velocidad de entrega.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Kanban no utiliza Sprints de tiempo fijo como Scrum; se basa en un flujo continuo de entregas.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Garantizar que el Sprint se cierre exactamente a las cuatro semanas.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Kanban no utiliza Sprints de tiempo fijo como Scrum; se basa en un flujo continuo de entregas.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="9">
+          <div class="q-header">
+            <span class="q-number">Pregunta 10</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿En qué escenario sería más recomendable utilizar Kanban en lugar de Scrum?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piensa en la diferencia entre planificar por bloques de tiempo frente a gestionar un flujo constante de tickets.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Kanban se adapta mejor a flujos de trabajo reactivos y continuos donde no es posible planificar un Sprint fijo de dos semanas.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">En un equipo de soporte técnico donde las peticiones llegan de forma impredecible y constante.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Kanban se adapta mejor a flujos de trabajo reactivos y continuos donde no es posible planificar un Sprint fijo de dos semanas.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Ambos métodos son ágiles y se oponen a la planificación predictiva rígida de los diagramas de Gantt.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Cuando el cliente exige un diagrama de Gantt inamovible desde el primer día.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Ambos métodos son ágiles y se oponen a la planificación predictiva rígida de los diagramas de Gantt.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Para productos nuevos con entregas incrementales programadas, Scrum suele ser el marco más robusto por sus Sprints.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">En el desarrollo de un producto innovador que requiere hitos de entrega fijos cada mes.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Para productos nuevos con entregas incrementales programadas, Scrum suele ser el marco más robusto por sus Sprints.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Ninguno de los dos marcos fomenta jerarquías de mando; ambos promueven la autonomía del equipo.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Cuando el equipo es muy grande y requiere una jerarquía de mando clara.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Ninguno de los dos marcos fomenta jerarquías de mando; ambos promueven la autonomía del equipo.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="10">
+          <div class="q-header">
+            <span class="q-number">Pregunta 11</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿Qué representa el Sprint Backlog en el marco de Scrum?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Es el subconjunto de trabajo que el equipo elige realizar en el corto plazo inmediato.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Esa descripción corresponde al Product Backlog, que es la visión global y dinámica del producto.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">La lista total de deseos del cliente que se deben cumplir a lo largo de un año.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esa descripción corresponde al Product Backlog, que es la visión global y dinámica del producto.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Es el compromiso técnico del equipo para el Sprint actual y es propiedad exclusiva de los Developers.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">El conjunto de elementos seleccionados del Product Backlog más el plan para entregarlos.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Es el compromiso técnico del equipo para el Sprint actual y es propiedad exclusiva de los Developers.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="La retrospectiva genera un plan de mejora de procesos, pero no es el Sprint Backlog.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">El acta de la reunión de retrospectiva donde se anotan las mejoras.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La retrospectiva genera un plan de mejora de procesos, pero no es el Sprint Backlog.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Aunque el objetivo del Sprint no cambia, los Developers pueden ajustar las tareas técnicas en el Sprint Backlog conforme aprenden más.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Un documento estático que no puede modificarse una vez iniciada la iteración.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aunque el objetivo del Sprint no cambia, los Developers pueden ajustar las tareas técnicas en el Sprint Backlog conforme aprenden más.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="11">
+          <div class="q-header">
+            <span class="q-number">Pregunta 12</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">Según el caso de Spotify mencionado en la teoría, ¿cómo lograron mantener su ventaja competitiva frente a Apple?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Se centra en la velocidad de aprendizaje y la inspección constante del mercado.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="El éxito se basó en la estructura de trabajo y la entrega de valor, no simplemente en la reducción de personal.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Reduciendo el número de desarrolladores para ahorrar costos operativos.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El éxito se basó en la estructura de trabajo y la entrega de valor, no simplemente en la reducción de personal.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Spotify es un referente de agilidad precisamente por romper con los modelos de mando y control tradicionales.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Contratando únicamente a jefes de proyecto con certificación en metodologías tradicionales.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Spotify es un referente de agilidad precisamente por romper con los modelos de mando y control tradicionales.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="true" data-rationale="La agilidad les permitió experimentar con usuarios reales y adaptar el producto antes de invertir recursos en funciones que nadie quería.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Lanzando funciones parciales en Sprints cortos para obtener retroalimentación rápida del mercado.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La agilidad les permitió experimentar con usuarios reales y adaptar el producto antes de invertir recursos en funciones que nadie quería.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Esperar tanto tiempo en un mercado tecnológico suele llevar al fracaso por la obsolescencia de los requisitos iniciales.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Esperando un año para lanzar una aplicación perfecta y completa.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esperar tanto tiempo en un mercado tecnológico suele llevar al fracaso por la obsolescencia de los requisitos iniciales.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="12">
+          <div class="q-header">
+            <span class="q-number">Pregunta 13</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿Qué significa que el Scrum Team sea 'multifuncional'?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Se refiere a la autonomía técnica del grupo para no tener dependencias externas.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Los roles en Scrum son claros y estables para garantizar la responsabilidad y el enfoque.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Que los miembros del equipo cambian de rol (PO, SM, Developer) cada semana.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Los roles en Scrum son claros y estables para garantizar la responsabilidad y el enfoque.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Multifuncional significa que el equipo *como un todo* tiene las habilidades, no necesariamente cada individuo por separado.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Que cada miembro debe ser experto en todas las áreas, desde programación hasta marketing.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Multifuncional significa que el equipo *como un todo* tiene las habilidades, no necesariamente cada individuo por separado.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="true" data-rationale="Un equipo multifuncional no depende de otros departamentos para completar su incremento de producto.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Que cuentan con todas las habilidades necesarias para crear valor en cada Sprint.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Un equipo multifuncional no depende de otros departamentos para completar su incremento de producto.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="La agilidad recomienda el enfoque en un solo producto para maximizar la eficiencia y reducir el desperdicio por cambio de contexto.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Que el equipo debe trabajar en varios proyectos de diferentes departamentos al mismo tiempo.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La agilidad recomienda el enfoque en un solo producto para maximizar la eficiencia y reducir el desperdicio por cambio de contexto.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="13">
+          <div class="q-header">
+            <span class="q-number">Pregunta 14</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">Durante el Sprint Planning, ¿cuál es el resultado de la colaboración entre el Product Owner y los Developers?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Es el plan de acción y el propósito que guiará al equipo durante las próximas semanas.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Los impedimentos suelen surgir y gestionarse durante la ejecución diaria, no solo en la planificación inicial.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">La lista de impedimentos que el Scrum Master debe resolver.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Los impedimentos suelen surgir y gestionarse durante la ejecución diaria, no solo en la planificación inicial.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Scrum se enfoca en el valor del producto y las tareas técnicas, asumiendo que los recursos básicos ya están disponibles.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">El presupuesto detallado de hardware y software para el mes.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Scrum se enfoca en el valor del producto y las tareas técnicas, asumiendo que los recursos básicos ya están disponibles.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="true" data-rationale="El PO propone el objetivo de valor y los Developers seleccionan los elementos necesarios para alcanzarlo, definiendo cómo lo harán.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">El Sprint Goal y el Sprint Backlog.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El PO propone el objetivo de valor y los Developers seleccionan los elementos necesarios para alcanzarlo, definiendo cómo lo harán.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Esto ocurre en la Sprint Retrospective, que sucede al final del Sprint, no en el Planning al inicio.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">La evaluación de desempeño del Sprint anterior.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esto ocurre en la Sprint Retrospective, que sucede al final del Sprint, no en el Planning al inicio.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="14">
+          <div class="q-header">
+            <span class="q-number">Pregunta 15</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿Por qué se dice que el Sprint es una 'caja de tiempo' o Timebox?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considera la rigidez del calendario frente a la tentación de pedir 'un día más'.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Es una metáfora de gestión del tiempo, no tiene relación con el empaquetado físico.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Porque el producto final debe guardarse en una caja para su envío al cliente.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Es una metáfora de gestión del tiempo, no tiene relación con el empaquetado físico.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El término se refiere a la gestión del tiempo del evento, no al horario laboral o al espacio físico.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Porque el equipo debe trabajar exactamente 8 horas al día dentro de una caja de oficina.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El término se refiere a la gestión del tiempo del evento, no al horario laboral o al espacio físico.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="El Sprint abarca días laborales normales y es el periodo estándar de trabajo continuo.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Porque solo se permite trabajar en el proyecto durante los fines de semana.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El Sprint abarca días laborales normales y es el periodo estándar de trabajo continuo.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="true" data-rationale="El timeboxing obliga al equipo a enfocarse y aprender a estimar mejor, evitando que los proyectos se alarguen indefinidamente.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Porque tiene una duración máxima fija que no puede extenderse para terminar el trabajo pendiente.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El timeboxing obliga al equipo a enfocarse y aprender a estimar mejor, evitando que los proyectos se alarguen indefinidamente.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="15">
+          <div class="q-header">
+            <span class="q-number">Pregunta 16</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">En el taller del 'Proyecto Ágil Relámpago', ¿qué justifica elegir Sprints de 1 semana en lugar de 2 semanas?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piensa en el beneficio de la inspección y adaptación constante en un cronograma apretado.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="La cadencia del Sprint se define por las necesidades del producto y el mercado, no solo por la agenda de una persona.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Que el Product Owner solo está disponible una vez por semana.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La cadencia del Sprint se define por las necesidades del producto y el mercado, no solo por la agenda de una persona.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="La fatiga depende de la carga de trabajo y el ritmo sostenible, no directamente de la duración del Sprint.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Que los desarrolladores se cansan menos si el Sprint es más corto.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La fatiga depende de la carga de trabajo y el ritmo sostenible, no directamente de la duración del Sprint.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="En realidad, los Sprints más cortos aumentan la frecuencia de las reuniones de planificación y revisión.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Que un Sprint de 1 semana requiere menos reuniones que uno de 2 semanas.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">En realidad, los Sprints más cortos aumentan la frecuencia de las reuniones de planificación y revisión.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="true" data-rationale="En proyectos de alta incertidumbre y plazo corto, reducir el ciclo de inspección permite corregir el rumbo más rápido.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">La necesidad de obtener retroalimentación más frecuente en un proyecto de muy corta duración (un mes).</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">En proyectos de alta incertidumbre y plazo corto, reducir el ciclo de inspección permite corregir el rumbo más rápido.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="16">
+          <div class="q-header">
+            <span class="q-number">Pregunta 17</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿Cuál es la principal característica del 'Liderazgo de Servicio' que ejerce un Scrum Master?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Busca la opción que describe un cambio del control autoritario hacia la facilitación.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Esa es más una función del Product Owner; el equipo completo debería tener transparencia con los interesados.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Actúa como el único punto de contacto con el cliente externo.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esa es más una función del Product Owner; el equipo completo debería tener transparencia con los interesados.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Es una metáfora malinterpretada; el 'servicio' se refiere a eliminar obstáculos profesionales y organizacionales.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Es el responsable de traer café y comida al equipo durante las reuniones.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Es una metáfora malinterpretada; el 'servicio' se refiere a eliminar obstáculos profesionales y organizacionales.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="true" data-rationale="El líder de servicio pone las necesidades del equipo primero para que estos puedan alcanzar su máximo potencial.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Se enfoca en el bienestar del equipo y en facilitar su éxito en lugar de mandar.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El líder de servicio pone las necesidades del equipo primero para que estos puedan alcanzar su máximo potencial.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Un Scrum Master fomenta la autogestión, lo que implica que el equipo aprenda a tomar sus propias decisiones.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Toma todas las decisiones difíciles para que el equipo no tenga que discutir.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Un Scrum Master fomenta la autogestión, lo que implica que el equipo aprenda a tomar sus propias decisiones.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="17">
+          <div class="q-header">
+            <span class="q-number">Pregunta 18</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">Si un elemento del Product Backlog no cumple con la Definición de Terminado al final del Sprint, ¿qué debe suceder con él?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considera el valor de la transparencia y la honestidad sobre lo que es verdaderamente funcional.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="El Scrum Master no tiene autoridad para decidir sobre la finalización técnica; los criterios son preestablecidos por el equipo.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">El Scrum Master decide si se acepta o no para no retrasar el proyecto.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El Scrum Master no tiene autoridad para decidir sobre la finalización técnica; los criterios son preestablecidos por el equipo.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Presentar trabajo incompleto rompe la transparencia y el rigor de la calidad en Scrum.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Se presenta al cliente aclarando que 'casi' está listo para recibir un feedback parcial.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Presentar trabajo incompleto rompe la transparencia y el rigor de la calidad en Scrum.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="true" data-rationale="Solo el trabajo que cumple con la DoD se considera 'Incremento' y puede ser mostrado como valor entregado.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">No se presenta en la Sprint Review y regresa al Product Backlog para su futura reevaluación.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Solo el trabajo que cumple con la DoD se considera 'Incremento' y puede ser mostrado como valor entregado.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="La DoD es un criterio objetivo y actual; las promesas futuras no validan el incremento presente.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Se marca como terminado si el desarrollador promete terminarlo durante el fin de semana.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La DoD es un criterio objetivo y actual; las promesas futuras no validan el incremento presente.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="18">
+          <div class="q-header">
+            <span class="q-number">Pregunta 19</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿Qué relación tiene el Método Kanban con el concepto 'Just In Time' (JIT)?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piensa en el flujo de materiales en una fábrica aplicado al flujo de tareas en ingeniería.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Kanban utiliza un sistema 'pull' donde el trabajo se jala hacia la siguiente etapa solo cuando el sistema tiene espacio.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Busca que cada tarea se procese solo cuando hay demanda y capacidad, minimizando el inventario de trabajo pendiente.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Kanban utiliza un sistema 'pull' donde el trabajo se jala hacia la siguiente etapa solo cuando el sistema tiene espacio.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Al contrario, busca un flujo constante y equilibrado para evitar las prisas de último momento.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Obliga a terminar todas las tareas en el último minuto antes de la entrega final.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Al contrario, busca un flujo constante y equilibrado para evitar las prisas de último momento.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="JIT es un concepto de manufactura y gestión de procesos, no una regla de puntualidad de personal.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Exige que los trabajadores lleguen exactamente a tiempo a la oficina.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">JIT es un concepto de manufactura y gestión de procesos, no una regla de puntualidad de personal.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Es un término de flujo de producción interno, no una condición comercial de facturación.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Significa que el cliente solo paga por el producto en el momento en que lo recibe.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Es un término de flujo de producción interno, no una condición comercial de facturación.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="19">
+          <div class="q-header">
+            <span class="q-number">Pregunta 20</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">En el tablero Kanban, ¿qué sucede cuando una columna alcanza su límite WIP?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Es un mecanismo de control para evitar el 'cuello de botella'.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Esto fuerza al equipo a resolver los problemas que detienen las tareas actuales antes de saturarse con más trabajo.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">No se pueden mover más tareas a esa columna hasta que alguna de las actuales sea finalizada.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esto fuerza al equipo a resolver los problemas que detienen las tareas actuales antes de saturarse con más trabajo.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Ignorar el límite WIP elimina los beneficios de visibilidad y eficiencia del método Kanban.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Se ignoran las reglas y se sigue trabajando para no detener la producción.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Ignorar el límite WIP elimina los beneficios de visibilidad y eficiencia del método Kanban.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="El límite WIP es una señal para gestionar el flujo actual, no una métrica automática de contratación.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Se debe contratar inmediatamente a un nuevo desarrollador para esa fase.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El límite WIP es una señal para gestionar el flujo actual, no una métrica automática de contratación.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="La agilidad promueve ritmos sostenibles; el límite WIP busca equilibrio, no sobreesfuerzo.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">El equipo debe trabajar horas extra para reducir el número de tareas rápidamente.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La agilidad promueve ritmos sostenibles; el límite WIP busca equilibrio, no sobreesfuerzo.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="20">
+          <div class="q-header">
+            <span class="q-number">Pregunta 21</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿Cuál es la principal responsabilidad de los 'Developers' en un equipo Scrum?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Se centran en el 'cómo' construir la solución y en la excelencia técnica.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="La gestión de expectativas y la relación con el cliente recaen principalmente en el Product Owner.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Convencer al cliente de que no pida más funcionalidades.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La gestión de expectativas y la relación con el cliente recaen principalmente en el Product Owner.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="La autogestión se refiere a la organización del trabajo, no necesariamente a la administración de recursos humanos corporativos.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Definir el salario y las vacaciones de los demás miembros del equipo.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La autogestión se refiere a la organización del trabajo, no necesariamente a la administración de recursos humanos corporativos.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="En agilidad, la documentación se genera de forma iterativa junto con el producto, no como una fase previa exhaustiva.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Escribir el manual de usuario antes de empezar a programar.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">En agilidad, la documentación se genera de forma iterativa junto con el producto, no como una fase previa exhaustiva.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="true" data-rationale="Son los encargados de transformar las ideas del backlog en productos funcionales cumpliendo con la DoD.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Crear un incremento utilizable en cada Sprint y garantizar su calidad técnica.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Son los encargados de transformar las ideas del backlog en productos funcionales cumpliendo con la DoD.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="21">
+          <div class="q-header">
+            <span class="q-number">Pregunta 22</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿Qué tipo de ciclo de vida del proyecto es el más adecuado para situaciones con 'alta incertidumbre'?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Busca el enfoque que favorece la flexibilidad y la respuesta al cambio.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Los modelos predictivos requieren que todo esté definido al inicio, lo que suele fallar en entornos de alta incertidumbre.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Predictivo (Cascada)</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Los modelos predictivos requieren que todo esté definido al inicio, lo que suele fallar en entornos de alta incertidumbre.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Este término no describe un ciclo de vida estándar en gestión de proyectos profesionales.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Estático</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Este término no describe un ciclo de vida estándar en gestión de proyectos profesionales.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="No permite volver atrás o adaptarse a cambios una vez que una fase ha concluido.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Lineal simple</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">No permite volver atrás o adaptarse a cambios una vez que una fase ha concluido.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="true" data-rationale="Permite ajustar el rumbo basándose en el aprendizaje continuo, lo cual es ideal cuando los requisitos no están claros desde el inicio.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Adaptativo (Ágil)</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Permite ajustar el rumbo basándose en el aprendizaje continuo, lo cual es ideal cuando los requisitos no están claros desde el inicio.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="22">
+          <div class="q-header">
+            <span class="q-number">Pregunta 23</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿Cómo contribuye el Product Backlog a la transparencia del proyecto?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piensa en la visibilidad de los requerimientos para todos los involucrados.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="El Product Backlog contiene requerimientos de negocio; la asignación de tareas específicas ocurre en el Sprint Backlog.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Al incluir los nombres de los desarrolladores asignados a cada tarea desde el inicio.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El Product Backlog contiene requerimientos de negocio; la asignación de tareas específicas ocurre en el Sprint Backlog.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Para que haya transparencia, el artefacto debe estar disponible para todo el equipo y los interesados.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Al ser un documento privado que solo el Product Owner puede leer.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Para que haya transparencia, el artefacto debe estar disponible para todo el equipo y los interesados.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="true" data-rationale="Cualquier interesado puede ver qué se planea hacer y en qué orden, evitando agendas ocultas.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Al ser una lista visible y priorizada de todo lo que el producto necesita.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Cualquier interesado puede ver qué se planea hacer y en qué orden, evitando agendas ocultas.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="La transparencia exige honestidad total, incluyendo los retos y las tareas complejas.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Al ocultar las tareas más difíciles para no desanimar a los Stakeholders.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La transparencia exige honestidad total, incluyendo los retos y las tareas complejas.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="23">
+          <div class="q-header">
+            <span class="q-number">Pregunta 24</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿Qué se busca lograr específicamente en la Sprint Retrospective?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Es una mirada hacia adentro del equipo para perfeccionar su funcionamiento.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="La validación del producto ocurre en la Review; la Retrospective es para la mejora del equipo.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Aprobar el incremento del producto para su lanzamiento a producción.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La validación del producto ocurre en la Review; la Retrospective es para la mejora del equipo.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Nuevos requerimientos suelen surgir de la Review tras ver el producto, no de la Retrospective.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Añadir nuevas funcionalidades al Product Backlog.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Nuevos requerimientos suelen surgir de la Review tras ver el producto, no de la Retrospective.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="true" data-rationale="Es el momento de inspeccionar cómo trabajó el equipo y definir un plan de acción para ser más efectivos en el próximo Sprint.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Identificar mejoras en las interacciones de las personas, los procesos y las herramientas.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Es el momento de inspeccionar cómo trabajó el equipo y definir un plan de acción para ser más efectivos en el próximo Sprint.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Aunque es importante, la retrospectiva se centra en la dinámica del equipo, no en métricas financieras externas.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Calcular el retorno de inversión (ROI) del último mes.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aunque es importante, la retrospectiva se centra en la dinámica del equipo, no en métricas financieras externas.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="24">
+          <div class="q-header">
+            <span class="q-number">Pregunta 25</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">En el marco de la agilidad, ¿qué significa que un equipo sea 'autogestionado'?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Tiene que ver con la autonomía para organizar su propio trabajo técnico.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="La autogestión empodera a quienes hacen el trabajo para tomar las decisiones operativas, eliminando la necesidad de un jefe microgestor.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Que deciden internamente quién hace qué, cuándo y cómo.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La autogestión empodera a quienes hacen el trabajo para tomar las decisiones operativas, eliminando la necesidad de un jefe microgestor.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El equipo sigue siendo responsable de entregar valor y alcanzar el Sprint Goal acordado con el PO.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Que no tienen ninguna responsabilidad ante el Product Owner.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El equipo sigue siendo responsable de entregar valor y alcanzar el Sprint Goal acordado con el PO.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="La autogestión es operativa; las fechas y el presupuesto suelen tener restricciones de negocio que el PO gestiona.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Que pueden cambiar la fecha final del proyecto sin consultar a nadie.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La autogestión es operativa; las fechas y el presupuesto suelen tener restricciones de negocio que el PO gestiona.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="La agilidad requiere una colaboración intensa; trabajar aisladamente es lo opuesto a la dinámica de equipo Scrum.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Que cada miembro trabaja por su cuenta sin necesidad de comunicarse.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La agilidad requiere una colaboración intensa; trabajar aisladamente es lo opuesto a la dinámica de equipo Scrum.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="25">
+          <div class="q-header">
+            <span class="q-number">Pregunta 26</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿Cuál es la utilidad principal de usar un tablero visual en Kanban?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Se relaciona con la transparencia y la detección inmediata de problemas en la cadena de valor.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Kanban se enfoca en el flujo del trabajo (las tareas), no en el control de las personas.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Vigilar individualmente a los empleados para ver quién trabaja menos.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Kanban se enfoca en el flujo del trabajo (las tareas), no en el control de las personas.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="La visualización es el primer paso para gestionar el flujo y aplicar mejoras basadas en datos reales.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Permitir que cualquier persona vea el estado del flujo y detecte dónde se detiene el trabajo.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La visualización es el primer paso para gestionar el flujo y aplicar mejoras basadas en datos reales.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Aunque mejora el ambiente, su propósito es estrictamente funcional y de transparencia de procesos.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Decorar la oficina para que parezca un entorno de innovación moderna.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aunque mejora el ambiente, su propósito es estrictamente funcional y de transparencia de procesos.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="El tablero es una herramienta de apoyo, pero la comunicación directa sigue siendo vital en la agilidad.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Sustituir todas las reuniones presenciales por notas adhesivas.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El tablero es una herramienta de apoyo, pero la comunicación directa sigue siendo vital en la agilidad.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      </div>
+  <div class="results" id="results">
+    <h2>¡Cuestionario completado!</h2>
+    <div class="score" id="score">0%</div>
+    <div class="score-text" id="score-text"></div>
+    <button class="restart-btn" onclick="restart()">Intentar de nuevo</button>
+  </div>
+</div>
+<script>
+const quizData = [{"question":"¿Cuál es la premisa fundamental del empirismo en la cual se basan marcos como Scrum?","hint":"Relaciona el concepto con la experimentación y la observación real de los hechos.","options":[{"label":"A","text":"El conocimiento proviene de la experiencia y de la toma de decisiones basada en lo observado.","isCorrect":true,"rationale":"El empirismo sostiene que la experimentación constante y los resultados tangibles son los que guían la resolución de problemas complejos."},{"label":"B","text":"La planificación detallada a largo plazo reduce el riesgo de errores técnicos.","isCorrect":false,"rationale":"Esta idea pertenece a los modelos predictivos o de cascada, que se oponen a la naturaleza adaptativa de la agilidad."},{"label":"C","text":"El éxito depende exclusivamente del cumplimiento riguroso de los procesos definidos.","isCorrect":false,"rationale":"La agilidad prioriza la entrega de valor y la retroalimentación sobre el seguimiento ciego de procesos rígidos."},{"label":"D","text":"La jerarquía del equipo garantiza que el conocimiento técnico se distribuya correctamente.","isCorrect":false,"rationale":"En Scrum no existen jerarquías internas, ya que se fomenta la autogestión y la multifuncionalidad."}]},{"question":"En el contexto de los pilares de Scrum, ¿qué implica realmente la transparencia?","hint":"Se trata de que el equipo y los interesados tengan una visión compartida y honesta de la realidad del proyecto.","options":[{"label":"A","text":"Que el código fuente del producto sea de acceso libre para cualquier miembro de la empresa.","isCorrect":false,"rationale":"La transparencia en Scrum se refiere a la visibilidad de los artefactos y el progreso, no necesariamente a la apertura de la propiedad intelectual."},{"label":"B","text":"Que cada desarrollador debe reportar sus horas trabajadas diariamente en un software de gestión.","isCorrect":false,"rationale":"Scrum se enfoca en el valor entregado y la transparencia del progreso, no en el control microscópico del tiempo individual."},{"label":"C","text":"Que el Product Owner debe explicar cada decisión técnica al cliente final.","isCorrect":false,"rationale":"El Product Owner gestiona el negocio y el valor, mientras que las decisiones técnicas corresponden a los Developers."},{"label":"D","text":"Que los aspectos significativos del proceso deben ser visibles para quienes reciben el trabajo.","isCorrect":true,"rationale":"La transparencia asegura que todos compartan la misma información sobre el estado real del proyecto para evitar sorpresas o retrasos ocultos."}]},{"question":"Si un equipo Scrum detecta que sus procesos internos están afectando la calidad del incremento, ¿qué pilar están ejerciendo al decidir cambiar su forma de trabajar?","hint":"Considera el paso que sigue después de haber detectado una falla en el camino.","options":[{"label":"A","text":"Autogestión","isCorrect":false,"rationale":"La autogestión es una característica del equipo, no uno de los tres pilares teóricos fundamentales de Scrum."},{"label":"B","text":"Adaptación","isCorrect":true,"rationale":"Este pilar permite ajustar los procesos o el producto tan pronto como la inspección revela desviaciones fuera de los límites aceptables."},{"label":"C","text":"Inspección","isCorrect":false,"rationale":"Aunque es el paso previo, la inspección solo consiste en revisar el trabajo; el acto de cambiar la forma de trabajar es la adaptación."},{"label":"D","text":"Transparencia","isCorrect":false,"rationale":"La transparencia es la visibilidad necesaria para poder inspeccionar, pero no es el cambio proactivo en sí mismo."}]},{"question":"¿Quién es el único responsable de ordenar los elementos del Product Backlog para maximizar el valor?","hint":"Piensa en quién actúa como el puente principal entre el negocio y el equipo técnico.","options":[{"label":"A","text":"Scrum Master","isCorrect":false,"rationale":"Su función es facilitar el marco de trabajo y eliminar bloqueos, no decidir qué funcionalidades son más importantes para el negocio."},{"label":"B","text":"Stakeholders","isCorrect":false,"rationale":"Aunque influyen en el Product Owner, no tienen la autoridad directa para priorizar la lista de requerimientos del equipo."},{"label":"C","text":"Product Owner","isCorrect":true,"rationale":"Es la persona encargada de representar los intereses del cliente y asegurar que el equipo trabaje en lo más valioso en cada momento."},{"label":"D","text":"Líder de Proyecto","isCorrect":false,"rationale":"Scrum elimina la figura del jefe o líder tradicional, distribuyendo sus responsabilidades entre los roles del equipo."}]},{"question":"¿Cuál es la función principal del Scrum Master con respecto a los impedimentos que enfrenta el equipo?","hint":"Su rol se define como un 'líder de servicio' que despeja el camino.","options":[{"label":"A","text":"Asignar las tareas diarias a los desarrolladores para evitar retrasos.","isCorrect":false,"rationale":"Los desarrolladores son autogestionados y ellos mismos deciden qué tareas tomar; el Scrum Master no asigna trabajo."},{"label":"B","text":"Sancionar a los miembros del equipo que no cumplen con los tiempos del Sprint.","isCorrect":false,"rationale":"El Scrum Master promueve un entorno colaborativo y de mejora, no ejerce una autoridad punitiva o jerárquica."},{"label":"C","text":"Redactar los criterios de aceptación técnica de cada historia de usuario.","isCorrect":false,"rationale":"Esta es una tarea compartida entre el Product Owner y los Developers para asegurar la calidad y el valor."},{"label":"D","text":"Eliminar activamente los bloqueos que impiden el progreso de los Developers.","isCorrect":true,"rationale":"Como líder de servicio, su labor es facilitar que el equipo trabaje sin interrupciones externas o trabas burocráticas."}]},{"question":"Dentro de un Sprint, ¿cuál es el propósito fundamental de la Daily Scrum?","hint":"Es un evento exclusivo para quienes construyen el incremento y dura muy poco tiempo.","options":[{"label":"A","text":"Actualizar el cronograma de Gantt del proyecto para los directivos.","isCorrect":false,"rationale":"Scrum no utiliza diagramas de Gantt tradicionales y la Daily no es para informar a la dirección."},{"label":"B","text":"Evaluar el desempeño individual de cada programador durante el día anterior.","isCorrect":false,"rationale":"La Daily no es una herramienta de control de personal, sino un evento de sincronización técnica."},{"label":"C","text":"Inspeccionar el progreso hacia el Sprint Goal y adaptar el Sprint Backlog si es necesario.","isCorrect":true,"rationale":"Es una reunión de planificación diaria de 15 minutos para que los Developers coordinen su trabajo inmediato."},{"label":"D","text":"Presentar los avances del producto al cliente para recibir aprobación.","isCorrect":false,"rationale":"La presentación al cliente ocurre en la Sprint Review, no en la reunión diaria del equipo técnico."}]},{"question":"¿Qué diferencia sustancial existe entre la Sprint Review y la Sprint Retrospective?","hint":"Considera qué se inspecciona en cada reunión: ¿el resultado externo o el funcionamiento interno?","options":[{"label":"A","text":"El Product Owner no asiste a la Retrospective por ser una reunión técnica.","isCorrect":false,"rationale":"El Product Owner es parte del Scrum Team y su participación en la Retrospective es vital para mejorar la colaboración."},{"label":"B","text":"La Review es obligatoria y la Retrospective es opcional según el rendimiento del equipo.","isCorrect":false,"rationale":"Ambos son eventos fundamentales de Scrum y deben realizarse en cada Sprint para garantizar la mejora continua."},{"label":"C","text":"La Review dura 15 minutos y la Retrospective dura todo el día final del Sprint.","isCorrect":false,"rationale":"La Daily es la que dura 15 minutos; los otros eventos tienen sus propios marcos de tiempo proporcionales a la duración del Sprint."},{"label":"D","text":"La Review se enfoca en el producto y los interesados, mientras la Retrospective se enfoca en el equipo y sus procesos.","isCorrect":true,"rationale":"La Review busca retroalimentación sobre el 'qué' se hizo, mientras que la Retrospective busca mejorar el 'cómo' se trabajó."}]},{"question":"¿Qué define si un incremento de producto puede considerarse realmente 'terminado'?","hint":"Busca el artefacto o acuerdo que garantiza la transparencia sobre la calidad del trabajo.","options":[{"label":"A","text":"Que el presupuesto asignado para esa funcionalidad se haya agotado.","isCorrect":false,"rationale":"El estado de 'terminado' se basa en criterios de calidad técnica, no en métricas financieras."},{"label":"B","text":"El cumplimiento estricto de la Definition of Done (DoD).","isCorrect":true,"rationale":"La DoD es el estándar de calidad compartido que asegura que el incremento es funcional y seguro para su entrega."},{"label":"C","text":"La aprobación verbal del Scrum Master al finalizar la tarea.","isCorrect":false,"rationale":"El Scrum Master no valida la calidad técnica del producto; eso es responsabilidad de los Developers bajo los criterios de la DoD."},{"label":"D","text":"Que el desarrollador haya terminado de escribir el código en su entorno local.","isCorrect":false,"rationale":"Escribir código es solo una parte; para que esté 'terminado' suele requerir pruebas, documentación y despliegue."}]},{"question":"En el método Kanban, ¿cuál es el objetivo primordial de limitar el Work in Progress (WIP)?","hint":"Se relaciona con el concepto de 'dejar de empezar y empezar a terminar'.","options":[{"label":"A","text":"Asegurar que cada miembro del equipo trabaje en al menos tres tareas a la vez.","isCorrect":false,"rationale":"Al contrario, el WIP busca reducir la multitarea para concentrar el esfuerzo y reducir el desperdicio."},{"label":"B","text":"Reducir el salario de los trabajadores que no pueden manejar múltiples proyectos.","isCorrect":false,"rationale":"El límite WIP es una herramienta de gestión de flujo, no una métrica de desempeño punitiva."},{"label":"C","text":"Evitar la sobrecarga del equipo y hacer visibles los cuellos de botella en el flujo de trabajo.","isCorrect":true,"rationale":"Limitar el trabajo simultáneo obliga a terminar las tareas pendientes antes de iniciar nuevas, mejorando la velocidad de entrega."},{"label":"D","text":"Garantizar que el Sprint se cierre exactamente a las cuatro semanas.","isCorrect":false,"rationale":"Kanban no utiliza Sprints de tiempo fijo como Scrum; se basa en un flujo continuo de entregas."}]},{"question":"¿En qué escenario sería más recomendable utilizar Kanban en lugar de Scrum?","hint":"Piensa en la diferencia entre planificar por bloques de tiempo frente a gestionar un flujo constante de tickets.","options":[{"label":"A","text":"En un equipo de soporte técnico donde las peticiones llegan de forma impredecible y constante.","isCorrect":true,"rationale":"Kanban se adapta mejor a flujos de trabajo reactivos y continuos donde no es posible planificar un Sprint fijo de dos semanas."},{"label":"B","text":"Cuando el cliente exige un diagrama de Gantt inamovible desde el primer día.","isCorrect":false,"rationale":"Ambos métodos son ágiles y se oponen a la planificación predictiva rígida de los diagramas de Gantt."},{"label":"C","text":"En el desarrollo de un producto innovador que requiere hitos de entrega fijos cada mes.","isCorrect":false,"rationale":"Para productos nuevos con entregas incrementales programadas, Scrum suele ser el marco más robusto por sus Sprints."},{"label":"D","text":"Cuando el equipo es muy grande y requiere una jerarquía de mando clara.","isCorrect":false,"rationale":"Ninguno de los dos marcos fomenta jerarquías de mando; ambos promueven la autonomía del equipo."}]},{"question":"¿Qué representa el Sprint Backlog en el marco de Scrum?","hint":"Es el subconjunto de trabajo que el equipo elige realizar en el corto plazo inmediato.","options":[{"label":"A","text":"La lista total de deseos del cliente que se deben cumplir a lo largo de un año.","isCorrect":false,"rationale":"Esa descripción corresponde al Product Backlog, que es la visión global y dinámica del producto."},{"label":"B","text":"El conjunto de elementos seleccionados del Product Backlog más el plan para entregarlos.","isCorrect":true,"rationale":"Es el compromiso técnico del equipo para el Sprint actual y es propiedad exclusiva de los Developers."},{"label":"C","text":"El acta de la reunión de retrospectiva donde se anotan las mejoras.","isCorrect":false,"rationale":"La retrospectiva genera un plan de mejora de procesos, pero no es el Sprint Backlog."},{"label":"D","text":"Un documento estático que no puede modificarse una vez iniciada la iteración.","isCorrect":false,"rationale":"Aunque el objetivo del Sprint no cambia, los Developers pueden ajustar las tareas técnicas en el Sprint Backlog conforme aprenden más."}]},{"question":"Según el caso de Spotify mencionado en la teoría, ¿cómo lograron mantener su ventaja competitiva frente a Apple?","hint":"Se centra en la velocidad de aprendizaje y la inspección constante del mercado.","options":[{"label":"A","text":"Reduciendo el número de desarrolladores para ahorrar costos operativos.","isCorrect":false,"rationale":"El éxito se basó en la estructura de trabajo y la entrega de valor, no simplemente en la reducción de personal."},{"label":"B","text":"Contratando únicamente a jefes de proyecto con certificación en metodologías tradicionales.","isCorrect":false,"rationale":"Spotify es un referente de agilidad precisamente por romper con los modelos de mando y control tradicionales."},{"label":"C","text":"Lanzando funciones parciales en Sprints cortos para obtener retroalimentación rápida del mercado.","isCorrect":true,"rationale":"La agilidad les permitió experimentar con usuarios reales y adaptar el producto antes de invertir recursos en funciones que nadie quería."},{"label":"D","text":"Esperando un año para lanzar una aplicación perfecta y completa.","isCorrect":false,"rationale":"Esperar tanto tiempo en un mercado tecnológico suele llevar al fracaso por la obsolescencia de los requisitos iniciales."}]},{"question":"¿Qué significa que el Scrum Team sea 'multifuncional'?","hint":"Se refiere a la autonomía técnica del grupo para no tener dependencias externas.","options":[{"label":"A","text":"Que los miembros del equipo cambian de rol (PO, SM, Developer) cada semana.","isCorrect":false,"rationale":"Los roles en Scrum son claros y estables para garantizar la responsabilidad y el enfoque."},{"label":"B","text":"Que cada miembro debe ser experto en todas las áreas, desde programación hasta marketing.","isCorrect":false,"rationale":"Multifuncional significa que el equipo *como un todo* tiene las habilidades, no necesariamente cada individuo por separado."},{"label":"C","text":"Que cuentan con todas las habilidades necesarias para crear valor en cada Sprint.","isCorrect":true,"rationale":"Un equipo multifuncional no depende de otros departamentos para completar su incremento de producto."},{"label":"D","text":"Que el equipo debe trabajar en varios proyectos de diferentes departamentos al mismo tiempo.","isCorrect":false,"rationale":"La agilidad recomienda el enfoque en un solo producto para maximizar la eficiencia y reducir el desperdicio por cambio de contexto."}]},{"question":"Durante el Sprint Planning, ¿cuál es el resultado de la colaboración entre el Product Owner y los Developers?","hint":"Es el plan de acción y el propósito que guiará al equipo durante las próximas semanas.","options":[{"label":"A","text":"La lista de impedimentos que el Scrum Master debe resolver.","isCorrect":false,"rationale":"Los impedimentos suelen surgir y gestionarse durante la ejecución diaria, no solo en la planificación inicial."},{"label":"B","text":"El presupuesto detallado de hardware y software para el mes.","isCorrect":false,"rationale":"Scrum se enfoca en el valor del producto y las tareas técnicas, asumiendo que los recursos básicos ya están disponibles."},{"label":"C","text":"El Sprint Goal y el Sprint Backlog.","isCorrect":true,"rationale":"El PO propone el objetivo de valor y los Developers seleccionan los elementos necesarios para alcanzarlo, definiendo cómo lo harán."},{"label":"D","text":"La evaluación de desempeño del Sprint anterior.","isCorrect":false,"rationale":"Esto ocurre en la Sprint Retrospective, que sucede al final del Sprint, no en el Planning al inicio."}]},{"question":"¿Por qué se dice que el Sprint es una 'caja de tiempo' o Timebox?","hint":"Considera la rigidez del calendario frente a la tentación de pedir 'un día más'.","options":[{"label":"A","text":"Porque el producto final debe guardarse en una caja para su envío al cliente.","isCorrect":false,"rationale":"Es una metáfora de gestión del tiempo, no tiene relación con el empaquetado físico."},{"label":"B","text":"Porque el equipo debe trabajar exactamente 8 horas al día dentro de una caja de oficina.","isCorrect":false,"rationale":"El término se refiere a la gestión del tiempo del evento, no al horario laboral o al espacio físico."},{"label":"C","text":"Porque solo se permite trabajar en el proyecto durante los fines de semana.","isCorrect":false,"rationale":"El Sprint abarca días laborales normales y es el periodo estándar de trabajo continuo."},{"label":"D","text":"Porque tiene una duración máxima fija que no puede extenderse para terminar el trabajo pendiente.","isCorrect":true,"rationale":"El timeboxing obliga al equipo a enfocarse y aprender a estimar mejor, evitando que los proyectos se alarguen indefinidamente."}]},{"question":"En el taller del 'Proyecto Ágil Relámpago', ¿qué justifica elegir Sprints de 1 semana en lugar de 2 semanas?","hint":"Piensa en el beneficio de la inspección y adaptación constante en un cronograma apretado.","options":[{"label":"A","text":"Que el Product Owner solo está disponible una vez por semana.","isCorrect":false,"rationale":"La cadencia del Sprint se define por las necesidades del producto y el mercado, no solo por la agenda de una persona."},{"label":"B","text":"Que los desarrolladores se cansan menos si el Sprint es más corto.","isCorrect":false,"rationale":"La fatiga depende de la carga de trabajo y el ritmo sostenible, no directamente de la duración del Sprint."},{"label":"C","text":"Que un Sprint de 1 semana requiere menos reuniones que uno de 2 semanas.","isCorrect":false,"rationale":"En realidad, los Sprints más cortos aumentan la frecuencia de las reuniones de planificación y revisión."},{"label":"D","text":"La necesidad de obtener retroalimentación más frecuente en un proyecto de muy corta duración (un mes).","isCorrect":true,"rationale":"En proyectos de alta incertidumbre y plazo corto, reducir el ciclo de inspección permite corregir el rumbo más rápido."}]},{"question":"¿Cuál es la principal característica del 'Liderazgo de Servicio' que ejerce un Scrum Master?","hint":"Busca la opción que describe un cambio del control autoritario hacia la facilitación.","options":[{"label":"A","text":"Actúa como el único punto de contacto con el cliente externo.","isCorrect":false,"rationale":"Esa es más una función del Product Owner; el equipo completo debería tener transparencia con los interesados."},{"label":"B","text":"Es el responsable de traer café y comida al equipo durante las reuniones.","isCorrect":false,"rationale":"Es una metáfora malinterpretada; el 'servicio' se refiere a eliminar obstáculos profesionales y organizacionales."},{"label":"C","text":"Se enfoca en el bienestar del equipo y en facilitar su éxito en lugar de mandar.","isCorrect":true,"rationale":"El líder de servicio pone las necesidades del equipo primero para que estos puedan alcanzar su máximo potencial."},{"label":"D","text":"Toma todas las decisiones difíciles para que el equipo no tenga que discutir.","isCorrect":false,"rationale":"Un Scrum Master fomenta la autogestión, lo que implica que el equipo aprenda a tomar sus propias decisiones."}]},{"question":"Si un elemento del Product Backlog no cumple con la Definición de Terminado al final del Sprint, ¿qué debe suceder con él?","hint":"Considera el valor de la transparencia y la honestidad sobre lo que es verdaderamente funcional.","options":[{"label":"A","text":"El Scrum Master decide si se acepta o no para no retrasar el proyecto.","isCorrect":false,"rationale":"El Scrum Master no tiene autoridad para decidir sobre la finalización técnica; los criterios son preestablecidos por el equipo."},{"label":"B","text":"Se presenta al cliente aclarando que 'casi' está listo para recibir un feedback parcial.","isCorrect":false,"rationale":"Presentar trabajo incompleto rompe la transparencia y el rigor de la calidad en Scrum."},{"label":"C","text":"No se presenta en la Sprint Review y regresa al Product Backlog para su futura reevaluación.","isCorrect":true,"rationale":"Solo el trabajo que cumple con la DoD se considera 'Incremento' y puede ser mostrado como valor entregado."},{"label":"D","text":"Se marca como terminado si el desarrollador promete terminarlo durante el fin de semana.","isCorrect":false,"rationale":"La DoD es un criterio objetivo y actual; las promesas futuras no validan el incremento presente."}]},{"question":"¿Qué relación tiene el Método Kanban con el concepto 'Just In Time' (JIT)?","hint":"Piensa en el flujo de materiales en una fábrica aplicado al flujo de tareas en ingeniería.","options":[{"label":"A","text":"Busca que cada tarea se procese solo cuando hay demanda y capacidad, minimizando el inventario de trabajo pendiente.","isCorrect":true,"rationale":"Kanban utiliza un sistema 'pull' donde el trabajo se jala hacia la siguiente etapa solo cuando el sistema tiene espacio."},{"label":"B","text":"Obliga a terminar todas las tareas en el último minuto antes de la entrega final.","isCorrect":false,"rationale":"Al contrario, busca un flujo constante y equilibrado para evitar las prisas de último momento."},{"label":"C","text":"Exige que los trabajadores lleguen exactamente a tiempo a la oficina.","isCorrect":false,"rationale":"JIT es un concepto de manufactura y gestión de procesos, no una regla de puntualidad de personal."},{"label":"D","text":"Significa que el cliente solo paga por el producto en el momento en que lo recibe.","isCorrect":false,"rationale":"Es un término de flujo de producción interno, no una condición comercial de facturación."}]},{"question":"En el tablero Kanban, ¿qué sucede cuando una columna alcanza su límite WIP?","hint":"Es un mecanismo de control para evitar el 'cuello de botella'.","options":[{"label":"A","text":"No se pueden mover más tareas a esa columna hasta que alguna de las actuales sea finalizada.","isCorrect":true,"rationale":"Esto fuerza al equipo a resolver los problemas que detienen las tareas actuales antes de saturarse con más trabajo."},{"label":"B","text":"Se ignoran las reglas y se sigue trabajando para no detener la producción.","isCorrect":false,"rationale":"Ignorar el límite WIP elimina los beneficios de visibilidad y eficiencia del método Kanban."},{"label":"C","text":"Se debe contratar inmediatamente a un nuevo desarrollador para esa fase.","isCorrect":false,"rationale":"El límite WIP es una señal para gestionar el flujo actual, no una métrica automática de contratación."},{"label":"D","text":"El equipo debe trabajar horas extra para reducir el número de tareas rápidamente.","isCorrect":false,"rationale":"La agilidad promueve ritmos sostenibles; el límite WIP busca equilibrio, no sobreesfuerzo."}]},{"question":"¿Cuál es la principal responsabilidad de los 'Developers' en un equipo Scrum?","hint":"Se centran en el 'cómo' construir la solución y en la excelencia técnica.","options":[{"label":"A","text":"Convencer al cliente de que no pida más funcionalidades.","isCorrect":false,"rationale":"La gestión de expectativas y la relación con el cliente recaen principalmente en el Product Owner."},{"label":"B","text":"Definir el salario y las vacaciones de los demás miembros del equipo.","isCorrect":false,"rationale":"La autogestión se refiere a la organización del trabajo, no necesariamente a la administración de recursos humanos corporativos."},{"label":"C","text":"Escribir el manual de usuario antes de empezar a programar.","isCorrect":false,"rationale":"En agilidad, la documentación se genera de forma iterativa junto con el producto, no como una fase previa exhaustiva."},{"label":"D","text":"Crear un incremento utilizable en cada Sprint y garantizar su calidad técnica.","isCorrect":true,"rationale":"Son los encargados de transformar las ideas del backlog en productos funcionales cumpliendo con la DoD."}]},{"question":"¿Qué tipo de ciclo de vida del proyecto es el más adecuado para situaciones con 'alta incertidumbre'?","hint":"Busca el enfoque que favorece la flexibilidad y la respuesta al cambio.","options":[{"label":"A","text":"Predictivo (Cascada)","isCorrect":false,"rationale":"Los modelos predictivos requieren que todo esté definido al inicio, lo que suele fallar en entornos de alta incertidumbre."},{"label":"B","text":"Estático","isCorrect":false,"rationale":"Este término no describe un ciclo de vida estándar en gestión de proyectos profesionales."},{"label":"C","text":"Lineal simple","isCorrect":false,"rationale":"No permite volver atrás o adaptarse a cambios una vez que una fase ha concluido."},{"label":"D","text":"Adaptativo (Ágil)","isCorrect":true,"rationale":"Permite ajustar el rumbo basándose en el aprendizaje continuo, lo cual es ideal cuando los requisitos no están claros desde el inicio."}]},{"question":"¿Cómo contribuye el Product Backlog a la transparencia del proyecto?","hint":"Piensa en la visibilidad de los requerimientos para todos los involucrados.","options":[{"label":"A","text":"Al incluir los nombres de los desarrolladores asignados a cada tarea desde el inicio.","isCorrect":false,"rationale":"El Product Backlog contiene requerimientos de negocio; la asignación de tareas específicas ocurre en el Sprint Backlog."},{"label":"B","text":"Al ser un documento privado que solo el Product Owner puede leer.","isCorrect":false,"rationale":"Para que haya transparencia, el artefacto debe estar disponible para todo el equipo y los interesados."},{"label":"C","text":"Al ser una lista visible y priorizada de todo lo que el producto necesita.","isCorrect":true,"rationale":"Cualquier interesado puede ver qué se planea hacer y en qué orden, evitando agendas ocultas."},{"label":"D","text":"Al ocultar las tareas más difíciles para no desanimar a los Stakeholders.","isCorrect":false,"rationale":"La transparencia exige honestidad total, incluyendo los retos y las tareas complejas."}]},{"question":"¿Qué se busca lograr específicamente en la Sprint Retrospective?","hint":"Es una mirada hacia adentro del equipo para perfeccionar su funcionamiento.","options":[{"label":"A","text":"Aprobar el incremento del producto para su lanzamiento a producción.","isCorrect":false,"rationale":"La validación del producto ocurre en la Review; la Retrospective es para la mejora del equipo."},{"label":"B","text":"Añadir nuevas funcionalidades al Product Backlog.","isCorrect":false,"rationale":"Nuevos requerimientos suelen surgir de la Review tras ver el producto, no de la Retrospective."},{"label":"C","text":"Identificar mejoras en las interacciones de las personas, los procesos y las herramientas.","isCorrect":true,"rationale":"Es el momento de inspeccionar cómo trabajó el equipo y definir un plan de acción para ser más efectivos en el próximo Sprint."},{"label":"D","text":"Calcular el retorno de inversión (ROI) del último mes.","isCorrect":false,"rationale":"Aunque es importante, la retrospectiva se centra en la dinámica del equipo, no en métricas financieras externas."}]},{"question":"En el marco de la agilidad, ¿qué significa que un equipo sea 'autogestionado'?","hint":"Tiene que ver con la autonomía para organizar su propio trabajo técnico.","options":[{"label":"A","text":"Que deciden internamente quién hace qué, cuándo y cómo.","isCorrect":true,"rationale":"La autogestión empodera a quienes hacen el trabajo para tomar las decisiones operativas, eliminando la necesidad de un jefe microgestor."},{"label":"B","text":"Que no tienen ninguna responsabilidad ante el Product Owner.","isCorrect":false,"rationale":"El equipo sigue siendo responsable de entregar valor y alcanzar el Sprint Goal acordado con el PO."},{"label":"C","text":"Que pueden cambiar la fecha final del proyecto sin consultar a nadie.","isCorrect":false,"rationale":"La autogestión es operativa; las fechas y el presupuesto suelen tener restricciones de negocio que el PO gestiona."},{"label":"D","text":"Que cada miembro trabaja por su cuenta sin necesidad de comunicarse.","isCorrect":false,"rationale":"La agilidad requiere una colaboración intensa; trabajar aisladamente es lo opuesto a la dinámica de equipo Scrum."}]},{"question":"¿Cuál es la utilidad principal de usar un tablero visual en Kanban?","hint":"Se relaciona con la transparencia y la detección inmediata de problemas en la cadena de valor.","options":[{"label":"A","text":"Vigilar individualmente a los empleados para ver quién trabaja menos.","isCorrect":false,"rationale":"Kanban se enfoca en el flujo del trabajo (las tareas), no en el control de las personas."},{"label":"B","text":"Permitir que cualquier persona vea el estado del flujo y detecte dónde se detiene el trabajo.","isCorrect":true,"rationale":"La visualización es el primer paso para gestionar el flujo y aplicar mejoras basadas en datos reales."},{"label":"C","text":"Decorar la oficina para que parezca un entorno de innovación moderna.","isCorrect":false,"rationale":"Aunque mejora el ambiente, su propósito es estrictamente funcional y de transparencia de procesos."},{"label":"D","text":"Sustituir todas las reuniones presenciales por notas adhesivas.","isCorrect":false,"rationale":"El tablero es una herramienta de apoyo, pero la comunicación directa sigue siendo vital en la agilidad."}]}];
+const tr = {"correct":"¡Correcto!","incorrect":"Incorrecto","next":"Siguiente pregunta →","seeResults":"Ver resultados","complete":"¡Cuestionario completado!","scoreText":"Obtuviste {correct} de {total} correctas","tryAgain":"Intentar de nuevo","rightAnswer":"Respuesta correcta","notQuite":"No del todo"};
+let currentQ = 0, correctCount = 0, answered = false;
+
+function init() {
+  document.querySelectorAll('.question').forEach((q, i) => q.classList.toggle('active', i === 0));
+  updateProgress();
+  document.querySelectorAll('.option').forEach(opt => opt.addEventListener('click', () => selectOption(opt)));
+  document.querySelectorAll('.next-btn').forEach(btn => btn.addEventListener('click', nextQuestion));
+}
+
+function selectOption(opt) {
+  if (answered) return;
+  answered = true;
+  const q = opt.closest('.question');
+  const options = q.querySelectorAll('.option');
+  const nextBtn = q.querySelector('.next-btn');
+  const isCorrect = opt.dataset.correct === 'true';
+  
+  // Mark all options as disabled
+  options.forEach(o => o.classList.add('disabled'));
+  
+  // Style selected option
+  opt.classList.add('selected', isCorrect ? 'correct' : 'incorrect');
+  
+  // Show correct answer if wrong
+  if (!isCorrect) {
+    const correctOpt = [...options].find(o => o.dataset.correct === 'true');
+    if (correctOpt) correctOpt.classList.add('show-correct');
+  }
+  
+  if (isCorrect) correctCount++;
+  
+  // Show feedback for ALL options that have rationale
+  options.forEach(o => {
+    const wrapper = o.closest('.option-wrapper');
+    const feedback = wrapper.querySelector('.option-feedback');
+    const rationale = o.dataset.rationale;
+    const isThisCorrect = o.dataset.correct === 'true';
+    
+    if (rationale && rationale.trim()) {
+      feedback.classList.remove('hidden');
+      feedback.classList.add(isThisCorrect ? 'correct-feedback' : 'incorrect-feedback');
+      
+      const statusEl = feedback.querySelector('.feedback-status');
+      statusEl.className = 'feedback-status ' + (isThisCorrect ? 'correct' : 'incorrect');
+      statusEl.innerHTML = isThisCorrect 
+        ? '✓ ' + tr.rightAnswer
+        : '✗ ' + tr.notQuite;
+    }
+  });
+  
+  nextBtn.classList.remove('hidden');
+  if (currentQ === quizData.length - 1) nextBtn.textContent = tr.seeResults;
+}
+
+function nextQuestion() {
+  answered = false;
+  currentQ++;
+  if (currentQ >= quizData.length) { showResults(); return; }
+  document.querySelectorAll('.question').forEach((q, i) => q.classList.toggle('active', i === currentQ));
+  updateProgress();
+}
+
+function updateProgress() {
+  document.querySelector('.progress-fill').style.width = (currentQ / quizData.length * 100) + '%';
+}
+
+function showResults() {
+  document.querySelectorAll('.question').forEach(q => q.classList.remove('active'));
+  document.getElementById('results').classList.add('active');
+  const pct = Math.round((correctCount / quizData.length) * 100);
+  document.getElementById('score').textContent = pct + '%';
+  document.getElementById('score-text').textContent = tr.scoreText.replace('{correct}', correctCount).replace('{total}', quizData.length);
+  document.querySelector('.progress-fill').style.width = '100%';
+}
+
+function restart() {
+  currentQ = 0; correctCount = 0; answered = false;
+  document.getElementById('results').classList.remove('active');
+  document.querySelectorAll('.question').forEach((q, i) => {
+    q.classList.toggle('active', i === 0);
+    q.querySelectorAll('.option').forEach(o => o.classList.remove('selected', 'correct', 'incorrect', 'disabled', 'show-correct'));
+    q.querySelectorAll('.option-feedback').forEach(f => {
+      f.classList.add('hidden');
+      f.classList.remove('correct-feedback', 'incorrect-feedback');
+    });
+    const btn = q.querySelector('.next-btn');
+    btn.classList.add('hidden');
+    btn.textContent = tr.next;
+  });
+  updateProgress();
+}
+
+init();
+</script>
+</body>
+</html>
