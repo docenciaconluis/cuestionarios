@@ -1,0 +1,886 @@
+<!DOCTYPE html>
+<html lang="es" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>S16.2 IOP</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  min-height: 100vh; padding: 20px; color: #333;
+}
+.container { max-width: 700px; margin: 0 auto; }
+.header { text-align: center; color: #fff; padding: 30px 20px; }
+.header h1 { font-size: 28px; font-weight: 700; margin-bottom: 8px; text-shadow: 0 2px 10px rgba(0,0,0,0.2); }
+.header .meta { font-size: 14px; opacity: 0.9; }
+.progress-bar { background: rgba(255,255,255,0.3); border-radius: 10px; height: 8px; margin: 20px 0; overflow: hidden; }
+.progress-fill { background: #fff; height: 100%; width: 0%; transition: width 0.4s ease; border-radius: 10px; }
+.question { background: #fff; border-radius: 16px; padding: 30px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); display: none; }
+.question.active { display: block; }
+.q-header { display: flex; justify-content: space-between; margin-bottom: 20px; font-size: 13px; color: #888; }
+.q-number { font-weight: 600; color: #667eea; }
+.q-text { font-size: 18px; font-weight: 600; line-height: 1.5; margin-bottom: 25px; color: #222; }
+.options { display: flex; flex-direction: column; gap: 12px; }
+.option-wrapper { display: flex; flex-direction: column; }
+.option {
+  display: flex; align-items: flex-start; gap: 14px; padding: 16px 18px;
+  border: 2px solid #e8e8e8; border-radius: 12px; background: #fafafa;
+  cursor: pointer; transition: all 0.2s; text-align: left; font-size: 15px; width: 100%;
+}
+[dir="rtl"] .option { text-align: right; flex-direction: row-reverse; }
+.option:hover:not(.disabled) { border-color: #667eea; background: #f5f3ff; }
+.option.selected { border-color: #667eea; background: #ede9fe; }
+.option.correct { border-color: #22c55e; background: #dcfce7; }
+.option.incorrect { border-color: #ef4444; background: #fee2e2; }
+.option.disabled { cursor: default; }
+.option.show-correct { border-color: #22c55e; background: #dcfce7; }
+.opt-label {
+  display: flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; border-radius: 50%; background: #e8e8e8;
+  font-weight: 700; font-size: 14px; flex-shrink: 0;
+}
+.option.selected .opt-label { background: #667eea; color: #fff; }
+.option.correct .opt-label { background: #22c55e; color: #fff; }
+.option.incorrect .opt-label { background: #ef4444; color: #fff; }
+.option.show-correct .opt-label { background: #22c55e; color: #fff; }
+.opt-text { padding-top: 5px; line-height: 1.5; }
+
+/* Individual option feedback */
+.option-feedback {
+  margin: 8px 0 4px 46px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+[dir="rtl"] .option-feedback { margin-left: 0; margin-right: 46px; }
+.option-feedback.correct-feedback {
+  background: #dcfce7;
+  border-left: 3px solid #22c55e;
+}
+.option-feedback.incorrect-feedback {
+  background: #fef3f2;
+  border-left: 3px solid #fca5a5;
+}
+[dir="rtl"] .option-feedback.correct-feedback,
+[dir="rtl"] .option-feedback.incorrect-feedback {
+  border-left: none;
+  border-right: 3px solid;
+}
+[dir="rtl"] .option-feedback.correct-feedback { border-right-color: #22c55e; }
+[dir="rtl"] .option-feedback.incorrect-feedback { border-right-color: #fca5a5; }
+.feedback-status {
+  font-weight: 600;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.feedback-status.correct { color: #166534; }
+.feedback-status.incorrect { color: #991b1b; }
+.feedback-rationale { color: #444; }
+
+/* Hint box */
+.hint-box {
+  margin: 12px 0;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+}
+.hint-toggle {
+  width: 100%;
+  padding: 10px 16px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  color: #92400e;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.hint-toggle:hover { background: #fef3c7; }
+.hint-content {
+  padding: 0 16px;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s, padding 0.3s;
+  font-size: 14px;
+  color: #78350f;
+  line-height: 1.5;
+}
+.hint-box.show .hint-content {
+  padding: 0 16px 12px;
+  max-height: 200px;
+}
+
+.next-btn {
+  margin-top: 20px; width: 100%; padding: 14px;
+  background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; border: none;
+  border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.next-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(102,126,234,0.4); }
+.hidden { display: none !important; }
+.results { background: #fff; border-radius: 16px; padding: 40px; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.15); display: none; }
+.results.active { display: block; }
+.results h2 { font-size: 28px; margin-bottom: 10px; color: #333; }
+.results .score { font-size: 64px; font-weight: 700; color: #667eea; margin: 20px 0; }
+.results .score-text { font-size: 18px; color: #666; margin-bottom: 30px; }
+.restart-btn {
+  padding: 14px 40px; background: linear-gradient(135deg, #667eea, #764ba2);
+  color: #fff; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer;
+}
+
+/* Math CSS */
+.math, .math-block { font-family: "Cambria Math", "Times New Roman", Times, serif; font-style: italic; }
+.math-block { display: block; text-align: center; margin: 10px 0; font-size: 110%; }
+.frac { display: inline-flex; flex-direction: column; align-items: center; vertical-align: middle; margin: 0 3px; font-size: 0.9em; }
+.frac-num { border-bottom: 1px solid currentColor; padding: 0 4px 2px; line-height: 1.2; }
+.frac-den { padding: 2px 4px 0; line-height: 1.2; }
+.sqrt { white-space: nowrap; }
+.sqrt-content { border-top: 1px solid currentColor; padding: 0 3px; margin-left: 2px; }
+sup, sub { font-size: 0.75em; }
+sup { vertical-align: super; }
+sub { vertical-align: sub; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>S16.2 IOP</h1>
+    <div class="meta">10 preguntas</div>
+    <div class="progress-bar"><div class="progress-fill"></div></div>
+  </div>
+  <div id="quiz-container">
+        <div class="question" data-index="0">
+          <div class="q-header">
+            <span class="q-number">Pregunta 1</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿Cuál es el principio fundamental que permite a la Programación Dinámica resolver problemas de optimización de manera eficiente?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Se trata de un concepto nombrado en honor a un matemático que define la relación entre decisiones pasadas y futuras.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Los conceptos de redes y grafos son conocimientos previos, pero no constituyen el principio que garantiza la optimización secuencial.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">La Ley de Nodos y Arcos Aleatorios</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Los conceptos de redes y grafos son conocimientos previos, pero no constituyen el principio que garantiza la optimización secuencial.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Este principio establece que una política óptima tiene la propiedad de que, independientemente del estado y la decisión inicial, las decisiones restantes deben constituir una política óptima con respecto al estado resultante.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">El Principio de Optimalidad de Bellman</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Este principio establece que una política óptima tiene la propiedad de que, independientemente del estado y la decisión inicial, las decisiones restantes deben constituir una política óptima con respecto al estado resultante.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="La programación dinámica busca precisamente evitar la exploración exhaustiva de todas las rutas posibles mediante la descomposición en etapas.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">El Teorema de la Red Dirigida Exhaustiva</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La programación dinámica busca precisamente evitar la exploración exhaustiva de todas las rutas posibles mediante la descomposición en etapas.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Aunque se mencionó como tema de la clase pasada, la programación binaria mixta es un enfoque distinto para el diseño de redes, no el sustento de la programación dinámica.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">La Regla de la Programación Binaria Mixta</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aunque se mencionó como tema de la clase pasada, la programación binaria mixta es un enfoque distinto para el diseño de redes, no el sustento de la programación dinámica.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="1">
+          <div class="q-header">
+            <span class="q-number">Pregunta 2</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">En la estructura de un problema de Programación Dinámica, ¿qué representan las etapas (<span class="math">n</span>)?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piense en la división temporal o lógica del proceso de toma de decisiones.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="El nodo final es solo el desenlace de la última etapa, pero no define la estructura de las etapas previas.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">La decisión final de detenerse en el nodo J</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El nodo final es solo el desenlace de la última etapa, pero no define la estructura de las etapas previas.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Las etapas dividen el problema principal en subproblemas menores que representan momentos o puntos de decisión secuenciales.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">La secuencia de decisiones, como viajar de una columna de nodos a la siguiente</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Las etapas dividen el problema principal en subproblemas menores que representan momentos o puntos de decisión secuenciales.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Los nodos se asocian a los estados dentro de cada etapa, mientras que la etapa es la posición en la secuencia de decisiones.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">El conjunto de todos los nodos posibles en el grafo</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Los nodos se asocian a los estados dentro de cada etapa, mientras que la etapa es la posición en la secuencia de decisiones.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="La distancia acumulada es el resultado de la función recursiva, no la definición de la etapa en sí misma.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Los valores de distancia total acumulada al final del recorrido</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La distancia acumulada es el resultado de la función recursiva, no la definición de la etapa en sí misma.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="2">
+          <div class="q-header">
+            <span class="q-number">Pregunta 3</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿Qué define a los 'Estados' (<span class="math">S<sub>n</sub></span>) dentro de la resolución de un problema de ruta más corta?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considere qué información es necesaria para saber dónde estamos parados antes de tomar la siguiente decisión.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="El costo mínimo es el valor de la función objetivo para un estado dado, no el estado mismo.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">El costo mínimo encontrado hasta el momento</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El costo mínimo es el valor de la función objetivo para un estado dado, no el estado mismo.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="La distancia entre nodos es un dato de entrada del problema, no el estado del sistema en la etapa.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">La distancia entre un nodo y el siguiente</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La distancia entre nodos es un dato de entrada del problema, no el estado del sistema en la etapa.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="true" data-rationale="El estado describe la condición del sistema (en qué nodo está) al inicio de una etapa particular.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Los nodos específicos en los que se encuentra el sistema en cada etapa</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El estado describe la condición del sistema (en qué nodo está) al inicio de una etapa particular.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Aunque el número de etapas restantes es relevante, el estado se identifica directamente con la ubicación (nodo) actual.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">La cantidad total de etapas que faltan para llegar al destino</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aunque el número de etapas restantes es relevante, el estado se identifica directamente con la ubicación (nodo) actual.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="3">
+          <div class="q-header">
+            <span class="q-number">Pregunta 4</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">Si un estudiante decide resolver el Problema de la Diligencia trabajando desde el nodo final hacia el nodo inicial, ¿qué enfoque está utilizando?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Recuerde el término que describe el movimiento inverso al flujo natural del viaje.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="La programación dinámica a menudo se resuelve 'hacia atrás', calculando las decisiones óptimas desde el final para asegurar la optimalidad global.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Enfoque retrógrado</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La programación dinámica a menudo se resuelve 'hacia atrás', calculando las decisiones óptimas desde el final para asegurar la optimalidad global.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="La programación binaria es un método de modelado matemático distinto mencionado como repaso, no un modo de recorrido en PD.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Enfoque de Programación Binaria</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La programación binaria es un método de modelado matemático distinto mencionado como repaso, no un modo de recorrido en PD.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="La PD se diseñó para evitar precisamente este enfoque, que consiste en evaluar todas las combinaciones sin inteligencia previa.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Enfoque de Exploración Exhaustiva</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La PD se diseñó para evitar precisamente este enfoque, que consiste en evaluar todas las combinaciones sin inteligencia previa.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Aunque es secuencial, el término técnico para trabajar desde el final es retrógrado o hacia atrás.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Enfoque de Pensamiento Lineal</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aunque es secuencial, el término técnico para trabajar desde el final es retrógrado o hacia atrás.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="4">
+          <div class="q-header">
+            <span class="q-number">Pregunta 5</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿Cuál es la función primordial de la 'Función Recursiva' (<span class="math">f<sub>n</sub></span>) en este modelo?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piense en la fórmula que permite arrastrar los beneficios de las etapas ya calculadas.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="La función no elimina arcos, sino que evalúa cuáles ofrecen el valor óptimo según el criterio establecido.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Eliminar todos los arcos que no conducen al nodo J</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La función no elimina arcos, sino que evalúa cuáles ofrecen el valor óptimo según el criterio establecido.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="La función recursiva permite conectar la decisión actual con los resultados óptimos de las etapas previas o posteriores.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Establecer la relación matemática para calcular el costo óptimo acumulado</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La función recursiva permite conectar la decisión actual con los resultados óptimos de las etapas previas o posteriores.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Enumerar todos los caminos es propio de un método exhaustivo y no requiere una función recursiva de optimización.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Listar todos los caminos posibles desde el nodo A hasta el nodo J</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Enumerar todos los caminos es propio de un método exhaustivo y no requiere una función recursiva de optimización.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="La función recursiva abarca todas las etapas y estados, no se limita al punto de partida.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Identificar únicamente el primer nodo de la red</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La función recursiva abarca todas las etapas y estados, no se limita al punto de partida.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="5">
+          <div class="q-header">
+            <span class="q-number">Pregunta 6</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿Por qué se afirma que la Programación Dinámica genera un ahorro computacional significativo?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considere la diferencia entre probar 'todo contra todo' y tomar decisiones basadas en resultados óptimos parciales.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="No se trata de encontrar el 'primero', sino de una evaluación sistemática por etapas que asegura la optimalidad.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Porque garantiza que el primer camino encontrado sea siempre el más corto</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">No se trata de encontrar el 'primero', sino de una evaluación sistemática por etapas que asegura la optimalidad.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El material indica que los nodos y arcos son conocimientos previos indispensables para aplicar este método.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Porque no requiere el uso de nodos ni arcos para su resolución</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El material indica que los nodos y arcos son conocimientos previos indispensables para aplicar este método.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="La PD descompone el problema en múltiples etapas, no lo reduce a una sola etapa simplista.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Porque transforma problemas complejos en simples sumas lineales de una sola etapa</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La PD descompone el problema en múltiples etapas, no lo reduce a una sola etapa simplista.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="true" data-rationale="Al utilizar el principio de optimalidad, solo se guardan y procesan las mejores decisiones para cada estado, reduciendo el espacio de búsqueda.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Porque evita evaluar todas las combinaciones posibles de rutas</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Al utilizar el principio de optimalidad, solo se guardan y procesan las mejores decisiones para cada estado, reduciendo el espacio de búsqueda.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="6">
+          <div class="q-header">
+            <span class="q-number">Pregunta 7</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">En el 'Problema de la Diligencia' presentado, ¿cuál es el objetivo final?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Recuerde el propósito común de los problemas de transporte y redes discutidos en la sesión.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="El ejercicio busca la ruta más corta, lo que implica seleccionar los arcos cuya suma de distancias sea la mínima posible.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Encontrar la secuencia de nodos que minimice la distancia total desde A hasta J</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El ejercicio busca la ruta más corta, lo que implica seleccionar los arcos cuya suma de distancias sea la mínima posible.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Contar las rutas es un problema combinatorio, no necesariamente un problema de optimización de ruta más corta.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Determinar cuántas rutas diferentes existen entre el nodo A y el nodo J</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Contar las rutas es un problema combinatorio, no necesariamente un problema de optimización de ruta más corta.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="El material se enfoca en distancias y optimización de ruta, no en variables físicas como la velocidad.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Calcular la velocidad promedio de la diligencia en cada tramo</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El material se enfoca en distancias y optimización de ruta, no en variables físicas como la velocidad.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="El objetivo es minimizar la distancia, lo cual a menudo implica visitar la menor cantidad de nodos necesarios.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Maximizar la cantidad de nodos visitados en el trayecto</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El objetivo es minimizar la distancia, lo cual a menudo implica visitar la menor cantidad de nodos necesarios.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="7">
+          <div class="q-header">
+            <span class="q-number">Pregunta 8</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">Dentro de la terminología de PD, ¿qué representa la variable <span class="math">X<sub>n</sub></span>?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Se refiere a la elección que hace el tomador de decisiones al estar en un nodo determinado.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="$X_n$ es una elección dentro de las opciones permitidas, no una etiqueta para nodos prohibidos.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Un nodo que debe ser evitado obligatoriamente</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale"><span class="math">X<sub>n</sub></span> es una elección dentro de las opciones permitidas, no una etiqueta para nodos prohibidos.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="$X_n$ representa la variable de decisión que conecta el estado actual con un estado en la siguiente etapa.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">La decisión sobre a qué nodo viajar a continuación</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale"><span class="math">X<sub>n</sub></span> representa la variable de decisión que conecta el estado actual con un estado en la siguiente etapa.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="En el modelo de ruta más corta, los costos suelen estar asociados a los arcos (decisiones), no a la permanencia estática.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">El costo fijo de permanecer en el estado actual</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">En el modelo de ruta más corta, los costos suelen estar asociados a los arcos (decisiones), no a la permanencia estática.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="La etapa se denota comúnmente con $n$, mientras que $X_n$ es la acción tomada en esa etapa.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">La etapa final del problema</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La etapa se denota comúnmente con <span class="math">n</span>, mientras que <span class="math">X<sub>n</sub></span> es la acción tomada en esa etapa.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="8">
+          <div class="q-header">
+            <span class="q-number">Pregunta 9</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">Según el material, ¿qué propiedad debe cumplir una política óptima respecto a las decisiones anteriores?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Esta propiedad es el corazón del Principio de Bellman sobre la independencia del pasado para la optimización del futuro.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Cada etapa puede requerir decisiones distintas según la estructura de la red y las distancias.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Debe ser idéntica a la decisión tomada en la etapa <span class="math">n-1</span></span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Cada etapa puede requerir decisiones distintas según la estructura de la red y las distancias.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="La PD asume que las decisiones restantes deben ser óptimas, pero no se enfoca en 'corregir' sino en optimizar desde el punto presente.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Debe corregir obligatoriamente los errores de las decisiones pasadas</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La PD asume que las decisiones restantes deben ser óptimas, pero no se enfoca en 'corregir' sino en optimizar desde el punto presente.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="La propiedad establece que la política restante es óptima para el estado resultante, sin importar si el camino previo fue óptimo o no.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Debe depender de que la decisión anterior haya sido la más barata posible</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La propiedad establece que la política restante es óptima para el estado resultante, sin importar si el camino previo fue óptimo o no.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="true" data-rationale="El principio de Bellman asegura que la estrategia futura debe ser óptima para el estado actual, sin importar cómo se llegó a él.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Debe ser óptima independientemente de cuál haya sido la decisión anterior</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El principio de Bellman asegura que la estrategia futura debe ser óptima para el estado actual, sin importar cómo se llegó a él.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="9">
+          <div class="q-header">
+            <span class="q-number">Pregunta 10</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">Para aplicar con éxito la Programación Dinámica, ¿qué tipo de pensamiento es requerido según la sección de conocimientos previos?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piense en la naturaleza de los problemas que se dividen en etapas ordenadas.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="La estructura del problema (nodos y arcos) ya está definida; el objetivo es decidir sobre la red existente, no crear una nueva.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Pensamiento divergente para la creación de nuevos nodos</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La estructura del problema (nodos y arcos) ya está definida; el objetivo es decidir sobre la red existente, no crear una nueva.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Aunque se puede usar un enfoque retrógrado, siempre se tiene en cuenta el objetivo final de optimización total.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Pensamiento únicamente retrospectivo sin mirar el objetivo final</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aunque se puede usar un enfoque retrógrado, siempre se tiene en cuenta el objetivo final de optimización total.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="true" data-rationale="La PD se basa en la resolución de problemas donde las decisiones se toman una tras otra, afectando el estado futuro.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Pensamiento secuencial para la toma de decisiones</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La PD se basa en la resolución de problemas donde las decisiones se toman una tras otra, afectando el estado futuro.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="La PD es un método determinista y sistemático, no basado en el azar o pruebas aleatorias.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Pensamiento aleatorio para probar diferentes rutas</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La PD es un método determinista y sistemático, no basado en el azar o pruebas aleatorias.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      </div>
+  <div class="results" id="results">
+    <h2>¡Cuestionario completado!</h2>
+    <div class="score" id="score">0%</div>
+    <div class="score-text" id="score-text"></div>
+    <button class="restart-btn" onclick="restart()">Intentar de nuevo</button>
+  </div>
+</div>
+<script>
+const quizData = [{"question":"¿Cuál es el principio fundamental que permite a la Programación Dinámica resolver problemas de optimización de manera eficiente?","hint":"Se trata de un concepto nombrado en honor a un matemático que define la relación entre decisiones pasadas y futuras.","options":[{"label":"A","text":"La Ley de Nodos y Arcos Aleatorios","isCorrect":false,"rationale":"Los conceptos de redes y grafos son conocimientos previos, pero no constituyen el principio que garantiza la optimización secuencial."},{"label":"B","text":"El Principio de Optimalidad de Bellman","isCorrect":true,"rationale":"Este principio establece que una política óptima tiene la propiedad de que, independientemente del estado y la decisión inicial, las decisiones restantes deben constituir una política óptima con respecto al estado resultante."},{"label":"C","text":"El Teorema de la Red Dirigida Exhaustiva","isCorrect":false,"rationale":"La programación dinámica busca precisamente evitar la exploración exhaustiva de todas las rutas posibles mediante la descomposición en etapas."},{"label":"D","text":"La Regla de la Programación Binaria Mixta","isCorrect":false,"rationale":"Aunque se mencionó como tema de la clase pasada, la programación binaria mixta es un enfoque distinto para el diseño de redes, no el sustento de la programación dinámica."}]},{"question":"En la estructura de un problema de Programación Dinámica, ¿qué representan las etapas ($n$)?","hint":"Piense en la división temporal o lógica del proceso de toma de decisiones.","options":[{"label":"A","text":"La decisión final de detenerse en el nodo J","isCorrect":false,"rationale":"El nodo final es solo el desenlace de la última etapa, pero no define la estructura de las etapas previas."},{"label":"B","text":"La secuencia de decisiones, como viajar de una columna de nodos a la siguiente","isCorrect":true,"rationale":"Las etapas dividen el problema principal en subproblemas menores que representan momentos o puntos de decisión secuenciales."},{"label":"C","text":"El conjunto de todos los nodos posibles en el grafo","isCorrect":false,"rationale":"Los nodos se asocian a los estados dentro de cada etapa, mientras que la etapa es la posición en la secuencia de decisiones."},{"label":"D","text":"Los valores de distancia total acumulada al final del recorrido","isCorrect":false,"rationale":"La distancia acumulada es el resultado de la función recursiva, no la definición de la etapa en sí misma."}]},{"question":"¿Qué define a los 'Estados' ($S_n$) dentro de la resolución de un problema de ruta más corta?","hint":"Considere qué información es necesaria para saber dónde estamos parados antes de tomar la siguiente decisión.","options":[{"label":"A","text":"El costo mínimo encontrado hasta el momento","isCorrect":false,"rationale":"El costo mínimo es el valor de la función objetivo para un estado dado, no el estado mismo."},{"label":"B","text":"La distancia entre un nodo y el siguiente","isCorrect":false,"rationale":"La distancia entre nodos es un dato de entrada del problema, no el estado del sistema en la etapa."},{"label":"C","text":"Los nodos específicos en los que se encuentra el sistema en cada etapa","isCorrect":true,"rationale":"El estado describe la condición del sistema (en qué nodo está) al inicio de una etapa particular."},{"label":"D","text":"La cantidad total de etapas que faltan para llegar al destino","isCorrect":false,"rationale":"Aunque el número de etapas restantes es relevante, el estado se identifica directamente con la ubicación (nodo) actual."}]},{"question":"Si un estudiante decide resolver el Problema de la Diligencia trabajando desde el nodo final hacia el nodo inicial, ¿qué enfoque está utilizando?","hint":"Recuerde el término que describe el movimiento inverso al flujo natural del viaje.","options":[{"label":"A","text":"Enfoque retrógrado","isCorrect":true,"rationale":"La programación dinámica a menudo se resuelve 'hacia atrás', calculando las decisiones óptimas desde el final para asegurar la optimalidad global."},{"label":"B","text":"Enfoque de Programación Binaria","isCorrect":false,"rationale":"La programación binaria es un método de modelado matemático distinto mencionado como repaso, no un modo de recorrido en PD."},{"label":"C","text":"Enfoque de Exploración Exhaustiva","isCorrect":false,"rationale":"La PD se diseñó para evitar precisamente este enfoque, que consiste en evaluar todas las combinaciones sin inteligencia previa."},{"label":"D","text":"Enfoque de Pensamiento Lineal","isCorrect":false,"rationale":"Aunque es secuencial, el término técnico para trabajar desde el final es retrógrado o hacia atrás."}]},{"question":"¿Cuál es la función primordial de la 'Función Recursiva' ($f_n$) en este modelo?","hint":"Piense en la fórmula que permite arrastrar los beneficios de las etapas ya calculadas.","options":[{"label":"A","text":"Eliminar todos los arcos que no conducen al nodo J","isCorrect":false,"rationale":"La función no elimina arcos, sino que evalúa cuáles ofrecen el valor óptimo según el criterio establecido."},{"label":"B","text":"Establecer la relación matemática para calcular el costo óptimo acumulado","isCorrect":true,"rationale":"La función recursiva permite conectar la decisión actual con los resultados óptimos de las etapas previas o posteriores."},{"label":"C","text":"Listar todos los caminos posibles desde el nodo A hasta el nodo J","isCorrect":false,"rationale":"Enumerar todos los caminos es propio de un método exhaustivo y no requiere una función recursiva de optimización."},{"label":"D","text":"Identificar únicamente el primer nodo de la red","isCorrect":false,"rationale":"La función recursiva abarca todas las etapas y estados, no se limita al punto de partida."}]},{"question":"¿Por qué se afirma que la Programación Dinámica genera un ahorro computacional significativo?","hint":"Considere la diferencia entre probar 'todo contra todo' y tomar decisiones basadas en resultados óptimos parciales.","options":[{"label":"A","text":"Porque garantiza que el primer camino encontrado sea siempre el más corto","isCorrect":false,"rationale":"No se trata de encontrar el 'primero', sino de una evaluación sistemática por etapas que asegura la optimalidad."},{"label":"B","text":"Porque no requiere el uso de nodos ni arcos para su resolución","isCorrect":false,"rationale":"El material indica que los nodos y arcos son conocimientos previos indispensables para aplicar este método."},{"label":"C","text":"Porque transforma problemas complejos en simples sumas lineales de una sola etapa","isCorrect":false,"rationale":"La PD descompone el problema en múltiples etapas, no lo reduce a una sola etapa simplista."},{"label":"D","text":"Porque evita evaluar todas las combinaciones posibles de rutas","isCorrect":true,"rationale":"Al utilizar el principio de optimalidad, solo se guardan y procesan las mejores decisiones para cada estado, reduciendo el espacio de búsqueda."}]},{"question":"En el 'Problema de la Diligencia' presentado, ¿cuál es el objetivo final?","hint":"Recuerde el propósito común de los problemas de transporte y redes discutidos en la sesión.","options":[{"label":"A","text":"Encontrar la secuencia de nodos que minimice la distancia total desde A hasta J","isCorrect":true,"rationale":"El ejercicio busca la ruta más corta, lo que implica seleccionar los arcos cuya suma de distancias sea la mínima posible."},{"label":"B","text":"Determinar cuántas rutas diferentes existen entre el nodo A y el nodo J","isCorrect":false,"rationale":"Contar las rutas es un problema combinatorio, no necesariamente un problema de optimización de ruta más corta."},{"label":"C","text":"Calcular la velocidad promedio de la diligencia en cada tramo","isCorrect":false,"rationale":"El material se enfoca en distancias y optimización de ruta, no en variables físicas como la velocidad."},{"label":"D","text":"Maximizar la cantidad de nodos visitados en el trayecto","isCorrect":false,"rationale":"El objetivo es minimizar la distancia, lo cual a menudo implica visitar la menor cantidad de nodos necesarios."}]},{"question":"Dentro de la terminología de PD, ¿qué representa la variable $X_n$?","hint":"Se refiere a la elección que hace el tomador de decisiones al estar en un nodo determinado.","options":[{"label":"A","text":"Un nodo que debe ser evitado obligatoriamente","isCorrect":false,"rationale":"$X_n$ es una elección dentro de las opciones permitidas, no una etiqueta para nodos prohibidos."},{"label":"B","text":"La decisión sobre a qué nodo viajar a continuación","isCorrect":true,"rationale":"$X_n$ representa la variable de decisión que conecta el estado actual con un estado en la siguiente etapa."},{"label":"C","text":"El costo fijo de permanecer en el estado actual","isCorrect":false,"rationale":"En el modelo de ruta más corta, los costos suelen estar asociados a los arcos (decisiones), no a la permanencia estática."},{"label":"D","text":"La etapa final del problema","isCorrect":false,"rationale":"La etapa se denota comúnmente con $n$, mientras que $X_n$ es la acción tomada en esa etapa."}]},{"question":"Según el material, ¿qué propiedad debe cumplir una política óptima respecto a las decisiones anteriores?","hint":"Esta propiedad es el corazón del Principio de Bellman sobre la independencia del pasado para la optimización del futuro.","options":[{"label":"A","text":"Debe ser idéntica a la decisión tomada en la etapa $n-1$","isCorrect":false,"rationale":"Cada etapa puede requerir decisiones distintas según la estructura de la red y las distancias."},{"label":"B","text":"Debe corregir obligatoriamente los errores de las decisiones pasadas","isCorrect":false,"rationale":"La PD asume que las decisiones restantes deben ser óptimas, pero no se enfoca en 'corregir' sino en optimizar desde el punto presente."},{"label":"C","text":"Debe depender de que la decisión anterior haya sido la más barata posible","isCorrect":false,"rationale":"La propiedad establece que la política restante es óptima para el estado resultante, sin importar si el camino previo fue óptimo o no."},{"label":"D","text":"Debe ser óptima independientemente de cuál haya sido la decisión anterior","isCorrect":true,"rationale":"El principio de Bellman asegura que la estrategia futura debe ser óptima para el estado actual, sin importar cómo se llegó a él."}]},{"question":"Para aplicar con éxito la Programación Dinámica, ¿qué tipo de pensamiento es requerido según la sección de conocimientos previos?","hint":"Piense en la naturaleza de los problemas que se dividen en etapas ordenadas.","options":[{"label":"A","text":"Pensamiento divergente para la creación de nuevos nodos","isCorrect":false,"rationale":"La estructura del problema (nodos y arcos) ya está definida; el objetivo es decidir sobre la red existente, no crear una nueva."},{"label":"B","text":"Pensamiento únicamente retrospectivo sin mirar el objetivo final","isCorrect":false,"rationale":"Aunque se puede usar un enfoque retrógrado, siempre se tiene en cuenta el objetivo final de optimización total."},{"label":"C","text":"Pensamiento secuencial para la toma de decisiones","isCorrect":true,"rationale":"La PD se basa en la resolución de problemas donde las decisiones se toman una tras otra, afectando el estado futuro."},{"label":"D","text":"Pensamiento aleatorio para probar diferentes rutas","isCorrect":false,"rationale":"La PD es un método determinista y sistemático, no basado en el azar o pruebas aleatorias."}]}];
+const tr = {"correct":"¡Correcto!","incorrect":"Incorrecto","next":"Siguiente pregunta →","seeResults":"Ver resultados","complete":"¡Cuestionario completado!","scoreText":"Obtuviste {correct} de {total} correctas","tryAgain":"Intentar de nuevo","rightAnswer":"Respuesta correcta","notQuite":"No del todo"};
+let currentQ = 0, correctCount = 0, answered = false;
+
+function init() {
+  document.querySelectorAll('.question').forEach((q, i) => q.classList.toggle('active', i === 0));
+  updateProgress();
+  document.querySelectorAll('.option').forEach(opt => opt.addEventListener('click', () => selectOption(opt)));
+  document.querySelectorAll('.next-btn').forEach(btn => btn.addEventListener('click', nextQuestion));
+}
+
+function selectOption(opt) {
+  if (answered) return;
+  answered = true;
+  const q = opt.closest('.question');
+  const options = q.querySelectorAll('.option');
+  const nextBtn = q.querySelector('.next-btn');
+  const isCorrect = opt.dataset.correct === 'true';
+  
+  // Mark all options as disabled
+  options.forEach(o => o.classList.add('disabled'));
+  
+  // Style selected option
+  opt.classList.add('selected', isCorrect ? 'correct' : 'incorrect');
+  
+  // Show correct answer if wrong
+  if (!isCorrect) {
+    const correctOpt = [...options].find(o => o.dataset.correct === 'true');
+    if (correctOpt) correctOpt.classList.add('show-correct');
+  }
+  
+  if (isCorrect) correctCount++;
+  
+  // Show feedback for ALL options that have rationale
+  options.forEach(o => {
+    const wrapper = o.closest('.option-wrapper');
+    const feedback = wrapper.querySelector('.option-feedback');
+    const rationale = o.dataset.rationale;
+    const isThisCorrect = o.dataset.correct === 'true';
+    
+    if (rationale && rationale.trim()) {
+      feedback.classList.remove('hidden');
+      feedback.classList.add(isThisCorrect ? 'correct-feedback' : 'incorrect-feedback');
+      
+      const statusEl = feedback.querySelector('.feedback-status');
+      statusEl.className = 'feedback-status ' + (isThisCorrect ? 'correct' : 'incorrect');
+      statusEl.innerHTML = isThisCorrect 
+        ? '✓ ' + tr.rightAnswer
+        : '✗ ' + tr.notQuite;
+    }
+  });
+  
+  nextBtn.classList.remove('hidden');
+  if (currentQ === quizData.length - 1) nextBtn.textContent = tr.seeResults;
+}
+
+function nextQuestion() {
+  answered = false;
+  currentQ++;
+  if (currentQ >= quizData.length) { showResults(); return; }
+  document.querySelectorAll('.question').forEach((q, i) => q.classList.toggle('active', i === currentQ));
+  updateProgress();
+}
+
+function updateProgress() {
+  document.querySelector('.progress-fill').style.width = (currentQ / quizData.length * 100) + '%';
+}
+
+function showResults() {
+  document.querySelectorAll('.question').forEach(q => q.classList.remove('active'));
+  document.getElementById('results').classList.add('active');
+  const pct = Math.round((correctCount / quizData.length) * 100);
+  document.getElementById('score').textContent = pct + '%';
+  document.getElementById('score-text').textContent = tr.scoreText.replace('{correct}', correctCount).replace('{total}', quizData.length);
+  document.querySelector('.progress-fill').style.width = '100%';
+}
+
+function restart() {
+  currentQ = 0; correctCount = 0; answered = false;
+  document.getElementById('results').classList.remove('active');
+  document.querySelectorAll('.question').forEach((q, i) => {
+    q.classList.toggle('active', i === 0);
+    q.querySelectorAll('.option').forEach(o => o.classList.remove('selected', 'correct', 'incorrect', 'disabled', 'show-correct'));
+    q.querySelectorAll('.option-feedback').forEach(f => {
+      f.classList.add('hidden');
+      f.classList.remove('correct-feedback', 'incorrect-feedback');
+    });
+    const btn = q.querySelector('.next-btn');
+    btn.classList.add('hidden');
+    btn.textContent = tr.next;
+  });
+  updateProgress();
+}
+
+init();
+</script>
+</body>
+</html>
