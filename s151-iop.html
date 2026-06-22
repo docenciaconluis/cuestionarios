@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="es" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>S15.1 IOP</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  min-height: 100vh; padding: 20px; color: #333;
+}
+.container { max-width: 700px; margin: 0 auto; }
+.header { text-align: center; color: #fff; padding: 30px 20px; }
+.header h1 { font-size: 28px; font-weight: 700; margin-bottom: 8px; text-shadow: 0 2px 10px rgba(0,0,0,0.2); }
+.header .meta { font-size: 14px; opacity: 0.9; }
+.progress-bar { background: rgba(255,255,255,0.3); border-radius: 10px; height: 8px; margin: 20px 0; overflow: hidden; }
+.progress-fill { background: #fff; height: 100%; width: 0%; transition: width 0.4s ease; border-radius: 10px; }
+.question { background: #fff; border-radius: 16px; padding: 30px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); display: none; }
+.question.active { display: block; }
+.q-header { display: flex; justify-content: space-between; margin-bottom: 20px; font-size: 13px; color: #888; }
+.q-number { font-weight: 600; color: #667eea; }
+.q-text { font-size: 18px; font-weight: 600; line-height: 1.5; margin-bottom: 25px; color: #222; }
+.options { display: flex; flex-direction: column; gap: 12px; }
+.option-wrapper { display: flex; flex-direction: column; }
+.option {
+  display: flex; align-items: flex-start; gap: 14px; padding: 16px 18px;
+  border: 2px solid #e8e8e8; border-radius: 12px; background: #fafafa;
+  cursor: pointer; transition: all 0.2s; text-align: left; font-size: 15px; width: 100%;
+}
+[dir="rtl"] .option { text-align: right; flex-direction: row-reverse; }
+.option:hover:not(.disabled) { border-color: #667eea; background: #f5f3ff; }
+.option.selected { border-color: #667eea; background: #ede9fe; }
+.option.correct { border-color: #22c55e; background: #dcfce7; }
+.option.incorrect { border-color: #ef4444; background: #fee2e2; }
+.option.disabled { cursor: default; }
+.option.show-correct { border-color: #22c55e; background: #dcfce7; }
+.opt-label {
+  display: flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; border-radius: 50%; background: #e8e8e8;
+  font-weight: 700; font-size: 14px; flex-shrink: 0;
+}
+.option.selected .opt-label { background: #667eea; color: #fff; }
+.option.correct .opt-label { background: #22c55e; color: #fff; }
+.option.incorrect .opt-label { background: #ef4444; color: #fff; }
+.option.show-correct .opt-label { background: #22c55e; color: #fff; }
+.opt-text { padding-top: 5px; line-height: 1.5; }
+
+/* Individual option feedback */
+.option-feedback {
+  margin: 8px 0 4px 46px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+[dir="rtl"] .option-feedback { margin-left: 0; margin-right: 46px; }
+.option-feedback.correct-feedback {
+  background: #dcfce7;
+  border-left: 3px solid #22c55e;
+}
+.option-feedback.incorrect-feedback {
+  background: #fef3f2;
+  border-left: 3px solid #fca5a5;
+}
+[dir="rtl"] .option-feedback.correct-feedback,
+[dir="rtl"] .option-feedback.incorrect-feedback {
+  border-left: none;
+  border-right: 3px solid;
+}
+[dir="rtl"] .option-feedback.correct-feedback { border-right-color: #22c55e; }
+[dir="rtl"] .option-feedback.incorrect-feedback { border-right-color: #fca5a5; }
+.feedback-status {
+  font-weight: 600;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.feedback-status.correct { color: #166534; }
+.feedback-status.incorrect { color: #991b1b; }
+.feedback-rationale { color: #444; }
+
+/* Hint box */
+.hint-box {
+  margin: 12px 0;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+}
+.hint-toggle {
+  width: 100%;
+  padding: 10px 16px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  color: #92400e;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.hint-toggle:hover { background: #fef3c7; }
+.hint-content {
+  padding: 0 16px;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s, padding 0.3s;
+  font-size: 14px;
+  color: #78350f;
+  line-height: 1.5;
+}
+.hint-box.show .hint-content {
+  padding: 0 16px 12px;
+  max-height: 200px;
+}
+
+.next-btn {
+  margin-top: 20px; width: 100%; padding: 14px;
+  background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; border: none;
+  border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.next-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(102,126,234,0.4); }
+.hidden { display: none !important; }
+.results { background: #fff; border-radius: 16px; padding: 40px; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.15); display: none; }
+.results.active { display: block; }
+.results h2 { font-size: 28px; margin-bottom: 10px; color: #333; }
+.results .score { font-size: 64px; font-weight: 700; color: #667eea; margin: 20px 0; }
+.results .score-text { font-size: 18px; color: #666; margin-bottom: 30px; }
+.restart-btn {
+  padding: 14px 40px; background: linear-gradient(135deg, #667eea, #764ba2);
+  color: #fff; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer;
+}
+
+/* Math CSS */
+.math, .math-block { font-family: "Cambria Math", "Times New Roman", Times, serif; font-style: italic; }
+.math-block { display: block; text-align: center; margin: 10px 0; font-size: 110%; }
+.frac { display: inline-flex; flex-direction: column; align-items: center; vertical-align: middle; margin: 0 3px; font-size: 0.9em; }
+.frac-num { border-bottom: 1px solid currentColor; padding: 0 4px 2px; line-height: 1.2; }
+.frac-den { padding: 2px 4px 0; line-height: 1.2; }
+.sqrt { white-space: nowrap; }
+.sqrt-content { border-top: 1px solid currentColor; padding: 0 3px; margin-left: 2px; }
+sup, sub { font-size: 0.75em; }
+sup { vertical-align: super; }
+sub { vertical-align: sub; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>S15.1 IOP</h1>
+    <div class="meta">10 preguntas</div>
+    <div class="progress-bar"><div class="progress-fill"></div></div>
+  </div>
+  <div id="quiz-container">
+        <div class="question" data-index="0">
+          <div class="q-header">
+            <span class="q-number">Pregunta 1</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">En el contexto de la Programación Binaria, ¿una variable con valor <span class="math">0</span> representa la decisión de 'elegir' o 'activar' un elemento?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Recuerda la correspondencia entre los dígitos binarios y las decisiones de tipo sí/no.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="El valor $0$ indica que no se selecciona el elemento, mientras que el valor $1$ representa la elección o activación del mismo.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El valor <span class="math">0</span> indica que no se selecciona el elemento, mientras que el valor <span class="math">1</span> representa la elección o activación del mismo.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="En los modelos binarios, el valor $0$ se asigna convencionalmente a la opción de no elegir o rechazar una alternativa.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">En los modelos binarios, el valor <span class="math">0</span> se asigna convencionalmente a la opción de no elegir o rechazar una alternativa.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="1">
+          <div class="q-header">
+            <span class="q-number">Pregunta 2</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿La instrucción <span class="math">text@GIN(x)</span> en Lingo es la herramienta adecuada para definir que una variable de decisión sea exclusivamente binaria (0 o 1)?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considera la diferencia entre un número entero general y uno que solo representa dos estados posibles.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Para restringir una variable a valores binarios ($0$ o $1$) en Lingo, se debe utilizar la instrucción específica $\text{@BIN}$.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Para restringir una variable a valores binarios (<span class="math">0</span> o <span class="math">1</span>) en Lingo, se debe utilizar la instrucción específica <span class="math">text@BIN</span>.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="La instrucción $\text{@GIN}$ se utiliza para variables enteras generales que pueden tomar valores mayores a $1$.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La instrucción <span class="math">text@GIN</span> se utiliza para variables enteras generales que pueden tomar valores mayores a <span class="math">1</span>.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="2">
+          <div class="q-header">
+            <span class="q-number">Pregunta 3</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿El objetivo central del 'Problema de la Mochila' es maximizar la utilidad total sin sobrepasar una capacidad de carga establecida?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piensa en la meta que persigue una empresa al seleccionar bultos con diferentes valores y pesos.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Este modelo busca la combinación óptima de elementos que aporte el mayor valor posible respetando el límite de peso o espacio.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Este modelo busca la combinación óptima de elementos que aporte el mayor valor posible respetando el límite de peso o espacio.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El problema de la mochila no busca minimizar, sino optimizar el beneficio dentro de una restricción de capacidad.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El problema de la mochila no busca minimizar, sino optimizar el beneficio dentro de una restricción de capacidad.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="3">
+          <div class="q-header">
+            <span class="q-number">Pregunta 4</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿Una restricción de 'Exclusión Mutua' permite que dos elementos, como los bultos G y H, sean transportados simultáneamente en el mismo viaje?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Analiza el significado del término 'exclusión' en una decisión lógica.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="La exclusión mutua impide que ambas variables tomen el valor $1$ al mismo tiempo.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La exclusión mutua impide que ambas variables tomen el valor <span class="math">1</span> al mismo tiempo.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Este tipo de restricción lógica asegura que si se elige uno, el otro queda automáticamente descartado para cumplir con las reglas del negocio.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Este tipo de restricción lógica asegura que si se elige uno, el otro queda automáticamente descartado para cumplir con las reglas del negocio.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="4">
+          <div class="q-header">
+            <span class="q-number">Pregunta 5</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿La Programación Binaria es capaz de transformar decisiones cualitativas de tipo 'comprar' o 'no comprar' en restricciones matemáticas manejables?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considera cómo se representan matemáticamente las opciones lógicas en un modelo de optimización.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Permite modelar situaciones lógicas complejas mediante el uso de variables que solo admiten los valores discreto $0$ y $1$.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Permite modelar situaciones lógicas complejas mediante el uso de variables que solo admiten los valores discreto <span class="math">0</span> y <span class="math">1</span>.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Esta es precisamente la utilidad principal de la programación binaria en la investigación de operaciones.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esta es precisamente la utilidad principal de la programación binaria en la investigación de operaciones.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="5">
+          <div class="q-header">
+            <span class="q-number">Pregunta 6</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿La restricción lógica de 'Inclusión' establece que si se selecciona un elemento específico (por ejemplo, el bulto B), entonces obligatoriamente debe seleccionarse otro (como el bulto C)?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Relaciona este concepto con la estructura condicional 'Si A, entonces B'.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Esta definición describe correctamente una relación condicional de dependencia entre dos variables binarias.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esta definición describe correctamente una relación condicional de dependencia entre dos variables binarias.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="La inclusión condiciona la selección de un elemento a la presencia obligatoria de otro en la solución final.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La inclusión condiciona la selección de un elemento a la presencia obligatoria de otro en la solución final.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="6">
+          <div class="q-header">
+            <span class="q-number">Pregunta 7</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">En el modelo de transporte propuesto, ¿el objetivo matemático es minimizar el peso total de los bultos seleccionados?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Distingue entre lo que se desea lograr (función objetivo) y los límites físicos (restricciones).</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="El objetivo principal indicado en el material es maximizar la utilidad generada por el transporte de los bultos.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El objetivo principal indicado en el material es maximizar la utilidad generada por el transporte de los bultos.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El peso funciona como una restricción de capacidad, no como la función objetivo del problema.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El peso funciona como una restricción de capacidad, no como la función objetivo del problema.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="7">
+          <div class="q-header">
+            <span class="q-number">Pregunta 8</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿Es posible que una variable binaria tome el valor de <span class="math">0.5</span> si el modelo busca un punto medio entre elegir y no elegir?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Recuerda la restricción de integridad que define a este tipo de programación.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="La integridad binaria prohíbe valores fraccionarios, forzando una decisión absoluta de todo o nada.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La integridad binaria prohíbe valores fraccionarios, forzando una decisión absoluta de todo o nada.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Las variables binarias por definición solo pueden ser enteras y limitadas a los valores exactos $0$ o $1$.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Las variables binarias por definición solo pueden ser enteras y limitadas a los valores exactos <span class="math">0</span> o <span class="math">1</span>.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="8">
+          <div class="q-header">
+            <span class="q-number">Pregunta 9</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿Las restricciones de capacidad de carga se modelan habitualmente utilizando únicamente variables binarias sin incluir sus pesos respectivos?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piensa en cómo calcularías el peso total dentro de un camión si sabes qué bultos se han cargado.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Una restricción de capacidad efectiva suma los productos del peso de cada bulto por su variable binaria correspondiente, comparándolos con el límite.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Una restricción de capacidad efectiva suma los productos del peso de cada bulto por su variable binaria correspondiente, comparándolos con el límite.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Se deben multiplicar las variables binarias por sus respectivos pesos para calcular el impacto total en la capacidad.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Se deben multiplicar las variables binarias por sus respectivos pesos para calcular el impacto total en la capacidad.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="9">
+          <div class="q-header">
+            <span class="q-number">Pregunta 10</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿La Programación Binaria es una herramienta esencial para modelar la apertura o cierre de instalaciones en una red logística?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Reflexiona sobre los tipos de decisiones empresariales que se mencionan como utilidad del tema.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Debido a su naturaleza dicotómica, es ideal para representar estados como abierto ($1$) o cerrado ($0$).">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Debido a su naturaleza dicotómica, es ideal para representar estados como abierto (<span class="math">1</span>) o cerrado (<span class="math">0</span>).</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El material destaca que la programación binaria es fundamental para decisiones de apertura, inversión y selección.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El material destaca que la programación binaria es fundamental para decisiones de apertura, inversión y selección.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      </div>
+  <div class="results" id="results">
+    <h2>¡Cuestionario completado!</h2>
+    <div class="score" id="score">0%</div>
+    <div class="score-text" id="score-text"></div>
+    <button class="restart-btn" onclick="restart()">Intentar de nuevo</button>
+  </div>
+</div>
+<script>
+const quizData = [{"question":"En el contexto de la Programación Binaria, ¿una variable con valor $0$ representa la decisión de 'elegir' o 'activar' un elemento?","hint":"Recuerda la correspondencia entre los dígitos binarios y las decisiones de tipo sí/no.","options":[{"label":"A","text":"Falso","isCorrect":true,"rationale":"El valor $0$ indica que no se selecciona el elemento, mientras que el valor $1$ representa la elección o activación del mismo."},{"label":"B","text":"Verdadero","isCorrect":false,"rationale":"En los modelos binarios, el valor $0$ se asigna convencionalmente a la opción de no elegir o rechazar una alternativa."}]},{"question":"¿La instrucción $\\text{@GIN}(x)$ en Lingo es la herramienta adecuada para definir que una variable de decisión sea exclusivamente binaria (0 o 1)?","hint":"Considera la diferencia entre un número entero general y uno que solo representa dos estados posibles.","options":[{"label":"A","text":"Falso","isCorrect":true,"rationale":"Para restringir una variable a valores binarios ($0$ o $1$) en Lingo, se debe utilizar la instrucción específica $\\text{@BIN}$."},{"label":"B","text":"Verdadero","isCorrect":false,"rationale":"La instrucción $\\text{@GIN}$ se utiliza para variables enteras generales que pueden tomar valores mayores a $1$."}]},{"question":"¿El objetivo central del 'Problema de la Mochila' es maximizar la utilidad total sin sobrepasar una capacidad de carga establecida?","hint":"Piensa en la meta que persigue una empresa al seleccionar bultos con diferentes valores y pesos.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"Este modelo busca la combinación óptima de elementos que aporte el mayor valor posible respetando el límite de peso o espacio."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"El problema de la mochila no busca minimizar, sino optimizar el beneficio dentro de una restricción de capacidad."}]},{"question":"¿Una restricción de 'Exclusión Mutua' permite que dos elementos, como los bultos G y H, sean transportados simultáneamente en el mismo viaje?","hint":"Analiza el significado del término 'exclusión' en una decisión lógica.","options":[{"label":"A","text":"Verdadero","isCorrect":false,"rationale":"La exclusión mutua impide que ambas variables tomen el valor $1$ al mismo tiempo."},{"label":"B","text":"Falso","isCorrect":true,"rationale":"Este tipo de restricción lógica asegura que si se elige uno, el otro queda automáticamente descartado para cumplir con las reglas del negocio."}]},{"question":"¿La Programación Binaria es capaz de transformar decisiones cualitativas de tipo 'comprar' o 'no comprar' en restricciones matemáticas manejables?","hint":"Considera cómo se representan matemáticamente las opciones lógicas en un modelo de optimización.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"Permite modelar situaciones lógicas complejas mediante el uso de variables que solo admiten los valores discreto $0$ y $1$."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"Esta es precisamente la utilidad principal de la programación binaria en la investigación de operaciones."}]},{"question":"¿La restricción lógica de 'Inclusión' establece que si se selecciona un elemento específico (por ejemplo, el bulto B), entonces obligatoriamente debe seleccionarse otro (como el bulto C)?","hint":"Relaciona este concepto con la estructura condicional 'Si A, entonces B'.","options":[{"label":"A","text":"Falso","isCorrect":false,"rationale":"Esta definición describe correctamente una relación condicional de dependencia entre dos variables binarias."},{"label":"B","text":"Verdadero","isCorrect":true,"rationale":"La inclusión condiciona la selección de un elemento a la presencia obligatoria de otro en la solución final."}]},{"question":"En el modelo de transporte propuesto, ¿el objetivo matemático es minimizar el peso total de los bultos seleccionados?","hint":"Distingue entre lo que se desea lograr (función objetivo) y los límites físicos (restricciones).","options":[{"label":"A","text":"Falso","isCorrect":true,"rationale":"El objetivo principal indicado en el material es maximizar la utilidad generada por el transporte de los bultos."},{"label":"B","text":"Verdadero","isCorrect":false,"rationale":"El peso funciona como una restricción de capacidad, no como la función objetivo del problema."}]},{"question":"¿Es posible que una variable binaria tome el valor de $0.5$ si el modelo busca un punto medio entre elegir y no elegir?","hint":"Recuerda la restricción de integridad que define a este tipo de programación.","options":[{"label":"A","text":"Falso","isCorrect":true,"rationale":"La integridad binaria prohíbe valores fraccionarios, forzando una decisión absoluta de todo o nada."},{"label":"B","text":"Verdadero","isCorrect":false,"rationale":"Las variables binarias por definición solo pueden ser enteras y limitadas a los valores exactos $0$ o $1$."}]},{"question":"¿Las restricciones de capacidad de carga se modelan habitualmente utilizando únicamente variables binarias sin incluir sus pesos respectivos?","hint":"Piensa en cómo calcularías el peso total dentro de un camión si sabes qué bultos se han cargado.","options":[{"label":"A","text":"Falso","isCorrect":true,"rationale":"Una restricción de capacidad efectiva suma los productos del peso de cada bulto por su variable binaria correspondiente, comparándolos con el límite."},{"label":"B","text":"Verdadero","isCorrect":false,"rationale":"Se deben multiplicar las variables binarias por sus respectivos pesos para calcular el impacto total en la capacidad."}]},{"question":"¿La Programación Binaria es una herramienta esencial para modelar la apertura o cierre de instalaciones en una red logística?","hint":"Reflexiona sobre los tipos de decisiones empresariales que se mencionan como utilidad del tema.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"Debido a su naturaleza dicotómica, es ideal para representar estados como abierto ($1$) o cerrado ($0$)."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"El material destaca que la programación binaria es fundamental para decisiones de apertura, inversión y selección."}]}];
+const tr = {"correct":"¡Correcto!","incorrect":"Incorrecto","next":"Siguiente pregunta →","seeResults":"Ver resultados","complete":"¡Cuestionario completado!","scoreText":"Obtuviste {correct} de {total} correctas","tryAgain":"Intentar de nuevo","rightAnswer":"Respuesta correcta","notQuite":"No del todo"};
+let currentQ = 0, correctCount = 0, answered = false;
+
+function init() {
+  document.querySelectorAll('.question').forEach((q, i) => q.classList.toggle('active', i === 0));
+  updateProgress();
+  document.querySelectorAll('.option').forEach(opt => opt.addEventListener('click', () => selectOption(opt)));
+  document.querySelectorAll('.next-btn').forEach(btn => btn.addEventListener('click', nextQuestion));
+}
+
+function selectOption(opt) {
+  if (answered) return;
+  answered = true;
+  const q = opt.closest('.question');
+  const options = q.querySelectorAll('.option');
+  const nextBtn = q.querySelector('.next-btn');
+  const isCorrect = opt.dataset.correct === 'true';
+  
+  // Mark all options as disabled
+  options.forEach(o => o.classList.add('disabled'));
+  
+  // Style selected option
+  opt.classList.add('selected', isCorrect ? 'correct' : 'incorrect');
+  
+  // Show correct answer if wrong
+  if (!isCorrect) {
+    const correctOpt = [...options].find(o => o.dataset.correct === 'true');
+    if (correctOpt) correctOpt.classList.add('show-correct');
+  }
+  
+  if (isCorrect) correctCount++;
+  
+  // Show feedback for ALL options that have rationale
+  options.forEach(o => {
+    const wrapper = o.closest('.option-wrapper');
+    const feedback = wrapper.querySelector('.option-feedback');
+    const rationale = o.dataset.rationale;
+    const isThisCorrect = o.dataset.correct === 'true';
+    
+    if (rationale && rationale.trim()) {
+      feedback.classList.remove('hidden');
+      feedback.classList.add(isThisCorrect ? 'correct-feedback' : 'incorrect-feedback');
+      
+      const statusEl = feedback.querySelector('.feedback-status');
+      statusEl.className = 'feedback-status ' + (isThisCorrect ? 'correct' : 'incorrect');
+      statusEl.innerHTML = isThisCorrect 
+        ? '✓ ' + tr.rightAnswer
+        : '✗ ' + tr.notQuite;
+    }
+  });
+  
+  nextBtn.classList.remove('hidden');
+  if (currentQ === quizData.length - 1) nextBtn.textContent = tr.seeResults;
+}
+
+function nextQuestion() {
+  answered = false;
+  currentQ++;
+  if (currentQ >= quizData.length) { showResults(); return; }
+  document.querySelectorAll('.question').forEach((q, i) => q.classList.toggle('active', i === currentQ));
+  updateProgress();
+}
+
+function updateProgress() {
+  document.querySelector('.progress-fill').style.width = (currentQ / quizData.length * 100) + '%';
+}
+
+function showResults() {
+  document.querySelectorAll('.question').forEach(q => q.classList.remove('active'));
+  document.getElementById('results').classList.add('active');
+  const pct = Math.round((correctCount / quizData.length) * 100);
+  document.getElementById('score').textContent = pct + '%';
+  document.getElementById('score-text').textContent = tr.scoreText.replace('{correct}', correctCount).replace('{total}', quizData.length);
+  document.querySelector('.progress-fill').style.width = '100%';
+}
+
+function restart() {
+  currentQ = 0; correctCount = 0; answered = false;
+  document.getElementById('results').classList.remove('active');
+  document.querySelectorAll('.question').forEach((q, i) => {
+    q.classList.toggle('active', i === 0);
+    q.querySelectorAll('.option').forEach(o => o.classList.remove('selected', 'correct', 'incorrect', 'disabled', 'show-correct'));
+    q.querySelectorAll('.option-feedback').forEach(f => {
+      f.classList.add('hidden');
+      f.classList.remove('correct-feedback', 'incorrect-feedback');
+    });
+    const btn = q.querySelector('.next-btn');
+    btn.classList.add('hidden');
+    btn.textContent = tr.next;
+  });
+  updateProgress();
+}
+
+init();
+</script>
+</body>
+</html>
