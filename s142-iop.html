@@ -1,0 +1,886 @@
+<!DOCTYPE html>
+<html lang="es" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>S14.2 IOP</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  min-height: 100vh; padding: 20px; color: #333;
+}
+.container { max-width: 700px; margin: 0 auto; }
+.header { text-align: center; color: #fff; padding: 30px 20px; }
+.header h1 { font-size: 28px; font-weight: 700; margin-bottom: 8px; text-shadow: 0 2px 10px rgba(0,0,0,0.2); }
+.header .meta { font-size: 14px; opacity: 0.9; }
+.progress-bar { background: rgba(255,255,255,0.3); border-radius: 10px; height: 8px; margin: 20px 0; overflow: hidden; }
+.progress-fill { background: #fff; height: 100%; width: 0%; transition: width 0.4s ease; border-radius: 10px; }
+.question { background: #fff; border-radius: 16px; padding: 30px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); display: none; }
+.question.active { display: block; }
+.q-header { display: flex; justify-content: space-between; margin-bottom: 20px; font-size: 13px; color: #888; }
+.q-number { font-weight: 600; color: #667eea; }
+.q-text { font-size: 18px; font-weight: 600; line-height: 1.5; margin-bottom: 25px; color: #222; }
+.options { display: flex; flex-direction: column; gap: 12px; }
+.option-wrapper { display: flex; flex-direction: column; }
+.option {
+  display: flex; align-items: flex-start; gap: 14px; padding: 16px 18px;
+  border: 2px solid #e8e8e8; border-radius: 12px; background: #fafafa;
+  cursor: pointer; transition: all 0.2s; text-align: left; font-size: 15px; width: 100%;
+}
+[dir="rtl"] .option { text-align: right; flex-direction: row-reverse; }
+.option:hover:not(.disabled) { border-color: #667eea; background: #f5f3ff; }
+.option.selected { border-color: #667eea; background: #ede9fe; }
+.option.correct { border-color: #22c55e; background: #dcfce7; }
+.option.incorrect { border-color: #ef4444; background: #fee2e2; }
+.option.disabled { cursor: default; }
+.option.show-correct { border-color: #22c55e; background: #dcfce7; }
+.opt-label {
+  display: flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; border-radius: 50%; background: #e8e8e8;
+  font-weight: 700; font-size: 14px; flex-shrink: 0;
+}
+.option.selected .opt-label { background: #667eea; color: #fff; }
+.option.correct .opt-label { background: #22c55e; color: #fff; }
+.option.incorrect .opt-label { background: #ef4444; color: #fff; }
+.option.show-correct .opt-label { background: #22c55e; color: #fff; }
+.opt-text { padding-top: 5px; line-height: 1.5; }
+
+/* Individual option feedback */
+.option-feedback {
+  margin: 8px 0 4px 46px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+[dir="rtl"] .option-feedback { margin-left: 0; margin-right: 46px; }
+.option-feedback.correct-feedback {
+  background: #dcfce7;
+  border-left: 3px solid #22c55e;
+}
+.option-feedback.incorrect-feedback {
+  background: #fef3f2;
+  border-left: 3px solid #fca5a5;
+}
+[dir="rtl"] .option-feedback.correct-feedback,
+[dir="rtl"] .option-feedback.incorrect-feedback {
+  border-left: none;
+  border-right: 3px solid;
+}
+[dir="rtl"] .option-feedback.correct-feedback { border-right-color: #22c55e; }
+[dir="rtl"] .option-feedback.incorrect-feedback { border-right-color: #fca5a5; }
+.feedback-status {
+  font-weight: 600;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.feedback-status.correct { color: #166534; }
+.feedback-status.incorrect { color: #991b1b; }
+.feedback-rationale { color: #444; }
+
+/* Hint box */
+.hint-box {
+  margin: 12px 0;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+}
+.hint-toggle {
+  width: 100%;
+  padding: 10px 16px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  color: #92400e;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.hint-toggle:hover { background: #fef3c7; }
+.hint-content {
+  padding: 0 16px;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s, padding 0.3s;
+  font-size: 14px;
+  color: #78350f;
+  line-height: 1.5;
+}
+.hint-box.show .hint-content {
+  padding: 0 16px 12px;
+  max-height: 200px;
+}
+
+.next-btn {
+  margin-top: 20px; width: 100%; padding: 14px;
+  background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; border: none;
+  border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.next-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(102,126,234,0.4); }
+.hidden { display: none !important; }
+.results { background: #fff; border-radius: 16px; padding: 40px; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.15); display: none; }
+.results.active { display: block; }
+.results h2 { font-size: 28px; margin-bottom: 10px; color: #333; }
+.results .score { font-size: 64px; font-weight: 700; color: #667eea; margin: 20px 0; }
+.results .score-text { font-size: 18px; color: #666; margin-bottom: 30px; }
+.restart-btn {
+  padding: 14px 40px; background: linear-gradient(135deg, #667eea, #764ba2);
+  color: #fff; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer;
+}
+
+/* Math CSS */
+.math, .math-block { font-family: "Cambria Math", "Times New Roman", Times, serif; font-style: italic; }
+.math-block { display: block; text-align: center; margin: 10px 0; font-size: 110%; }
+.frac { display: inline-flex; flex-direction: column; align-items: center; vertical-align: middle; margin: 0 3px; font-size: 0.9em; }
+.frac-num { border-bottom: 1px solid currentColor; padding: 0 4px 2px; line-height: 1.2; }
+.frac-den { padding: 2px 4px 0; line-height: 1.2; }
+.sqrt { white-space: nowrap; }
+.sqrt-content { border-top: 1px solid currentColor; padding: 0 3px; margin-left: 2px; }
+sup, sub { font-size: 0.75em; }
+sup { vertical-align: super; }
+sub { vertical-align: sub; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>S14.2 IOP</h1>
+    <div class="meta">10 preguntas</div>
+    <div class="progress-bar"><div class="progress-fill"></div></div>
+  </div>
+  <div id="quiz-container">
+        <div class="question" data-index="0">
+          <div class="q-header">
+            <span class="q-number">Pregunta 1</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿Cuál es el objetivo principal al formular un modelo de Programación Entera para la programación de horarios (staff scheduling) según el material?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Recuerda que el éxito del modelo se mide en la relación costo-servicio mencionada en la conclusión.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Los requerimientos de personal varían por periodo (de 3 a 13 empleados), por lo que asignar la misma cantidad sería ineficiente o insuficiente.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Igualar la cantidad de empleados en todos los periodos del día.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Los requerimientos de personal varían por periodo (de 3 a 13 empleados), por lo que asignar la misma cantidad sería ineficiente o insuficiente.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Aunque el bienestar es importante, el modelo matemático presentado se centra específicamente en la minimización de costos y cobertura de demanda.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Maximizar las horas de descanso de cada trabajador en turnos de 8 horas.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aunque el bienestar es importante, el modelo matemático presentado se centra específicamente en la minimización de costos y cobertura de demanda.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="true" data-rationale="El modelo busca la eficiencia en costos al reducir el personal al mínimo necesario sin dejar de cubrir la demanda operativa de cada periodo.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Minimizar la cantidad total de empleados contratados cumpliendo los requerimientos.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El modelo busca la eficiencia en costos al reducir el personal al mínimo necesario sin dejar de cubrir la demanda operativa de cada periodo.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="El análisis de desviaciones es propio de la programación por metas vista en la sesión anterior, no es el objetivo central de este modelo de cobertura pura.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Eliminar por completo las desviaciones y excesos de la programación multiobjetivo.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El análisis de desviaciones es propio de la programación por metas vista en la sesión anterior, no es el objetivo central de este modelo de cobertura pura.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="1">
+          <div class="q-header">
+            <span class="q-number">Pregunta 2</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">En el modelo de planificación de turnos, ¿qué representa específicamente la variable de decisión <span class="math">X<sub>i</sub></span>?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Revisa la sección de 'Variables de Decisión' para ver qué acción representa el subíndice <span class="math">i</span>.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Definir las variables por el momento de inicio permite rastrear cuántos periodos consecutivos estará activo cada grupo de trabajadores.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">El número de empleados que inician su turno al comienzo del Periodo <span class="math">i</span>.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Definir las variables por el momento de inicio permite rastrear cuántos periodos consecutivos estará activo cada grupo de trabajadores.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Esto representa un dato de entrada (parámetro) del problema, no una variable que el modelo deba decidir o calcular.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">La cantidad mínima de personal requerida por la empresa en el Periodo <span class="math">i</span>.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esto representa un dato de entrada (parámetro) del problema, no una variable que el modelo deba decidir o calcular.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="El total presente es la suma de varios turnos iniciados anteriormente; $X_i$ solo identifica a los que empiezan en ese instante específico.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">El total de empleados que están trabajando físicamente durante el Periodo <span class="math">i</span>.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El total presente es la suma de varios turnos iniciados anteriormente; <span class="math">X<sub>i</sub></span> solo identifica a los que empiezan en ese instante específico.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="El costo suele ser constante o un parámetro; la variable de decisión debe ser una cantidad de elementos a asignar, en este caso, personas.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">El costo unitario de contratar a un empleado en el turno correspondiente al Periodo <span class="math">i</span>.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El costo suele ser constante o un parámetro; la variable de decisión debe ser una cantidad de elementos a asignar, en este caso, personas.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="2">
+          <div class="q-header">
+            <span class="q-number">Pregunta 3</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">Si cada periodo dura 2 horas y un turno consta de 8 horas consecutivas, ¿durante cuántos periodos permanece activo un empleado que inicia en <span class="math">X<sub>1</sub></span>?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Divide la duración total del turno entre la duración de un solo periodo.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Esto implicaría una jornada de 16 horas si cada periodo dura 2 horas, lo cual excede la condición del turno establecida.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">8 periodos.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esto implicaría una jornada de 16 horas si cada periodo dura 2 horas, lo cual excede la condición del turno establecida.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Al dividir la jornada total de 8 horas entre la duración de cada bloque de 2 horas, obtenemos que el trabajador cubre exactamente 4 bloques.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">4 periodos.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Al dividir la jornada total de 8 horas entre la duración de cada bloque de 2 horas, obtenemos que el trabajador cubre exactamente 4 bloques.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Esto representaría solo 4 horas de trabajo, lo cual no cumple con la política de turnos de 8 horas consecutivas.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">2 periodos.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esto representaría solo 4 horas de trabajo, lo cual no cumple con la política de turnos de 8 horas consecutivas.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Este valor confunde la duración total de la jornada laboral con el número de horas del día o duplica innecesariamente el cálculo.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">16 periodos.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Este valor confunde la duración total de la jornada laboral con el número de horas del día o duplica innecesariamente el cálculo.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="3">
+          <div class="q-header">
+            <span class="q-number">Pregunta 4</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿Por qué es indispensable que las variables <span class="math">X<sub>i</sub></span> sean enteras en este modelo de planificación?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piensa en la naturaleza física de lo que representan las variables <span class="math">X<sub>i</sub></span>.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="En la gestión de personal, las unidades (personas) son discretas e indivisibles, lo que obliga al uso de Programación Entera.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Porque no es posible contratar o asignar fracciones de un empleado.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">En la gestión de personal, las unidades (personas) son discretas e indivisibles, lo que obliga al uso de Programación Entera.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Lingo es capaz de resolver modelos lineales continuos, no lineales y enteros; la restricción viene del problema real, no de la herramienta.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Porque el software Lingo solo puede resolver problemas con números enteros.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Lingo es capaz de resolver modelos lineales continuos, no lineales y enteros; la restricción viene del problema real, no de la herramienta.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="El objetivo de la programación entera es la factibilidad de la solución en el mundo real, no la estética del valor del costo final.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Para asegurar que el costo total sea siempre un número redondo.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El objetivo de la programación entera es la factibilidad de la solución en el mundo real, no la estética del valor del costo final.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="La naturaleza de los requerimientos (sean pares o impares) no dicta si la variable es entera, sino la naturaleza del objeto que se cuenta.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Porque los requerimientos mínimos de personal son números pares.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La naturaleza de los requerimientos (sean pares o impares) no dicta si la variable es entera, sino la naturaleza del objeto que se cuenta.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="4">
+          <div class="q-header">
+            <span class="q-number">Pregunta 5</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">Considerando que los turnos duran 4 periodos, ¿cuál es la restricción de cobertura correcta para el Periodo 2 (10:00 - 12:00) si el requerimiento mínimo es de 8 empleados?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Identifica qué turnos iniciados están presentes simultáneamente durante el rango de 10:00 a 12:00.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="En el periodo 2 están trabajando quienes empezaron en el periodo 1 (que siguen activos) y quienes empiezan en el periodo 2.">
+            <span class="opt-label">A</span>
+            <span class="opt-text"><span class="math">X<sub>1</sub> + X<sub>2</sub> ≥ 8</span></span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">En el periodo 2 están trabajando quienes empezaron en el periodo 1 (que siguen activos) y quienes empiezan en el periodo 2.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Esto incluiría a trabajadores que comienzan en el futuro (periodos 3 y 4), quienes no pueden cubrir una demanda de un horario anterior.">
+            <span class="opt-label">B</span>
+            <span class="opt-text"><span class="math">X<sub>1</sub> + X<sub>2</sub> + X<sub>3</sub> + X<sub>4</sub> ≥ 8</span></span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esto incluiría a trabajadores que comienzan en el futuro (periodos 3 y 4), quienes no pueden cubrir una demanda de un horario anterior.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Esta opción ignora a los trabajadores que comenzaron en el periodo 1 y que aún están dentro de su jornada de 8 horas.">
+            <span class="opt-label">C</span>
+            <span class="opt-text"><span class="math">X<sub>2</sub> ≥ 8</span></span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esta opción ignora a los trabajadores que comenzaron en el periodo 1 y que aún están dentro de su jornada de 8 horas.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="El modelo requiere satisfacer un mínimo de personal, por lo que el símbolo correcto debe ser mayor o igual, no menor o igual.">
+            <span class="opt-label">D</span>
+            <span class="opt-text"><span class="math">X<sub>1</sub> + X<sub>2</sub> ≤ 8</span></span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El modelo requiere satisfacer un mínimo de personal, por lo que el símbolo correcto debe ser mayor o igual, no menor o igual.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="5">
+          <div class="q-header">
+            <span class="q-number">Pregunta 6</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">Para el Periodo 4 (14:00 - 16:00), ¿qué variables de inicio de turno deben sumarse para verificar la cobertura?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Recuerda que un turno iniciado en el Periodo 1 cubre los periodos 1, 2, 3 y 4.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Como los turnos duran 4 periodos, el Periodo 4 es cubierto por quienes iniciaron en el mismo Periodo 4 y en los tres periodos anteriores.">
+            <span class="opt-label">A</span>
+            <span class="opt-text"><span class="math">X<sub>1</sub> + X<sub>2</sub> + X<sub>3</sub> + X<sub>4</sub></span></span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Como los turnos duran 4 periodos, el Periodo 4 es cubierto por quienes iniciaron en el mismo Periodo 4 y en los tres periodos anteriores.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Esta opción omite a los trabajadores de los periodos intermedios (2 y 3) que todavía están cumpliendo su jornada de 8 horas.">
+            <span class="opt-label">B</span>
+            <span class="opt-text"><span class="math">X<sub>1</sub> + X<sub>4</sub></span></span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esta opción omite a los trabajadores de los periodos intermedios (2 y 3) que todavía están cumpliendo su jornada de 8 horas.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Solo considera los dos turnos más recientes, ignorando que el turno 1 y 2 todavía están activos en el periodo 4 (bloque de 2 a 4 horas).">
+            <span class="opt-label">C</span>
+            <span class="opt-text"><span class="math">X<sub>3</sub> + X<sub>4</sub></span></span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Solo considera los dos turnos más recientes, ignorando que el turno 1 y 2 todavía están activos en el periodo 4 (bloque de 2 a 4 horas).</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Estas variables representan turnos que inician en el Periodo 4 o después, por lo que la mayoría no estarían presentes al inicio del Periodo 4.">
+            <span class="opt-label">D</span>
+            <span class="opt-text"><span class="math">X<sub>4</sub> + X<sub>5</sub> + X<sub>6</sub> + X<sub>7</sub></span></span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Estas variables representan turnos que inician en el Periodo 4 o después, por lo que la mayoría no estarían presentes al inicio del Periodo 4.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="6">
+          <div class="q-header">
+            <span class="q-number">Pregunta 7</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿Cuál de las siguientes expresiones representa correctamente la función objetivo para minimizar el total de empleados en un día de 8 periodos?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Debes sumar todas las variables que representan la cantidad de personas que inician turnos.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Esta función solo contaría a los empleados que inician en el primer y último periodo, ignorando al resto de la plantilla.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Min <span class="math">Z = X<sub>1</sub> + X<sub>8</sub></span></span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esta función solo contaría a los empleados que inician en el primer y último periodo, ignorando al resto de la plantilla.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="La suma de todos los empleados que inician en cada uno de los posibles periodos nos da el total de personal contratado.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Min <span class="math">Z = ∑<sub>i=1</sub><sup>8</sup> X<sub>i</sub></span></span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La suma de todos los empleados que inician en cada uno de los posibles periodos nos da el total de personal contratado.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="El problema busca la eficiencia en costos, por lo que el operador debe ser de minimización, no de maximización.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Max <span class="math">Z = ∑<sub>i=1</sub><sup>8</sup> X<sub>i</sub></span></span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El problema busca la eficiencia en costos, por lo que el operador debe ser de minimización, no de maximización.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Multiplicar el número de empleados por el número de periodo no tiene sentido físico para calcular el conteo total de personas.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Min <span class="math">Z = ∑<sub>i=1</sub><sup>8</sup> (X<sub>i</sub> × 	extPeriodo<sub>i</sub>)</span></span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Multiplicar el número de empleados por el número de periodo no tiene sentido físico para calcular el conteo total de personas.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="7">
+          <div class="q-header">
+            <span class="q-number">Pregunta 8</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">Según el material, ¿cuál es el requerimiento mínimo de personal para el periodo con mayor demanda?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Revisa la columna de 'Requerimiento Mínimo' y busca el valor numérico más alto.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Este es el requerimiento del Periodo 4, el cual es alto pero no es el valor máximo registrado en la tabla.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">11 empleados.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Este es el requerimiento del Periodo 4, el cual es alto pero no es el valor máximo registrado en la tabla.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Este número parece confundirse con la hora final del día operativo (24:00) en lugar de representar una cantidad de personal.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">24 empleados.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Este número parece confundirse con la hora final del día operativo (24:00) en lugar de representar una cantidad de personal.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="true" data-rationale="Según la tabla de datos, el Periodo 5 (16:00 - 18:00) presenta la demanda más alta con un mínimo de 13 trabajadores necesarios.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">13 empleados.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Según la tabla de datos, el Periodo 5 (16:00 - 18:00) presenta la demanda más alta con un mínimo de 13 trabajadores necesarios.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Este valor corresponde al primer periodo de la mañana (08:00 - 10:00), que es superado por los periodos de la tarde.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">10 empleados.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Este valor corresponde al primer periodo de la mañana (08:00 - 10:00), que es superado por los periodos de la tarde.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="8">
+          <div class="q-header">
+            <span class="q-number">Pregunta 9</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿En qué se diferencia este modelo de Programación Entera del repaso de la sesión pasada sobre Programación Multiobjetivo?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Compara la sección de 'Logro de Sesión' con el 'Repaso de la Clase Pasada'.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Mientras que el modelo multiobjetivo busca equilibrar varias metas mediante desviaciones, este modelo busca una solución óptima única bajo restricciones estrictas.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Se enfoca en una sola meta (minimizar costos) y usa variables discretas, en lugar de analizar desviaciones de múltiples metas.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Mientras que el modelo multiobjetivo busca equilibrar varias metas mediante desviaciones, este modelo busca una solución óptima única bajo restricciones estrictas.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Ambos tipos de programación pueden usar variables enteras; la diferencia radica en la estructura de la función objetivo y el manejo de metas.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">La programación multiobjetivo solo utiliza variables continuas y nunca enteras.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Ambos tipos de programación pueden usar variables enteras; la diferencia radica en la estructura de la función objetivo y el manejo de metas.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Al contrario, el modelo de cobertura se basa fundamentalmente en restricciones de tipo mayor o igual para asegurar el servicio.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Este modelo no permite el uso de restricciones de desigualdad.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Al contrario, el modelo de cobertura se basa fundamentalmente en restricciones de tipo mayor o igual para asegurar el servicio.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="El modelo busca minimizar el personal total; los excesos de personal sobre el mínimo requerido son subproductos inevitables pero no el objetivo.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Este modelo busca maximizar los excesos en lugar de minimizarlos.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El modelo busca minimizar el personal total; los excesos de personal sobre el mínimo requerido son subproductos inevitables pero no el objetivo.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="9">
+          <div class="q-header">
+            <span class="q-number">Pregunta 10</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">De acuerdo con la utilidad del tema mencionada, ¿cuál es un ejemplo de aplicación vital para asegurar el servicio mediante este modelado?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Busca los ejemplos mencionados en la sección 'Utilidad del Tema'.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Estos sectores requieren niveles de atención constantes donde la falta de personal en un periodo crítico puede comprometer seriamente la operación.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Call centers y hospitales.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Estos sectores requieren niveles de atención constantes donde la falta de personal en un periodo crítico puede comprometer seriamente la operación.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Aunque es una aplicación de la ingeniería, no es el ejemplo clásico de programación de turnos de personal discutido en el material.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Diseño de productos de consumo masivo.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aunque es una aplicación de la ingeniería, no es el ejemplo clásico de programación de turnos de personal discutido en el material.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Esta es una tarea contable/financiera que no requiere típicamente un modelo de optimización de cobertura de turnos operativos.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Cálculo de impuestos anuales de una empresa.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esta es una tarea contable/financiera que no requiere típicamente un modelo de optimización de cobertura de turnos operativos.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="La liquidación de activos no se beneficia directamente del modelado de turnos de empleados por periodos de horas.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Venta de activos fijos de la organización.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La liquidación de activos no se beneficia directamente del modelado de turnos de empleados por periodos de horas.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      </div>
+  <div class="results" id="results">
+    <h2>¡Cuestionario completado!</h2>
+    <div class="score" id="score">0%</div>
+    <div class="score-text" id="score-text"></div>
+    <button class="restart-btn" onclick="restart()">Intentar de nuevo</button>
+  </div>
+</div>
+<script>
+const quizData = [{"question":"¿Cuál es el objetivo principal al formular un modelo de Programación Entera para la programación de horarios (staff scheduling) según el material?","hint":"Recuerda que el éxito del modelo se mide en la relación costo-servicio mencionada en la conclusión.","options":[{"label":"A","text":"Igualar la cantidad de empleados en todos los periodos del día.","isCorrect":false,"rationale":"Los requerimientos de personal varían por periodo (de 3 a 13 empleados), por lo que asignar la misma cantidad sería ineficiente o insuficiente."},{"label":"B","text":"Maximizar las horas de descanso de cada trabajador en turnos de 8 horas.","isCorrect":false,"rationale":"Aunque el bienestar es importante, el modelo matemático presentado se centra específicamente en la minimización de costos y cobertura de demanda."},{"label":"C","text":"Minimizar la cantidad total de empleados contratados cumpliendo los requerimientos.","isCorrect":true,"rationale":"El modelo busca la eficiencia en costos al reducir el personal al mínimo necesario sin dejar de cubrir la demanda operativa de cada periodo."},{"label":"D","text":"Eliminar por completo las desviaciones y excesos de la programación multiobjetivo.","isCorrect":false,"rationale":"El análisis de desviaciones es propio de la programación por metas vista en la sesión anterior, no es el objetivo central de este modelo de cobertura pura."}]},{"question":"En el modelo de planificación de turnos, ¿qué representa específicamente la variable de decisión $X_i$?","hint":"Revisa la sección de 'Variables de Decisión' para ver qué acción representa el subíndice $i$.","options":[{"label":"A","text":"El número de empleados que inician su turno al comienzo del Periodo $i$.","isCorrect":true,"rationale":"Definir las variables por el momento de inicio permite rastrear cuántos periodos consecutivos estará activo cada grupo de trabajadores."},{"label":"B","text":"La cantidad mínima de personal requerida por la empresa en el Periodo $i$.","isCorrect":false,"rationale":"Esto representa un dato de entrada (parámetro) del problema, no una variable que el modelo deba decidir o calcular."},{"label":"C","text":"El total de empleados que están trabajando físicamente durante el Periodo $i$.","isCorrect":false,"rationale":"El total presente es la suma de varios turnos iniciados anteriormente; $X_i$ solo identifica a los que empiezan en ese instante específico."},{"label":"D","text":"El costo unitario de contratar a un empleado en el turno correspondiente al Periodo $i$.","isCorrect":false,"rationale":"El costo suele ser constante o un parámetro; la variable de decisión debe ser una cantidad de elementos a asignar, en este caso, personas."}]},{"question":"Si cada periodo dura 2 horas y un turno consta de 8 horas consecutivas, ¿durante cuántos periodos permanece activo un empleado que inicia en $X_1$?","hint":"Divide la duración total del turno entre la duración de un solo periodo.","options":[{"label":"A","text":"8 periodos.","isCorrect":false,"rationale":"Esto implicaría una jornada de 16 horas si cada periodo dura 2 horas, lo cual excede la condición del turno establecida."},{"label":"B","text":"4 periodos.","isCorrect":true,"rationale":"Al dividir la jornada total de 8 horas entre la duración de cada bloque de 2 horas, obtenemos que el trabajador cubre exactamente 4 bloques."},{"label":"C","text":"2 periodos.","isCorrect":false,"rationale":"Esto representaría solo 4 horas de trabajo, lo cual no cumple con la política de turnos de 8 horas consecutivas."},{"label":"D","text":"16 periodos.","isCorrect":false,"rationale":"Este valor confunde la duración total de la jornada laboral con el número de horas del día o duplica innecesariamente el cálculo."}]},{"question":"¿Por qué es indispensable que las variables $X_i$ sean enteras en este modelo de planificación?","hint":"Piensa en la naturaleza física de lo que representan las variables $X_i$.","options":[{"label":"A","text":"Porque no es posible contratar o asignar fracciones de un empleado.","isCorrect":true,"rationale":"En la gestión de personal, las unidades (personas) son discretas e indivisibles, lo que obliga al uso de Programación Entera."},{"label":"B","text":"Porque el software Lingo solo puede resolver problemas con números enteros.","isCorrect":false,"rationale":"Lingo es capaz de resolver modelos lineales continuos, no lineales y enteros; la restricción viene del problema real, no de la herramienta."},{"label":"C","text":"Para asegurar que el costo total sea siempre un número redondo.","isCorrect":false,"rationale":"El objetivo de la programación entera es la factibilidad de la solución en el mundo real, no la estética del valor del costo final."},{"label":"D","text":"Porque los requerimientos mínimos de personal son números pares.","isCorrect":false,"rationale":"La naturaleza de los requerimientos (sean pares o impares) no dicta si la variable es entera, sino la naturaleza del objeto que se cuenta."}]},{"question":"Considerando que los turnos duran 4 periodos, ¿cuál es la restricción de cobertura correcta para el Periodo 2 (10:00 - 12:00) si el requerimiento mínimo es de 8 empleados?","hint":"Identifica qué turnos iniciados están presentes simultáneamente durante el rango de 10:00 a 12:00.","options":[{"label":"A","text":"$X_1 + X_2 \\ge 8$","isCorrect":true,"rationale":"En el periodo 2 están trabajando quienes empezaron en el periodo 1 (que siguen activos) y quienes empiezan en el periodo 2."},{"label":"B","text":"$X_1 + X_2 + X_3 + X_4 \\ge 8$","isCorrect":false,"rationale":"Esto incluiría a trabajadores que comienzan en el futuro (periodos 3 y 4), quienes no pueden cubrir una demanda de un horario anterior."},{"label":"C","text":"$X_2 \\ge 8$","isCorrect":false,"rationale":"Esta opción ignora a los trabajadores que comenzaron en el periodo 1 y que aún están dentro de su jornada de 8 horas."},{"label":"D","text":"$X_1 + X_2 \\le 8$","isCorrect":false,"rationale":"El modelo requiere satisfacer un mínimo de personal, por lo que el símbolo correcto debe ser mayor o igual, no menor o igual."}]},{"question":"Para el Periodo 4 (14:00 - 16:00), ¿qué variables de inicio de turno deben sumarse para verificar la cobertura?","hint":"Recuerda que un turno iniciado en el Periodo 1 cubre los periodos 1, 2, 3 y 4.","options":[{"label":"A","text":"$X_1 + X_2 + X_3 + X_4$","isCorrect":true,"rationale":"Como los turnos duran 4 periodos, el Periodo 4 es cubierto por quienes iniciaron en el mismo Periodo 4 y en los tres periodos anteriores."},{"label":"B","text":"$X_1 + X_4$","isCorrect":false,"rationale":"Esta opción omite a los trabajadores de los periodos intermedios (2 y 3) que todavía están cumpliendo su jornada de 8 horas."},{"label":"C","text":"$X_3 + X_4$","isCorrect":false,"rationale":"Solo considera los dos turnos más recientes, ignorando que el turno 1 y 2 todavía están activos en el periodo 4 (bloque de 2 a 4 horas)."},{"label":"D","text":"$X_4 + X_5 + X_6 + X_7$","isCorrect":false,"rationale":"Estas variables representan turnos que inician en el Periodo 4 o después, por lo que la mayoría no estarían presentes al inicio del Periodo 4."}]},{"question":"¿Cuál de las siguientes expresiones representa correctamente la función objetivo para minimizar el total de empleados en un día de 8 periodos?","hint":"Debes sumar todas las variables que representan la cantidad de personas que inician turnos.","options":[{"label":"A","text":"Min $Z = X_1 + X_8$","isCorrect":false,"rationale":"Esta función solo contaría a los empleados que inician en el primer y último periodo, ignorando al resto de la plantilla."},{"label":"B","text":"Min $Z = \\sum_{i=1}^{8} X_i$","isCorrect":true,"rationale":"La suma de todos los empleados que inician en cada uno de los posibles periodos nos da el total de personal contratado."},{"label":"C","text":"Max $Z = \\sum_{i=1}^{8} X_i$","isCorrect":false,"rationale":"El problema busca la eficiencia en costos, por lo que el operador debe ser de minimización, no de maximización."},{"label":"D","text":"Min $Z = \\sum_{i=1}^{8} (X_i \\times \text{Periodo}_i)$","isCorrect":false,"rationale":"Multiplicar el número de empleados por el número de periodo no tiene sentido físico para calcular el conteo total de personas."}]},{"question":"Según el material, ¿cuál es el requerimiento mínimo de personal para el periodo con mayor demanda?","hint":"Revisa la columna de 'Requerimiento Mínimo' y busca el valor numérico más alto.","options":[{"label":"A","text":"11 empleados.","isCorrect":false,"rationale":"Este es el requerimiento del Periodo 4, el cual es alto pero no es el valor máximo registrado en la tabla."},{"label":"B","text":"24 empleados.","isCorrect":false,"rationale":"Este número parece confundirse con la hora final del día operativo (24:00) en lugar de representar una cantidad de personal."},{"label":"C","text":"13 empleados.","isCorrect":true,"rationale":"Según la tabla de datos, el Periodo 5 (16:00 - 18:00) presenta la demanda más alta con un mínimo de 13 trabajadores necesarios."},{"label":"D","text":"10 empleados.","isCorrect":false,"rationale":"Este valor corresponde al primer periodo de la mañana (08:00 - 10:00), que es superado por los periodos de la tarde."}]},{"question":"¿En qué se diferencia este modelo de Programación Entera del repaso de la sesión pasada sobre Programación Multiobjetivo?","hint":"Compara la sección de 'Logro de Sesión' con el 'Repaso de la Clase Pasada'.","options":[{"label":"A","text":"Se enfoca en una sola meta (minimizar costos) y usa variables discretas, en lugar de analizar desviaciones de múltiples metas.","isCorrect":true,"rationale":"Mientras que el modelo multiobjetivo busca equilibrar varias metas mediante desviaciones, este modelo busca una solución óptima única bajo restricciones estrictas."},{"label":"B","text":"La programación multiobjetivo solo utiliza variables continuas y nunca enteras.","isCorrect":false,"rationale":"Ambos tipos de programación pueden usar variables enteras; la diferencia radica en la estructura de la función objetivo y el manejo de metas."},{"label":"C","text":"Este modelo no permite el uso de restricciones de desigualdad.","isCorrect":false,"rationale":"Al contrario, el modelo de cobertura se basa fundamentalmente en restricciones de tipo mayor o igual para asegurar el servicio."},{"label":"D","text":"Este modelo busca maximizar los excesos en lugar de minimizarlos.","isCorrect":false,"rationale":"El modelo busca minimizar el personal total; los excesos de personal sobre el mínimo requerido son subproductos inevitables pero no el objetivo."}]},{"question":"De acuerdo con la utilidad del tema mencionada, ¿cuál es un ejemplo de aplicación vital para asegurar el servicio mediante este modelado?","hint":"Busca los ejemplos mencionados en la sección 'Utilidad del Tema'.","options":[{"label":"A","text":"Call centers y hospitales.","isCorrect":true,"rationale":"Estos sectores requieren niveles de atención constantes donde la falta de personal en un periodo crítico puede comprometer seriamente la operación."},{"label":"B","text":"Diseño de productos de consumo masivo.","isCorrect":false,"rationale":"Aunque es una aplicación de la ingeniería, no es el ejemplo clásico de programación de turnos de personal discutido en el material."},{"label":"C","text":"Cálculo de impuestos anuales de una empresa.","isCorrect":false,"rationale":"Esta es una tarea contable/financiera que no requiere típicamente un modelo de optimización de cobertura de turnos operativos."},{"label":"D","text":"Venta de activos fijos de la organización.","isCorrect":false,"rationale":"La liquidación de activos no se beneficia directamente del modelado de turnos de empleados por periodos de horas."}]}];
+const tr = {"correct":"¡Correcto!","incorrect":"Incorrecto","next":"Siguiente pregunta →","seeResults":"Ver resultados","complete":"¡Cuestionario completado!","scoreText":"Obtuviste {correct} de {total} correctas","tryAgain":"Intentar de nuevo","rightAnswer":"Respuesta correcta","notQuite":"No del todo"};
+let currentQ = 0, correctCount = 0, answered = false;
+
+function init() {
+  document.querySelectorAll('.question').forEach((q, i) => q.classList.toggle('active', i === 0));
+  updateProgress();
+  document.querySelectorAll('.option').forEach(opt => opt.addEventListener('click', () => selectOption(opt)));
+  document.querySelectorAll('.next-btn').forEach(btn => btn.addEventListener('click', nextQuestion));
+}
+
+function selectOption(opt) {
+  if (answered) return;
+  answered = true;
+  const q = opt.closest('.question');
+  const options = q.querySelectorAll('.option');
+  const nextBtn = q.querySelector('.next-btn');
+  const isCorrect = opt.dataset.correct === 'true';
+  
+  // Mark all options as disabled
+  options.forEach(o => o.classList.add('disabled'));
+  
+  // Style selected option
+  opt.classList.add('selected', isCorrect ? 'correct' : 'incorrect');
+  
+  // Show correct answer if wrong
+  if (!isCorrect) {
+    const correctOpt = [...options].find(o => o.dataset.correct === 'true');
+    if (correctOpt) correctOpt.classList.add('show-correct');
+  }
+  
+  if (isCorrect) correctCount++;
+  
+  // Show feedback for ALL options that have rationale
+  options.forEach(o => {
+    const wrapper = o.closest('.option-wrapper');
+    const feedback = wrapper.querySelector('.option-feedback');
+    const rationale = o.dataset.rationale;
+    const isThisCorrect = o.dataset.correct === 'true';
+    
+    if (rationale && rationale.trim()) {
+      feedback.classList.remove('hidden');
+      feedback.classList.add(isThisCorrect ? 'correct-feedback' : 'incorrect-feedback');
+      
+      const statusEl = feedback.querySelector('.feedback-status');
+      statusEl.className = 'feedback-status ' + (isThisCorrect ? 'correct' : 'incorrect');
+      statusEl.innerHTML = isThisCorrect 
+        ? '✓ ' + tr.rightAnswer
+        : '✗ ' + tr.notQuite;
+    }
+  });
+  
+  nextBtn.classList.remove('hidden');
+  if (currentQ === quizData.length - 1) nextBtn.textContent = tr.seeResults;
+}
+
+function nextQuestion() {
+  answered = false;
+  currentQ++;
+  if (currentQ >= quizData.length) { showResults(); return; }
+  document.querySelectorAll('.question').forEach((q, i) => q.classList.toggle('active', i === currentQ));
+  updateProgress();
+}
+
+function updateProgress() {
+  document.querySelector('.progress-fill').style.width = (currentQ / quizData.length * 100) + '%';
+}
+
+function showResults() {
+  document.querySelectorAll('.question').forEach(q => q.classList.remove('active'));
+  document.getElementById('results').classList.add('active');
+  const pct = Math.round((correctCount / quizData.length) * 100);
+  document.getElementById('score').textContent = pct + '%';
+  document.getElementById('score-text').textContent = tr.scoreText.replace('{correct}', correctCount).replace('{total}', quizData.length);
+  document.querySelector('.progress-fill').style.width = '100%';
+}
+
+function restart() {
+  currentQ = 0; correctCount = 0; answered = false;
+  document.getElementById('results').classList.remove('active');
+  document.querySelectorAll('.question').forEach((q, i) => {
+    q.classList.toggle('active', i === 0);
+    q.querySelectorAll('.option').forEach(o => o.classList.remove('selected', 'correct', 'incorrect', 'disabled', 'show-correct'));
+    q.querySelectorAll('.option-feedback').forEach(f => {
+      f.classList.add('hidden');
+      f.classList.remove('correct-feedback', 'incorrect-feedback');
+    });
+    const btn = q.querySelector('.next-btn');
+    btn.classList.add('hidden');
+    btn.textContent = tr.next;
+  });
+  updateProgress();
+}
+
+init();
+</script>
+</body>
+</html>
