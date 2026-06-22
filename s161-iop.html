@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="es" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>S16.1 IOP</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  min-height: 100vh; padding: 20px; color: #333;
+}
+.container { max-width: 700px; margin: 0 auto; }
+.header { text-align: center; color: #fff; padding: 30px 20px; }
+.header h1 { font-size: 28px; font-weight: 700; margin-bottom: 8px; text-shadow: 0 2px 10px rgba(0,0,0,0.2); }
+.header .meta { font-size: 14px; opacity: 0.9; }
+.progress-bar { background: rgba(255,255,255,0.3); border-radius: 10px; height: 8px; margin: 20px 0; overflow: hidden; }
+.progress-fill { background: #fff; height: 100%; width: 0%; transition: width 0.4s ease; border-radius: 10px; }
+.question { background: #fff; border-radius: 16px; padding: 30px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); display: none; }
+.question.active { display: block; }
+.q-header { display: flex; justify-content: space-between; margin-bottom: 20px; font-size: 13px; color: #888; }
+.q-number { font-weight: 600; color: #667eea; }
+.q-text { font-size: 18px; font-weight: 600; line-height: 1.5; margin-bottom: 25px; color: #222; }
+.options { display: flex; flex-direction: column; gap: 12px; }
+.option-wrapper { display: flex; flex-direction: column; }
+.option {
+  display: flex; align-items: flex-start; gap: 14px; padding: 16px 18px;
+  border: 2px solid #e8e8e8; border-radius: 12px; background: #fafafa;
+  cursor: pointer; transition: all 0.2s; text-align: left; font-size: 15px; width: 100%;
+}
+[dir="rtl"] .option { text-align: right; flex-direction: row-reverse; }
+.option:hover:not(.disabled) { border-color: #667eea; background: #f5f3ff; }
+.option.selected { border-color: #667eea; background: #ede9fe; }
+.option.correct { border-color: #22c55e; background: #dcfce7; }
+.option.incorrect { border-color: #ef4444; background: #fee2e2; }
+.option.disabled { cursor: default; }
+.option.show-correct { border-color: #22c55e; background: #dcfce7; }
+.opt-label {
+  display: flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; border-radius: 50%; background: #e8e8e8;
+  font-weight: 700; font-size: 14px; flex-shrink: 0;
+}
+.option.selected .opt-label { background: #667eea; color: #fff; }
+.option.correct .opt-label { background: #22c55e; color: #fff; }
+.option.incorrect .opt-label { background: #ef4444; color: #fff; }
+.option.show-correct .opt-label { background: #22c55e; color: #fff; }
+.opt-text { padding-top: 5px; line-height: 1.5; }
+
+/* Individual option feedback */
+.option-feedback {
+  margin: 8px 0 4px 46px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+[dir="rtl"] .option-feedback { margin-left: 0; margin-right: 46px; }
+.option-feedback.correct-feedback {
+  background: #dcfce7;
+  border-left: 3px solid #22c55e;
+}
+.option-feedback.incorrect-feedback {
+  background: #fef3f2;
+  border-left: 3px solid #fca5a5;
+}
+[dir="rtl"] .option-feedback.correct-feedback,
+[dir="rtl"] .option-feedback.incorrect-feedback {
+  border-left: none;
+  border-right: 3px solid;
+}
+[dir="rtl"] .option-feedback.correct-feedback { border-right-color: #22c55e; }
+[dir="rtl"] .option-feedback.incorrect-feedback { border-right-color: #fca5a5; }
+.feedback-status {
+  font-weight: 600;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.feedback-status.correct { color: #166534; }
+.feedback-status.incorrect { color: #991b1b; }
+.feedback-rationale { color: #444; }
+
+/* Hint box */
+.hint-box {
+  margin: 12px 0;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+}
+.hint-toggle {
+  width: 100%;
+  padding: 10px 16px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  color: #92400e;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.hint-toggle:hover { background: #fef3c7; }
+.hint-content {
+  padding: 0 16px;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s, padding 0.3s;
+  font-size: 14px;
+  color: #78350f;
+  line-height: 1.5;
+}
+.hint-box.show .hint-content {
+  padding: 0 16px 12px;
+  max-height: 200px;
+}
+
+.next-btn {
+  margin-top: 20px; width: 100%; padding: 14px;
+  background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; border: none;
+  border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.next-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(102,126,234,0.4); }
+.hidden { display: none !important; }
+.results { background: #fff; border-radius: 16px; padding: 40px; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.15); display: none; }
+.results.active { display: block; }
+.results h2 { font-size: 28px; margin-bottom: 10px; color: #333; }
+.results .score { font-size: 64px; font-weight: 700; color: #667eea; margin: 20px 0; }
+.results .score-text { font-size: 18px; color: #666; margin-bottom: 30px; }
+.restart-btn {
+  padding: 14px 40px; background: linear-gradient(135deg, #667eea, #764ba2);
+  color: #fff; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer;
+}
+
+/* Math CSS */
+.math, .math-block { font-family: "Cambria Math", "Times New Roman", Times, serif; font-style: italic; }
+.math-block { display: block; text-align: center; margin: 10px 0; font-size: 110%; }
+.frac { display: inline-flex; flex-direction: column; align-items: center; vertical-align: middle; margin: 0 3px; font-size: 0.9em; }
+.frac-num { border-bottom: 1px solid currentColor; padding: 0 4px 2px; line-height: 1.2; }
+.frac-den { padding: 2px 4px 0; line-height: 1.2; }
+.sqrt { white-space: nowrap; }
+.sqrt-content { border-top: 1px solid currentColor; padding: 0 3px; margin-left: 2px; }
+sup, sub { font-size: 0.75em; }
+sup { vertical-align: super; }
+sub { vertical-align: sub; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>S16.1 IOP</h1>
+    <div class="meta">10 preguntas</div>
+    <div class="progress-bar"><div class="progress-fill"></div></div>
+  </div>
+  <div id="quiz-container">
+        <div class="question" data-index="0">
+          <div class="q-header">
+            <span class="q-number">Pregunta 1</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿La Programación Dinámica requiere evaluar obligatoriamente todas las combinaciones posibles de rutas para garantizar que se ha encontrado la más corta?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considera si la eficiencia de este método proviene de simplificar o de maximizar el número de evaluaciones.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Este enfoque describe una búsqueda exhaustiva, mientras que la Programación Dinámica utiliza el principio de optimalidad para evitar evaluar todas las combinaciones.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Este enfoque describe una búsqueda exhaustiva, mientras que la Programación Dinámica utiliza el principio de optimalidad para evitar evaluar todas las combinaciones.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="La Programación Dinámica es eficiente precisamente porque evita la exploración exhaustiva mediante el uso de funciones recursivas y el principio de Bellman.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La Programación Dinámica es eficiente precisamente porque evita la exploración exhaustiva mediante el uso de funciones recursivas y el principio de Bellman.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="1">
+          <div class="q-header">
+            <span class="q-number">Pregunta 2</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">De acuerdo al Principio de Bellman, una política óptima tiene la propiedad de que las decisiones restantes deben ser óptimas, independientemente de la decisión anterior.</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Reflexiona sobre si el pasado influye en la necesidad de que el futuro sea óptimo desde el punto actual.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Esta es la definición fundamental del Principio de Bellman, el cual permite resolver subproblemas de manera independiente al camino tomado para llegar a un estado.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esta es la definición fundamental del Principio de Bellman, el cual permite resolver subproblemas de manera independiente al camino tomado para llegar a un estado.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="El principio establece que el resto de las decisiones deben constituir una política óptima con respecto al estado resultante de la decisión previa.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El principio establece que el resto de las decisiones deben constituir una política óptima con respecto al estado resultante de la decisión previa.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="2">
+          <div class="q-header">
+            <span class="q-number">Pregunta 3</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">En la terminología de Programación Dinámica, las etapas (<span class="math">n</span>) se definen específicamente como los nodos que se encuentran en cada nivel de la red.</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Distingue entre el 'momento' en el que se decide y el 'lugar' donde uno se encuentra.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Los nodos en cada nivel representan los estados ($S_n$), mientras que las etapas se refieren a la secuencia de decisiones o pasos en el tiempo.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Los nodos en cada nivel representan los estados (<span class="math">S<sub>n</sub></span>), mientras que las etapas se refieren a la secuencia de decisiones o pasos en el tiempo.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Las etapas representan el paso de una columna de nodos a la siguiente, es decir, el momento en la secuencia donde se toma una decisión.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Las etapas representan el paso de una columna de nodos a la siguiente, es decir, el momento en la secuencia donde se toma una decisión.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="3">
+          <div class="q-header">
+            <span class="q-number">Pregunta 4</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">El estado (<span class="math">S<sub>n</sub></span>) en un problema de ruta más corta corresponde a los nodos específicos en los que se puede encontrar el sistema en una etapa determinada.</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piensa en la variable que identifica la ubicación actual dentro de una red de grafos.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Por definición, el estado agrupa las posibles situaciones (nodos) en las que se puede estar durante una etapa específica del proceso.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Por definición, el estado agrupa las posibles situaciones (nodos) en las que se puede estar durante una etapa específica del proceso.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="El estado describe la condición o ubicación del sistema al inicio de una etapa, permitiendo identificar las opciones disponibles para la siguiente decisión.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El estado describe la condición o ubicación del sistema al inicio de una etapa, permitiendo identificar las opciones disponibles para la siguiente decisión.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="4">
+          <div class="q-header">
+            <span class="q-number">Pregunta 5</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">La decisión (<span class="math">X<sub>n</sub></span>) se refiere a la elección del siguiente nodo al que se viajará partiendo desde el estado actual.</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Recuerda qué componente del problema representa la acción de moverse de un punto a otro.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="En la resolución de redes, la decisión es precisamente el arco o camino que se elige seguir hacia el siguiente punto de control.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">En la resolución de redes, la decisión es precisamente el arco o camino que se elige seguir hacia el siguiente punto de control.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="La variable de decisión representa la acción tomada que transforma el estado actual en el estado de la siguiente etapa.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La variable de decisión representa la acción tomada que transforma el estado actual en el estado de la siguiente etapa.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="5">
+          <div class="q-header">
+            <span class="q-number">Pregunta 6</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">La función recursiva (<span class="math">f<sub>n</sub></span>) en Programación Dinámica se utiliza para calcular únicamente la distancia individual entre dos nodos conectados directamente.</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considera si la función se enfoca en un tramo aislado o en la optimización de todo el trayecto hasta el final.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="La distancia entre dos nodos es solo un dato de entrada (costo); la función recursiva se encarga de acumular estos costos para encontrar la ruta óptima total.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La distancia entre dos nodos es solo un dato de entrada (costo); la función recursiva se encarga de acumular estos costos para encontrar la ruta óptima total.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Esta función establece la relación matemática para determinar la distancia acumulada más corta considerando el costo de la etapa actual y el óptimo anterior.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esta función establece la relación matemática para determinar la distancia acumulada más corta considerando el costo de la etapa actual y el óptimo anterior.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="6">
+          <div class="q-header">
+            <span class="q-number">Pregunta 7</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">El enfoque retrógrado en la Programación Dinámica implica que el problema se empieza a resolver desde el nodo final (destino) hacia el nodo inicial (origen).</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Analiza el significado del término 'retrógrado' en el contexto de una secuencia temporal o de pasos.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Este método es el estándar mencionado para trabajar desde el final, permitiendo que las decisiones en las últimas etapas guíen las decisiones iniciales.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Este método es el estándar mencionado para trabajar desde el final, permitiendo que las decisiones en las últimas etapas guíen las decisiones iniciales.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="El enfoque retrogrado o 'hacia atrás' es una técnica común que descompone el problema trabajando desde la meta para asegurar la optimalidad global.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El enfoque retrogrado o 'hacia atrás' es una técnica común que descompone el problema trabajando desde la meta para asegurar la optimalidad global.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="7">
+          <div class="q-header">
+            <span class="q-number">Pregunta 8</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">La Programación Dinámica pierde su utilidad si el problema no puede ser descompuesto en una serie de etapas manejables.</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Recuerda cuál es el enfoque principal que utiliza la PD para manejar problemas complejos.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Sin la descomposición en etapas, no se podría aplicar la recursividad ni el principio de Bellman, que son los pilares de este método.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Sin la descomposición en etapas, no se podría aplicar la recursividad ni el principio de Bellman, que son los pilares de este método.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="La estructura fundamental de la Programación Dinámica depende de la capacidad de dividir un problema complejo en subproblemas secuenciales o etapas.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La estructura fundamental de la Programación Dinámica depende de la capacidad de dividir un problema complejo en subproblemas secuenciales o etapas.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="8">
+          <div class="q-header">
+            <span class="q-number">Pregunta 9</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿Es posible aplicar la Programación Dinámica en redes que no tienen una estructura dirigida para resolver problemas de ruta corta?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Revisa el objetivo de aprendizaje planteado al inicio del material sobre el tipo de red.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="El logro de la sesión especifica la aplicación del principio en redes dirigidas para identificar correctamente la progresión de etapas y estados.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El logro de la sesión especifica la aplicación del principio en redes dirigidas para identificar correctamente la progresión de etapas y estados.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Aunque es posible en teoría de grafos general, el material de la sesión se enfoca específicamente en redes dirigidas donde las decisiones siguen una secuencia clara.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aunque es posible en teoría de grafos general, el material de la sesión se enfoca específicamente en redes dirigidas donde las decisiones siguen una secuencia clara.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="9">
+          <div class="q-header">
+            <span class="q-number">Pregunta 10</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">El principal beneficio computacional de la Programación Dinámica es que garantiza encontrar la solución óptima sin necesidad de realizar cálculos recursivos.</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Evalúa si la recursividad es un obstáculo o el mecanismo que permite el ahorro de tiempo en este método.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="La recursividad es, de hecho, la herramienta principal que utiliza la Programación Dinámica para conectar las decisiones de diferentes etapas.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La recursividad es, de hecho, la herramienta principal que utiliza la Programación Dinámica para conectar las decisiones de diferentes etapas.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="El beneficio reside en evitar la exploración exhaustiva mediante el uso de la función recursiva basada en el costo óptimo de la etapa anterior.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El beneficio reside en evitar la exploración exhaustiva mediante el uso de la función recursiva basada en el costo óptimo de la etapa anterior.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      </div>
+  <div class="results" id="results">
+    <h2>¡Cuestionario completado!</h2>
+    <div class="score" id="score">0%</div>
+    <div class="score-text" id="score-text"></div>
+    <button class="restart-btn" onclick="restart()">Intentar de nuevo</button>
+  </div>
+</div>
+<script>
+const quizData = [{"question":"¿La Programación Dinámica requiere evaluar obligatoriamente todas las combinaciones posibles de rutas para garantizar que se ha encontrado la más corta?","hint":"Considera si la eficiencia de este método proviene de simplificar o de maximizar el número de evaluaciones.","options":[{"label":"A","text":"Verdadero","isCorrect":false,"rationale":"Este enfoque describe una búsqueda exhaustiva, mientras que la Programación Dinámica utiliza el principio de optimalidad para evitar evaluar todas las combinaciones."},{"label":"B","text":"Falso","isCorrect":true,"rationale":"La Programación Dinámica es eficiente precisamente porque evita la exploración exhaustiva mediante el uso de funciones recursivas y el principio de Bellman."}]},{"question":"De acuerdo al Principio de Bellman, una política óptima tiene la propiedad de que las decisiones restantes deben ser óptimas, independientemente de la decisión anterior.","hint":"Reflexiona sobre si el pasado influye en la necesidad de que el futuro sea óptimo desde el punto actual.","options":[{"label":"A","text":"Falso","isCorrect":false,"rationale":"Esta es la definición fundamental del Principio de Bellman, el cual permite resolver subproblemas de manera independiente al camino tomado para llegar a un estado."},{"label":"B","text":"Verdadero","isCorrect":true,"rationale":"El principio establece que el resto de las decisiones deben constituir una política óptima con respecto al estado resultante de la decisión previa."}]},{"question":"En la terminología de Programación Dinámica, las etapas ($n$) se definen específicamente como los nodos que se encuentran en cada nivel de la red.","hint":"Distingue entre el 'momento' en el que se decide y el 'lugar' donde uno se encuentra.","options":[{"label":"A","text":"Verdadero","isCorrect":false,"rationale":"Los nodos en cada nivel representan los estados ($S_n$), mientras que las etapas se refieren a la secuencia de decisiones o pasos en el tiempo."},{"label":"B","text":"Falso","isCorrect":true,"rationale":"Las etapas representan el paso de una columna de nodos a la siguiente, es decir, el momento en la secuencia donde se toma una decisión."}]},{"question":"El estado ($S_n$) en un problema de ruta más corta corresponde a los nodos específicos en los que se puede encontrar el sistema en una etapa determinada.","hint":"Piensa en la variable que identifica la ubicación actual dentro de una red de grafos.","options":[{"label":"A","text":"Falso","isCorrect":false,"rationale":"Por definición, el estado agrupa las posibles situaciones (nodos) en las que se puede estar durante una etapa específica del proceso."},{"label":"B","text":"Verdadero","isCorrect":true,"rationale":"El estado describe la condición o ubicación del sistema al inicio de una etapa, permitiendo identificar las opciones disponibles para la siguiente decisión."}]},{"question":"La decisión ($X_n$) se refiere a la elección del siguiente nodo al que se viajará partiendo desde el estado actual.","hint":"Recuerda qué componente del problema representa la acción de moverse de un punto a otro.","options":[{"label":"A","text":"Falso","isCorrect":false,"rationale":"En la resolución de redes, la decisión es precisamente el arco o camino que se elige seguir hacia el siguiente punto de control."},{"label":"B","text":"Verdadero","isCorrect":true,"rationale":"La variable de decisión representa la acción tomada que transforma el estado actual en el estado de la siguiente etapa."}]},{"question":"La función recursiva ($f_n$) en Programación Dinámica se utiliza para calcular únicamente la distancia individual entre dos nodos conectados directamente.","hint":"Considera si la función se enfoca en un tramo aislado o en la optimización de todo el trayecto hasta el final.","options":[{"label":"A","text":"Verdadero","isCorrect":false,"rationale":"La distancia entre dos nodos es solo un dato de entrada (costo); la función recursiva se encarga de acumular estos costos para encontrar la ruta óptima total."},{"label":"B","text":"Falso","isCorrect":true,"rationale":"Esta función establece la relación matemática para determinar la distancia acumulada más corta considerando el costo de la etapa actual y el óptimo anterior."}]},{"question":"El enfoque retrógrado en la Programación Dinámica implica que el problema se empieza a resolver desde el nodo final (destino) hacia el nodo inicial (origen).","hint":"Analiza el significado del término 'retrógrado' en el contexto de una secuencia temporal o de pasos.","options":[{"label":"A","text":"Falso","isCorrect":false,"rationale":"Este método es el estándar mencionado para trabajar desde el final, permitiendo que las decisiones en las últimas etapas guíen las decisiones iniciales."},{"label":"B","text":"Verdadero","isCorrect":true,"rationale":"El enfoque retrogrado o 'hacia atrás' es una técnica común que descompone el problema trabajando desde la meta para asegurar la optimalidad global."}]},{"question":"La Programación Dinámica pierde su utilidad si el problema no puede ser descompuesto en una serie de etapas manejables.","hint":"Recuerda cuál es el enfoque principal que utiliza la PD para manejar problemas complejos.","options":[{"label":"A","text":"Falso","isCorrect":false,"rationale":"Sin la descomposición en etapas, no se podría aplicar la recursividad ni el principio de Bellman, que son los pilares de este método."},{"label":"B","text":"Verdadero","isCorrect":true,"rationale":"La estructura fundamental de la Programación Dinámica depende de la capacidad de dividir un problema complejo en subproblemas secuenciales o etapas."}]},{"question":"¿Es posible aplicar la Programación Dinámica en redes que no tienen una estructura dirigida para resolver problemas de ruta corta?","hint":"Revisa el objetivo de aprendizaje planteado al inicio del material sobre el tipo de red.","options":[{"label":"A","text":"Falso","isCorrect":true,"rationale":"El logro de la sesión especifica la aplicación del principio en redes dirigidas para identificar correctamente la progresión de etapas y estados."},{"label":"B","text":"Verdadero","isCorrect":false,"rationale":"Aunque es posible en teoría de grafos general, el material de la sesión se enfoca específicamente en redes dirigidas donde las decisiones siguen una secuencia clara."}]},{"question":"El principal beneficio computacional de la Programación Dinámica es que garantiza encontrar la solución óptima sin necesidad de realizar cálculos recursivos.","hint":"Evalúa si la recursividad es un obstáculo o el mecanismo que permite el ahorro de tiempo en este método.","options":[{"label":"A","text":"Verdadero","isCorrect":false,"rationale":"La recursividad es, de hecho, la herramienta principal que utiliza la Programación Dinámica para conectar las decisiones de diferentes etapas."},{"label":"B","text":"Falso","isCorrect":true,"rationale":"El beneficio reside en evitar la exploración exhaustiva mediante el uso de la función recursiva basada en el costo óptimo de la etapa anterior."}]}];
+const tr = {"correct":"¡Correcto!","incorrect":"Incorrecto","next":"Siguiente pregunta →","seeResults":"Ver resultados","complete":"¡Cuestionario completado!","scoreText":"Obtuviste {correct} de {total} correctas","tryAgain":"Intentar de nuevo","rightAnswer":"Respuesta correcta","notQuite":"No del todo"};
+let currentQ = 0, correctCount = 0, answered = false;
+
+function init() {
+  document.querySelectorAll('.question').forEach((q, i) => q.classList.toggle('active', i === 0));
+  updateProgress();
+  document.querySelectorAll('.option').forEach(opt => opt.addEventListener('click', () => selectOption(opt)));
+  document.querySelectorAll('.next-btn').forEach(btn => btn.addEventListener('click', nextQuestion));
+}
+
+function selectOption(opt) {
+  if (answered) return;
+  answered = true;
+  const q = opt.closest('.question');
+  const options = q.querySelectorAll('.option');
+  const nextBtn = q.querySelector('.next-btn');
+  const isCorrect = opt.dataset.correct === 'true';
+  
+  // Mark all options as disabled
+  options.forEach(o => o.classList.add('disabled'));
+  
+  // Style selected option
+  opt.classList.add('selected', isCorrect ? 'correct' : 'incorrect');
+  
+  // Show correct answer if wrong
+  if (!isCorrect) {
+    const correctOpt = [...options].find(o => o.dataset.correct === 'true');
+    if (correctOpt) correctOpt.classList.add('show-correct');
+  }
+  
+  if (isCorrect) correctCount++;
+  
+  // Show feedback for ALL options that have rationale
+  options.forEach(o => {
+    const wrapper = o.closest('.option-wrapper');
+    const feedback = wrapper.querySelector('.option-feedback');
+    const rationale = o.dataset.rationale;
+    const isThisCorrect = o.dataset.correct === 'true';
+    
+    if (rationale && rationale.trim()) {
+      feedback.classList.remove('hidden');
+      feedback.classList.add(isThisCorrect ? 'correct-feedback' : 'incorrect-feedback');
+      
+      const statusEl = feedback.querySelector('.feedback-status');
+      statusEl.className = 'feedback-status ' + (isThisCorrect ? 'correct' : 'incorrect');
+      statusEl.innerHTML = isThisCorrect 
+        ? '✓ ' + tr.rightAnswer
+        : '✗ ' + tr.notQuite;
+    }
+  });
+  
+  nextBtn.classList.remove('hidden');
+  if (currentQ === quizData.length - 1) nextBtn.textContent = tr.seeResults;
+}
+
+function nextQuestion() {
+  answered = false;
+  currentQ++;
+  if (currentQ >= quizData.length) { showResults(); return; }
+  document.querySelectorAll('.question').forEach((q, i) => q.classList.toggle('active', i === currentQ));
+  updateProgress();
+}
+
+function updateProgress() {
+  document.querySelector('.progress-fill').style.width = (currentQ / quizData.length * 100) + '%';
+}
+
+function showResults() {
+  document.querySelectorAll('.question').forEach(q => q.classList.remove('active'));
+  document.getElementById('results').classList.add('active');
+  const pct = Math.round((correctCount / quizData.length) * 100);
+  document.getElementById('score').textContent = pct + '%';
+  document.getElementById('score-text').textContent = tr.scoreText.replace('{correct}', correctCount).replace('{total}', quizData.length);
+  document.querySelector('.progress-fill').style.width = '100%';
+}
+
+function restart() {
+  currentQ = 0; correctCount = 0; answered = false;
+  document.getElementById('results').classList.remove('active');
+  document.querySelectorAll('.question').forEach((q, i) => {
+    q.classList.toggle('active', i === 0);
+    q.querySelectorAll('.option').forEach(o => o.classList.remove('selected', 'correct', 'incorrect', 'disabled', 'show-correct'));
+    q.querySelectorAll('.option-feedback').forEach(f => {
+      f.classList.add('hidden');
+      f.classList.remove('correct-feedback', 'incorrect-feedback');
+    });
+    const btn = q.querySelector('.next-btn');
+    btn.classList.add('hidden');
+    btn.textContent = tr.next;
+  });
+  updateProgress();
+}
+
+init();
+</script>
+</body>
+</html>
