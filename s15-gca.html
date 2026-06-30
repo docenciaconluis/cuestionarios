@@ -1,0 +1,1466 @@
+<!DOCTYPE html>
+<html lang="es" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>S15 - GCA</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  min-height: 100vh; padding: 20px; color: #333;
+}
+.container { max-width: 700px; margin: 0 auto; }
+.header { text-align: center; color: #fff; padding: 30px 20px; }
+.header h1 { font-size: 28px; font-weight: 700; margin-bottom: 8px; text-shadow: 0 2px 10px rgba(0,0,0,0.2); }
+.header .meta { font-size: 14px; opacity: 0.9; }
+.progress-bar { background: rgba(255,255,255,0.3); border-radius: 10px; height: 8px; margin: 20px 0; overflow: hidden; }
+.progress-fill { background: #fff; height: 100%; width: 0%; transition: width 0.4s ease; border-radius: 10px; }
+.question { background: #fff; border-radius: 16px; padding: 30px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); display: none; }
+.question.active { display: block; }
+.q-header { display: flex; justify-content: space-between; margin-bottom: 20px; font-size: 13px; color: #888; }
+.q-number { font-weight: 600; color: #667eea; }
+.q-text { font-size: 18px; font-weight: 600; line-height: 1.5; margin-bottom: 25px; color: #222; }
+.options { display: flex; flex-direction: column; gap: 12px; }
+.option-wrapper { display: flex; flex-direction: column; }
+.option {
+  display: flex; align-items: flex-start; gap: 14px; padding: 16px 18px;
+  border: 2px solid #e8e8e8; border-radius: 12px; background: #fafafa;
+  cursor: pointer; transition: all 0.2s; text-align: left; font-size: 15px; width: 100%;
+}
+[dir="rtl"] .option { text-align: right; flex-direction: row-reverse; }
+.option:hover:not(.disabled) { border-color: #667eea; background: #f5f3ff; }
+.option.selected { border-color: #667eea; background: #ede9fe; }
+.option.correct { border-color: #22c55e; background: #dcfce7; }
+.option.incorrect { border-color: #ef4444; background: #fee2e2; }
+.option.disabled { cursor: default; }
+.option.show-correct { border-color: #22c55e; background: #dcfce7; }
+.opt-label {
+  display: flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; border-radius: 50%; background: #e8e8e8;
+  font-weight: 700; font-size: 14px; flex-shrink: 0;
+}
+.option.selected .opt-label { background: #667eea; color: #fff; }
+.option.correct .opt-label { background: #22c55e; color: #fff; }
+.option.incorrect .opt-label { background: #ef4444; color: #fff; }
+.option.show-correct .opt-label { background: #22c55e; color: #fff; }
+.opt-text { padding-top: 5px; line-height: 1.5; }
+
+/* Individual option feedback */
+.option-feedback {
+  margin: 8px 0 4px 46px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+[dir="rtl"] .option-feedback { margin-left: 0; margin-right: 46px; }
+.option-feedback.correct-feedback {
+  background: #dcfce7;
+  border-left: 3px solid #22c55e;
+}
+.option-feedback.incorrect-feedback {
+  background: #fef3f2;
+  border-left: 3px solid #fca5a5;
+}
+[dir="rtl"] .option-feedback.correct-feedback,
+[dir="rtl"] .option-feedback.incorrect-feedback {
+  border-left: none;
+  border-right: 3px solid;
+}
+[dir="rtl"] .option-feedback.correct-feedback { border-right-color: #22c55e; }
+[dir="rtl"] .option-feedback.incorrect-feedback { border-right-color: #fca5a5; }
+.feedback-status {
+  font-weight: 600;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.feedback-status.correct { color: #166534; }
+.feedback-status.incorrect { color: #991b1b; }
+.feedback-rationale { color: #444; }
+
+/* Hint box */
+.hint-box {
+  margin: 12px 0;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+}
+.hint-toggle {
+  width: 100%;
+  padding: 10px 16px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  color: #92400e;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.hint-toggle:hover { background: #fef3c7; }
+.hint-content {
+  padding: 0 16px;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s, padding 0.3s;
+  font-size: 14px;
+  color: #78350f;
+  line-height: 1.5;
+}
+.hint-box.show .hint-content {
+  padding: 0 16px 12px;
+  max-height: 200px;
+}
+
+.next-btn {
+  margin-top: 20px; width: 100%; padding: 14px;
+  background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; border: none;
+  border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.next-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(102,126,234,0.4); }
+.hidden { display: none !important; }
+.results { background: #fff; border-radius: 16px; padding: 40px; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.15); display: none; }
+.results.active { display: block; }
+.results h2 { font-size: 28px; margin-bottom: 10px; color: #333; }
+.results .score { font-size: 64px; font-weight: 700; color: #667eea; margin: 20px 0; }
+.results .score-text { font-size: 18px; color: #666; margin-bottom: 30px; }
+.restart-btn {
+  padding: 14px 40px; background: linear-gradient(135deg, #667eea, #764ba2);
+  color: #fff; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer;
+}
+
+/* Math CSS */
+.math, .math-block { font-family: "Cambria Math", "Times New Roman", Times, serif; font-style: italic; }
+.math-block { display: block; text-align: center; margin: 10px 0; font-size: 110%; }
+.frac { display: inline-flex; flex-direction: column; align-items: center; vertical-align: middle; margin: 0 3px; font-size: 0.9em; }
+.frac-num { border-bottom: 1px solid currentColor; padding: 0 4px 2px; line-height: 1.2; }
+.frac-den { padding: 2px 4px 0; line-height: 1.2; }
+.sqrt { white-space: nowrap; }
+.sqrt-content { border-top: 1px solid currentColor; padding: 0 3px; margin-left: 2px; }
+sup, sub { font-size: 0.75em; }
+sup { vertical-align: super; }
+sub { vertical-align: sub; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>S15 - GCA</h1>
+    <div class="meta">30 preguntas</div>
+    <div class="progress-bar"><div class="progress-fill"></div></div>
+  </div>
+  <div id="quiz-container">
+        <div class="question" data-index="0">
+          <div class="q-header">
+            <span class="q-number">Pregunta 1</span>
+            <span class="q-of">/ 30</span>
+          </div>
+          <div class="q-text">¿Es la Dirección General de Abastecimiento del Ministerio de Economía y Finanzas el ente rector del Sistema Nacional de Abastecimiento (SNA)?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considera cuál es la máxima autoridad administrativa del abastecimiento dentro de la estructura del MEF.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Esta entidad centraliza la autoridad normativa y de supervisión sobre todo el sistema de abastecimiento en el sector público peruano.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esta entidad centraliza la autoridad normativa y de supervisión sobre todo el sistema de abastecimiento en el sector público peruano.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Aunque existen otros organismos como OSCE, la rectoría del sistema nacional recae específicamente en esta dirección del MEF.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aunque existen otros organismos como OSCE, la rectoría del sistema nacional recae específicamente en esta dirección del MEF.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="1">
+          <div class="q-header">
+            <span class="q-number">Pregunta 2</span>
+            <span class="q-of">/ 30</span>
+          </div>
+          <div class="q-text">¿El Organismo Supervisor de Contrataciones del Estado (OSCE) se define como un organismo público ejecutor dentro del SNA?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Diferencia entre la función de supervisión técnica y la función de ejecución de compras.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="El OSCE tiene una naturaleza técnica especializada de supervisión, no de ejecución directa de compras masivas.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El OSCE tiene una naturaleza técnica especializada de supervisión, no de ejecución directa de compras masivas.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="La función de ejecución pública recae en la Central de Compras Públicas (Perú Compras), mientras que el OSCE es un organismo técnico especializado.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La función de ejecución pública recae en la Central de Compras Públicas (Perú Compras), mientras que el OSCE es un organismo técnico especializado.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="2">
+          <div class="q-header">
+            <span class="q-number">Pregunta 3</span>
+            <span class="q-of">/ 30</span>
+          </div>
+          <div class="q-text">¿El modelo SCOR fue desarrollado por el Supply Chain Council (SCC) para estandarizar procesos y medir el desempeño?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Revisa el origen institucional del Supply Chain Operations Reference Model.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="El SCC es precisamente la entidad que diseñó este modelo integrador para su aplicación global en diversas industrias.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El SCC es precisamente la entidad que diseñó este modelo integrador para su aplicación global en diversas industrias.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Este marco de referencia fue creado por dicha organización para proporcionar un lenguaje común y métricas estandarizadas en la cadena de suministro.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Este marco de referencia fue creado por dicha organización para proporcionar un lenguaje común y métricas estandarizadas en la cadena de suministro.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="3">
+          <div class="q-header">
+            <span class="q-number">Pregunta 4</span>
+            <span class="q-of">/ 30</span>
+          </div>
+          <div class="q-text">¿El modelo SCOR omite el software aplicable para centrarse exclusivamente en la ingeniería de procesos manuales?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piensa si un modelo de gestión moderno ignoraría las herramientas digitales en la actualidad.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="El modelo estandariza procesos, métricas, mejores prácticas y también el software aplicable para la optimización de la cadena.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El modelo estandariza procesos, métricas, mejores prácticas y también el software aplicable para la optimización de la cadena.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="La integración de herramientas tecnológicas y software es un pilar fundamental del modelo para optimizar las operaciones logísticas.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La integración de herramientas tecnológicas y software es un pilar fundamental del modelo para optimizar las operaciones logísticas.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="4">
+          <div class="q-header">
+            <span class="q-number">Pregunta 5</span>
+            <span class="q-of">/ 30</span>
+          </div>
+          <div class="q-text">¿En el proceso de 'Planificación' (Plan) se analizan la demanda y se establecen metas corporativas de acuerdo con las regulaciones legales?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Recuerda que este proceso es el 'cerebro' que coordina el resto de las actividades operativas.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Esta fase inicial alinea los recursos disponibles y la demanda proyectada con el marco normativo vigente.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esta fase inicial alinea los recursos disponibles y la demanda proyectada con el marco normativo vigente.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="La planificación es el proceso que orquesta el flujo de distribución, comunicación y cumplimiento de metas legales de la organización.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La planificación es el proceso que orquesta el flujo de distribución, comunicación y cumplimiento de metas legales de la organización.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="5">
+          <div class="q-header">
+            <span class="q-number">Pregunta 6</span>
+            <span class="q-of">/ 30</span>
+          </div>
+          <div class="q-text">¿La etapa de 'Aprovisionamiento' (Source) se encarga de la fabricación de la mercancía a partir de la materia prima?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Distingue entre conseguir los insumos y transformar los insumos.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="El aprovisionamiento se refiere a la adquisición de proveedores o infraestructura de abastecimiento, no a la manufactura del bien.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El aprovisionamiento se refiere a la adquisición de proveedores o infraestructura de abastecimiento, no a la manufactura del bien.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="La transformación de materia prima en producto terminado corresponde al proceso de 'Fabricación' (Make).">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La transformación de materia prima en producto terminado corresponde al proceso de 'Fabricación' (Make).</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="6">
+          <div class="q-header">
+            <span class="q-number">Pregunta 7</span>
+            <span class="q-of">/ 30</span>
+          </div>
+          <div class="q-text">¿El proceso de 'Fabricación' (Make) incluye actividades de envasado, empaque y reparación de productos?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Evalúa si estas actividades pertenecen a la etapa de creación y terminación del producto.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Estas tareas forman parte de la etapa de elaboración o producción física del bien antes de su salida al mercado.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Estas tareas forman parte de la etapa de elaboración o producción física del bien antes de su salida al mercado.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Todas las actividades relacionadas con la manufactura y el acondicionamiento del producto final se agrupan bajo este proceso operativo.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Todas las actividades relacionadas con la manufactura y el acondicionamiento del producto final se agrupan bajo este proceso operativo.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="7">
+          <div class="q-header">
+            <span class="q-number">Pregunta 8</span>
+            <span class="q-of">/ 30</span>
+          </div>
+          <div class="q-text">¿El proceso 'Deliver' (Distribución) gestiona las entregas de pedidos únicamente desde el almacenaje hasta el transporte?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considera si la distribución incluye pasos previos a que el producto suba al camión.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Además del almacenaje y transporte, incluye la gestión de pedidos, ventas e incluso trámites legales para importación o exportación.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Además del almacenaje y transporte, incluye la gestión de pedidos, ventas e incluso trámites legales para importación o exportación.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Este proceso también abarca la venta inicial, la prestación de servicios y el registro del ciclo de vida del producto.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Este proceso también abarca la venta inicial, la prestación de servicios y el registro del ciclo de vida del producto.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="8">
+          <div class="q-header">
+            <span class="q-number">Pregunta 9</span>
+            <span class="q-of">/ 30</span>
+          </div>
+          <div class="q-text">¿El proceso de 'Devolución' (Return) contempla tanto las devoluciones recibidas de clientes como las realizadas a proveedores?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Analiza si el retorno es un flujo unidireccional o bidireccional en la cadena.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="La gestión de logística inversa en SCOR cubre el flujo de retorno en ambos sentidos de la cadena de suministro.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La gestión de logística inversa en SCOR cubre el flujo de retorno en ambos sentidos de la cadena de suministro.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Ignorar el flujo de retorno hacia los proveedores dejaría incompleta la visión integral de la logística inversa del modelo.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Ignorar el flujo de retorno hacia los proveedores dejaría incompleta la visión integral de la logística inversa del modelo.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="9">
+          <div class="q-header">
+            <span class="q-number">Pregunta 10</span>
+            <span class="q-of">/ 30</span>
+          </div>
+          <div class="q-text">¿El proceso 'Enable' (Soporte/Apoyo) se encarga de la gestión de riesgos y el cumplimiento de normativas corporativas?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piensa en las funciones administrativas y de control que facilitan los procesos de ejecución.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Este tipo de proceso prepara el flujo de datos y asegura que las actividades cumplan con los requisitos legales y de control.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Este tipo de proceso prepara el flujo de datos y asegura que las actividades cumplan con los requisitos legales y de control.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="La administración de información y la evaluación de riesgos son funciones críticas del componente de soporte del modelo.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La administración de información y la evaluación de riesgos son funciones críticas del componente de soporte del modelo.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="10">
+          <div class="q-header">
+            <span class="q-number">Pregunta 11</span>
+            <span class="q-of">/ 30</span>
+          </div>
+          <div class="q-text">¿Los tres tipos de procesos principales del modelo SCOR son Planificación (Planning), Ejecución (Execution) y Soporte (Enable)?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Revisa la jerarquía de procesos mencionada en la sección de gestión de procesos.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Esta es la división estructural que utiliza el modelo para categorizar todas las actividades de la cadena.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esta es la división estructural que utiliza el modelo para categorizar todas las actividades de la cadena.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Aunque existan subprocesos como fabricación o distribución, estos se agrupan bajo las categorías macro de planificación, ejecución y soporte.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aunque existan subprocesos como fabricación o distribución, estos se agrupan bajo las categorías macro de planificación, ejecución y soporte.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="11">
+          <div class="q-header">
+            <span class="q-number">Pregunta 12</span>
+            <span class="q-of">/ 30</span>
+          </div>
+          <div class="q-text">¿La etapa de 'Ejecución' en SCOR incluye el control de calidad y cantidad de los productos?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considera si la verificación de calidad es una acción física de implementación o de planeamiento.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="El control de calidad es una actividad operativa que se realiza durante la transformación o distribución física del producto.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El control de calidad es una actividad operativa que se realiza durante la transformación o distribución física del producto.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Estas actividades son resultados directos de la planificación previa que afectan físicamente el estado de la mercancía.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Estas actividades son resultados directos de la planificación previa que afectan físicamente el estado de la mercancía.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="12">
+          <div class="q-header">
+            <span class="q-number">Pregunta 13</span>
+            <span class="q-of">/ 30</span>
+          </div>
+          <div class="q-text">¿Los elementos operativos de SCOR consisten exclusivamente en la medición de costos finales de logística?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Evalúa si 'operativo' se refiere a una cifra monetaria o a la estructura del trabajo.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Se refieren a la descomposición detallada de procesos en elementos como materiales, información y recursos ordenados de inicio a fin.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Se refieren a la descomposición detallada de procesos en elementos como materiales, información y recursos ordenados de inicio a fin.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Los elementos operativos implican una descomposición detallada de subprocesos, inputs, outputs y recursos, no solo costos.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Los elementos operativos implican una descomposición detallada de subprocesos, inputs, outputs y recursos, no solo costos.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="13">
+          <div class="q-header">
+            <span class="q-number">Pregunta 14</span>
+            <span class="q-of">/ 30</span>
+          </div>
+          <div class="q-text">¿La implementación de indicadores clave de desempeño (KPIs) permite detectar qué elementos de la cadena de suministro deben eliminarse?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Reflexiona sobre la utilidad de los indicadores para la mejora continua y la eficiencia.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Al detallar y medir los procesos, es posible identificar actividades que no agregan valor y que pueden ser optimizadas o removidas.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Al detallar y medir los procesos, es posible identificar actividades que no agregan valor y que pueden ser optimizadas o removidas.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Los KPIs son la herramienta analítica necesaria para decidir científicamente sobre la permanencia o eliminación de un subproceso.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Los KPIs son la herramienta analítica necesaria para decidir científicamente sobre la permanencia o eliminación de un subproceso.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="14">
+          <div class="q-header">
+            <span class="q-number">Pregunta 15</span>
+            <span class="q-of">/ 30</span>
+          </div>
+          <div class="q-text">¿El beneficio de 'Adaptabilidad y escalabilidad' de SCOR significa que el modelo solo sirve para empresas del mismo sector industrial?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Analiza el significado de los términos 'adaptabilidad' y 'escalabilidad'.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Una de las ventajas mencionadas es su capacidad de adaptarse y escalar para ser aplicado en diversos tipos de industrias.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Una de las ventajas mencionadas es su capacidad de adaptarse y escalar para ser aplicado en diversos tipos de industrias.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="La escalabilidad y adaptabilidad permiten que el modelo funcione en diversas industrias, independientemente de su sector.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La escalabilidad y adaptabilidad permiten que el modelo funcione en diversas industrias, independientemente de su sector.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="15">
+          <div class="q-header">
+            <span class="q-number">Pregunta 16</span>
+            <span class="q-of">/ 30</span>
+          </div>
+          <div class="q-text">¿El análisis de brechas (GAP) indica que el desempeño actual de la empresa se representa generalmente con una línea azul en los gráficos radiales?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Recuerda la leyenda del gráfico utilizado en el ejemplo del GAP análisis.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="El material identifica explícitamente la línea azul como el indicador del desempeño presente de la organización evaluada.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El material identifica explícitamente la línea azul como el indicador del desempeño presente de la organización evaluada.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="En el ejemplo práctico presentado, la línea azul marca la situación actual medida frente al objetivo o referencia deseada.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">En el ejemplo práctico presentado, la línea azul marca la situación actual medida frente al objetivo o referencia deseada.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="16">
+          <div class="q-header">
+            <span class="q-number">Pregunta 17</span>
+            <span class="q-of">/ 30</span>
+          </div>
+          <div class="q-text">¿El primer paso para realizar la actividad práctica propuesta es graficar los resultados obtenidos?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Ordena lógicamente los pasos necesarios desde la investigación hasta la visualización de datos.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Graficar es el último paso; antes se debe analizar el proceso, identificar variables y medirlas.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Graficar es el último paso; antes se debe analizar el proceso, identificar variables y medirlas.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="El orden metodológico inicia con el análisis del proceso, seguido de la identificación y medición de variables, dejando la graficación para el final.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El orden metodológico inicia con el análisis del proceso, seguido de la identificación y medición de variables, dejando la graficación para el final.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="17">
+          <div class="q-header">
+            <span class="q-number">Pregunta 18</span>
+            <span class="q-of">/ 30</span>
+          </div>
+          <div class="q-text">¿En el ejemplo de variables, el uso de tecnología para el proceso de modulación (picking) es una variable que la empresa sí cumple?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Consulta la tabla de variables dicotómicas del ejemplo práctico.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="La tabla de variables muestra que la empresa emplea lectoras y radiofrecuencia, marcando esta variable con un 'Sí'.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La tabla de variables muestra que la empresa emplea lectoras y radiofrecuencia, marcando esta variable con un 'Sí'.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="La empresa analizada en el caso sí cuenta con estas tecnologías para optimizar su proceso de picking.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La empresa analizada en el caso sí cuenta con estas tecnologías para optimizar su proceso de picking.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="18">
+          <div class="q-header">
+            <span class="q-number">Pregunta 19</span>
+            <span class="q-of">/ 30</span>
+          </div>
+          <div class="q-text">¿La mayor brecha identificada en el análisis GAP del ejemplo se encuentra en el proceso de 'Gestión de Flota'?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Observa cuál proceso tiene el punto más alejado del borde exterior en el gráfico radial del ejemplo.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Aunque hay mejoras en gestión de flota, la brecha más crítica señalada en el texto es la de 'Elaboración de pedidos'.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aunque hay mejoras en gestión de flota, la brecha más crítica señalada en el texto es la de 'Elaboración de pedidos'.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El análisis indica que la mayor brecha está en 'Elaboración de pedidos', sugiriendo una optimización necesaria en planificación.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El análisis indica que la mayor brecha está en 'Elaboración de pedidos', sugiriendo una optimización necesaria en planificación.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="19">
+          <div class="q-header">
+            <span class="q-number">Pregunta 20</span>
+            <span class="q-of">/ 30</span>
+          </div>
+          <div class="q-text">¿El modelo SCOR ayuda a mejorar la satisfacción del cliente al optimizar la entrega y la calidad de los productos?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considera el impacto final de una cadena de suministro bien gestionada.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="La satisfacción del cliente es uno de los beneficios clave derivados de la optimización operativa que propone SCOR.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La satisfacción del cliente es uno de los beneficios clave derivados de la optimización operativa que propone SCOR.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Al hacer la cadena más eficiente y predecible, el impacto directo se refleja en un mejor servicio al consumidor final.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Al hacer la cadena más eficiente y predecible, el impacto directo se refleja en un mejor servicio al consumidor final.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="20">
+          <div class="q-header">
+            <span class="q-number">Pregunta 21</span>
+            <span class="q-of">/ 30</span>
+          </div>
+          <div class="q-text">¿La gestión eficiente de la cadena de abastecimiento en el sector público de Perú no influye en la calidad de los servicios estatales?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Reflexiona sobre el propósito del abastecimiento público frente al ciudadano.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="La gestión eficiente es fundamental para que el Estado pueda brindar servicios de calidad a la ciudadanía.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La gestión eficiente es fundamental para que el Estado pueda brindar servicios de calidad a la ciudadanía.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="El material concluye que esta gestión es un reto clave para mejorar precisamente la calidad y eficiencia de los servicios del Estado.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El material concluye que esta gestión es un reto clave para mejorar precisamente la calidad y eficiencia de los servicios del Estado.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="21">
+          <div class="q-header">
+            <span class="q-number">Pregunta 22</span>
+            <span class="q-of">/ 30</span>
+          </div>
+          <div class="q-text">¿Las áreas involucradas en la gestión de la CAP son responsables de la programación del abastecimiento?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Ubica las responsabilidades de las unidades ejecutoras dentro del SNA.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Estas áreas operativas ejecutan las actividades del sistema y programan las necesidades de las entidades públicas.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Estas áreas operativas ejecutan las actividades del sistema y programan las necesidades de las entidades públicas.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="La gestión y programación son tareas asignadas directamente a las áreas responsables del abastecimiento dentro de cada entidad.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La gestión y programación son tareas asignadas directamente a las áreas responsables del abastecimiento dentro de cada entidad.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="22">
+          <div class="q-header">
+            <span class="q-number">Pregunta 23</span>
+            <span class="q-of">/ 30</span>
+          </div>
+          <div class="q-text">¿El proceso 'Source' incluye la gestión de inventarios y el control de calidad de la mercancía recibida?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Evalúa qué actividades ocurren cuando la materia prima entra en contacto con la empresa por primera vez.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Esta etapa abarca desde la disponibilidad de materia prima hasta los contratos de compra y la recepción de bienes.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esta etapa abarca desde la disponibilidad de materia prima hasta los contratos de compra y la recepción de bienes.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El manejo de los insumos y su calidad al ingresar a la organización es una parte esencial del aprovisionamiento.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El manejo de los insumos y su calidad al ingresar a la organización es una parte esencial del aprovisionamiento.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="23">
+          <div class="q-header">
+            <span class="q-number">Pregunta 24</span>
+            <span class="q-of">/ 30</span>
+          </div>
+          <div class="q-text">¿La 'Logística Inversa' es un proceso que solo ocurre en empresas privadas y no se contempla en el sector público según el modelo SCOR?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considera si el flujo de devoluciones es exclusivo de algún tipo de propiedad organizacional.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="El modelo SCOR es aplicable a cualquier organización, incluyendo el sector público, donde también existen retornos y devoluciones.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El modelo SCOR es aplicable a cualquier organización, incluyendo el sector público, donde también existen retornos y devoluciones.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="El material presenta la logística inversa (Return) como un proceso integrante clave de la cadena de suministro general.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El material presenta la logística inversa (Return) como un proceso integrante clave de la cadena de suministro general.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="24">
+          <div class="q-header">
+            <span class="q-number">Pregunta 25</span>
+            <span class="q-of">/ 30</span>
+          </div>
+          <div class="q-text">¿Es posible utilizar escalas de medición distintas a las preguntas dicotómicas para analizar los resultados de las variables?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Busca la aclaración sobre el tipo de preguntas utilizadas en la elaboración de pedidos.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Aunque el ejemplo usa 'Sí/No', el texto indica explícitamente que se pueden emplear otras escalas de medición según la necesidad.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aunque el ejemplo usa 'Sí/No', el texto indica explícitamente que se pueden emplear otras escalas de medición según la necesidad.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="La metodología permite flexibilidad en las herramientas de medición para adaptarse mejor a la realidad del sector o la competencia.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La metodología permite flexibilidad en las herramientas de medición para adaptarse mejor a la realidad del sector o la competencia.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="25">
+          <div class="q-header">
+            <span class="q-number">Pregunta 26</span>
+            <span class="q-of">/ 30</span>
+          </div>
+          <div class="q-text">¿El proceso de 'Distribución' incluye la gestión del ciclo de vida del producto?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piensa en las responsabilidades informativas del área que entrega el producto al cliente.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="El registro y seguimiento del ciclo de vida es una de las actividades detalladas dentro del bloque de entregas (Deliver).">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El registro y seguimiento del ciclo de vida es una de las actividades detalladas dentro del bloque de entregas (Deliver).</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="La distribución no solo mueve cajas, sino que también gestiona la información sobre la vida útil y vigencia del producto.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La distribución no solo mueve cajas, sino que también gestiona la información sobre la vida útil y vigencia del producto.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="26">
+          <div class="q-header">
+            <span class="q-number">Pregunta 27</span>
+            <span class="q-of">/ 30</span>
+          </div>
+          <div class="q-text">¿La planificación de la demanda considera factores como la incertidumbre del mercado?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considera si la planificación es un cálculo exacto o una gestión de probabilidades.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Ignorar la incertidumbre haría que la planificación fuera ineficaz frente a las variaciones reales de la demanda proyectada.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Ignorar la incertidumbre haría que la planificación fuera ineficaz frente a las variaciones reales de la demanda proyectada.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="El modelo SCOR enfatiza que la planificación debe gestionar la incertidumbre para cubrir las necesidades previstas de la empresa.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El modelo SCOR enfatiza que la planificación debe gestionar la incertidumbre para cubrir las necesidades previstas de la empresa.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="27">
+          <div class="q-header">
+            <span class="q-number">Pregunta 28</span>
+            <span class="q-of">/ 30</span>
+          </div>
+          <div class="q-text">¿El modelo SCOR combina benchmarking con ingeniería de procesos para crear un marco de referencia líder?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Recuerda los componentes principales que se combinan en un 'único marco' según el texto.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="El benchmarking es, de hecho, uno de los tres pilares fundamentales que el material menciona como parte de la estructura de SCOR.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El benchmarking es, de hecho, uno de los tres pilares fundamentales que el material menciona como parte de la estructura de SCOR.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Al integrar mejores prácticas y comparaciones con el mercado, el modelo permite a las empresas saber qué tan eficientes son realmente.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Al integrar mejores prácticas y comparaciones con el mercado, el modelo permite a las empresas saber qué tan eficientes son realmente.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="28">
+          <div class="q-header">
+            <span class="q-number">Pregunta 29</span>
+            <span class="q-of">/ 30</span>
+          </div>
+          <div class="q-text">¿El proceso de 'Devolución' incluye el registro correcto del inventario para evitar complicaciones?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Analiza la importancia administrativa del retorno de bienes físicos.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Sin un registro de inventario, la etapa de devolución generaría ineficiencias y pérdida de activos para la organización.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Sin un registro de inventario, la etapa de devolución generaría ineficiencias y pérdida de activos para la organización.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Un registro preciso es vital para mantener la trazabilidad y el control financiero de los bienes que retornan.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Un registro preciso es vital para mantener la trazabilidad y el control financiero de los bienes que retornan.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="29">
+          <div class="q-header">
+            <span class="q-number">Pregunta 30</span>
+            <span class="q-of">/ 30</span>
+          </div>
+          <div class="q-text">¿Los Lead Times de las tiendas deben ignorar la productividad de la preparación de pedidos para simplificar el gráfico GAP?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considera si la simplificación de datos ayuda o perjudica la precisión de un análisis de brechas.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="En el ejemplo práctico, se señala que considerar la productividad en los Lead Times es una variable clave de cumplimiento.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">En el ejemplo práctico, se señala que considerar la productividad en los Lead Times es una variable clave de cumplimiento.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Al contrario, los Lead Times deben considerar esta productividad para reflejar una medición real del desempeño.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Al contrario, los Lead Times deben considerar esta productividad para reflejar una medición real del desempeño.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      </div>
+  <div class="results" id="results">
+    <h2>¡Cuestionario completado!</h2>
+    <div class="score" id="score">0%</div>
+    <div class="score-text" id="score-text"></div>
+    <button class="restart-btn" onclick="restart()">Intentar de nuevo</button>
+  </div>
+</div>
+<script>
+const quizData = [{"question":"¿Es la Dirección General de Abastecimiento del Ministerio de Economía y Finanzas el ente rector del Sistema Nacional de Abastecimiento (SNA)?","hint":"Considera cuál es la máxima autoridad administrativa del abastecimiento dentro de la estructura del MEF.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"Esta entidad centraliza la autoridad normativa y de supervisión sobre todo el sistema de abastecimiento en el sector público peruano."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"Aunque existen otros organismos como OSCE, la rectoría del sistema nacional recae específicamente en esta dirección del MEF."}]},{"question":"¿El Organismo Supervisor de Contrataciones del Estado (OSCE) se define como un organismo público ejecutor dentro del SNA?","hint":"Diferencia entre la función de supervisión técnica y la función de ejecución de compras.","options":[{"label":"A","text":"Verdadero","isCorrect":false,"rationale":"El OSCE tiene una naturaleza técnica especializada de supervisión, no de ejecución directa de compras masivas."},{"label":"B","text":"Falso","isCorrect":true,"rationale":"La función de ejecución pública recae en la Central de Compras Públicas (Perú Compras), mientras que el OSCE es un organismo técnico especializado."}]},{"question":"¿El modelo SCOR fue desarrollado por el Supply Chain Council (SCC) para estandarizar procesos y medir el desempeño?","hint":"Revisa el origen institucional del Supply Chain Operations Reference Model.","options":[{"label":"A","text":"Falso","isCorrect":false,"rationale":"El SCC es precisamente la entidad que diseñó este modelo integrador para su aplicación global en diversas industrias."},{"label":"B","text":"Verdadero","isCorrect":true,"rationale":"Este marco de referencia fue creado por dicha organización para proporcionar un lenguaje común y métricas estandarizadas en la cadena de suministro."}]},{"question":"¿El modelo SCOR omite el software aplicable para centrarse exclusivamente en la ingeniería de procesos manuales?","hint":"Piensa si un modelo de gestión moderno ignoraría las herramientas digitales en la actualidad.","options":[{"label":"A","text":"Falso","isCorrect":true,"rationale":"El modelo estandariza procesos, métricas, mejores prácticas y también el software aplicable para la optimización de la cadena."},{"label":"B","text":"Verdadero","isCorrect":false,"rationale":"La integración de herramientas tecnológicas y software es un pilar fundamental del modelo para optimizar las operaciones logísticas."}]},{"question":"¿En el proceso de 'Planificación' (Plan) se analizan la demanda y se establecen metas corporativas de acuerdo con las regulaciones legales?","hint":"Recuerda que este proceso es el 'cerebro' que coordina el resto de las actividades operativas.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"Esta fase inicial alinea los recursos disponibles y la demanda proyectada con el marco normativo vigente."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"La planificación es el proceso que orquesta el flujo de distribución, comunicación y cumplimiento de metas legales de la organización."}]},{"question":"¿La etapa de 'Aprovisionamiento' (Source) se encarga de la fabricación de la mercancía a partir de la materia prima?","hint":"Distingue entre conseguir los insumos y transformar los insumos.","options":[{"label":"A","text":"Falso","isCorrect":true,"rationale":"El aprovisionamiento se refiere a la adquisición de proveedores o infraestructura de abastecimiento, no a la manufactura del bien."},{"label":"B","text":"Verdadero","isCorrect":false,"rationale":"La transformación de materia prima en producto terminado corresponde al proceso de 'Fabricación' (Make)."}]},{"question":"¿El proceso de 'Fabricación' (Make) incluye actividades de envasado, empaque y reparación de productos?","hint":"Evalúa si estas actividades pertenecen a la etapa de creación y terminación del producto.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"Estas tareas forman parte de la etapa de elaboración o producción física del bien antes de su salida al mercado."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"Todas las actividades relacionadas con la manufactura y el acondicionamiento del producto final se agrupan bajo este proceso operativo."}]},{"question":"¿El proceso 'Deliver' (Distribución) gestiona las entregas de pedidos únicamente desde el almacenaje hasta el transporte?","hint":"Considera si la distribución incluye pasos previos a que el producto suba al camión.","options":[{"label":"A","text":"Falso","isCorrect":true,"rationale":"Además del almacenaje y transporte, incluye la gestión de pedidos, ventas e incluso trámites legales para importación o exportación."},{"label":"B","text":"Verdadero","isCorrect":false,"rationale":"Este proceso también abarca la venta inicial, la prestación de servicios y el registro del ciclo de vida del producto."}]},{"question":"¿El proceso de 'Devolución' (Return) contempla tanto las devoluciones recibidas de clientes como las realizadas a proveedores?","hint":"Analiza si el retorno es un flujo unidireccional o bidireccional en la cadena.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"La gestión de logística inversa en SCOR cubre el flujo de retorno en ambos sentidos de la cadena de suministro."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"Ignorar el flujo de retorno hacia los proveedores dejaría incompleta la visión integral de la logística inversa del modelo."}]},{"question":"¿El proceso 'Enable' (Soporte/Apoyo) se encarga de la gestión de riesgos y el cumplimiento de normativas corporativas?","hint":"Piensa en las funciones administrativas y de control que facilitan los procesos de ejecución.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"Este tipo de proceso prepara el flujo de datos y asegura que las actividades cumplan con los requisitos legales y de control."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"La administración de información y la evaluación de riesgos son funciones críticas del componente de soporte del modelo."}]},{"question":"¿Los tres tipos de procesos principales del modelo SCOR son Planificación (Planning), Ejecución (Execution) y Soporte (Enable)?","hint":"Revisa la jerarquía de procesos mencionada en la sección de gestión de procesos.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"Esta es la división estructural que utiliza el modelo para categorizar todas las actividades de la cadena."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"Aunque existan subprocesos como fabricación o distribución, estos se agrupan bajo las categorías macro de planificación, ejecución y soporte."}]},{"question":"¿La etapa de 'Ejecución' en SCOR incluye el control de calidad y cantidad de los productos?","hint":"Considera si la verificación de calidad es una acción física de implementación o de planeamiento.","options":[{"label":"A","text":"Falso","isCorrect":false,"rationale":"El control de calidad es una actividad operativa que se realiza durante la transformación o distribución física del producto."},{"label":"B","text":"Verdadero","isCorrect":true,"rationale":"Estas actividades son resultados directos de la planificación previa que afectan físicamente el estado de la mercancía."}]},{"question":"¿Los elementos operativos de SCOR consisten exclusivamente en la medición de costos finales de logística?","hint":"Evalúa si 'operativo' se refiere a una cifra monetaria o a la estructura del trabajo.","options":[{"label":"A","text":"Falso","isCorrect":true,"rationale":"Se refieren a la descomposición detallada de procesos en elementos como materiales, información y recursos ordenados de inicio a fin."},{"label":"B","text":"Verdadero","isCorrect":false,"rationale":"Los elementos operativos implican una descomposición detallada de subprocesos, inputs, outputs y recursos, no solo costos."}]},{"question":"¿La implementación de indicadores clave de desempeño (KPIs) permite detectar qué elementos de la cadena de suministro deben eliminarse?","hint":"Reflexiona sobre la utilidad de los indicadores para la mejora continua y la eficiencia.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"Al detallar y medir los procesos, es posible identificar actividades que no agregan valor y que pueden ser optimizadas o removidas."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"Los KPIs son la herramienta analítica necesaria para decidir científicamente sobre la permanencia o eliminación de un subproceso."}]},{"question":"¿El beneficio de 'Adaptabilidad y escalabilidad' de SCOR significa que el modelo solo sirve para empresas del mismo sector industrial?","hint":"Analiza el significado de los términos 'adaptabilidad' y 'escalabilidad'.","options":[{"label":"A","text":"Falso","isCorrect":true,"rationale":"Una de las ventajas mencionadas es su capacidad de adaptarse y escalar para ser aplicado en diversos tipos de industrias."},{"label":"B","text":"Verdadero","isCorrect":false,"rationale":"La escalabilidad y adaptabilidad permiten que el modelo funcione en diversas industrias, independientemente de su sector."}]},{"question":"¿El análisis de brechas (GAP) indica que el desempeño actual de la empresa se representa generalmente con una línea azul en los gráficos radiales?","hint":"Recuerda la leyenda del gráfico utilizado en el ejemplo del GAP análisis.","options":[{"label":"A","text":"Falso","isCorrect":false,"rationale":"El material identifica explícitamente la línea azul como el indicador del desempeño presente de la organización evaluada."},{"label":"B","text":"Verdadero","isCorrect":true,"rationale":"En el ejemplo práctico presentado, la línea azul marca la situación actual medida frente al objetivo o referencia deseada."}]},{"question":"¿El primer paso para realizar la actividad práctica propuesta es graficar los resultados obtenidos?","hint":"Ordena lógicamente los pasos necesarios desde la investigación hasta la visualización de datos.","options":[{"label":"A","text":"Verdadero","isCorrect":false,"rationale":"Graficar es el último paso; antes se debe analizar el proceso, identificar variables y medirlas."},{"label":"B","text":"Falso","isCorrect":true,"rationale":"El orden metodológico inicia con el análisis del proceso, seguido de la identificación y medición de variables, dejando la graficación para el final."}]},{"question":"¿En el ejemplo de variables, el uso de tecnología para el proceso de modulación (picking) es una variable que la empresa sí cumple?","hint":"Consulta la tabla de variables dicotómicas del ejemplo práctico.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"La tabla de variables muestra que la empresa emplea lectoras y radiofrecuencia, marcando esta variable con un 'Sí'."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"La empresa analizada en el caso sí cuenta con estas tecnologías para optimizar su proceso de picking."}]},{"question":"¿La mayor brecha identificada en el análisis GAP del ejemplo se encuentra en el proceso de 'Gestión de Flota'?","hint":"Observa cuál proceso tiene el punto más alejado del borde exterior en el gráfico radial del ejemplo.","options":[{"label":"A","text":"Falso","isCorrect":true,"rationale":"Aunque hay mejoras en gestión de flota, la brecha más crítica señalada en el texto es la de 'Elaboración de pedidos'."},{"label":"B","text":"Verdadero","isCorrect":false,"rationale":"El análisis indica que la mayor brecha está en 'Elaboración de pedidos', sugiriendo una optimización necesaria en planificación."}]},{"question":"¿El modelo SCOR ayuda a mejorar la satisfacción del cliente al optimizar la entrega y la calidad de los productos?","hint":"Considera el impacto final de una cadena de suministro bien gestionada.","options":[{"label":"A","text":"Falso","isCorrect":false,"rationale":"La satisfacción del cliente es uno de los beneficios clave derivados de la optimización operativa que propone SCOR."},{"label":"B","text":"Verdadero","isCorrect":true,"rationale":"Al hacer la cadena más eficiente y predecible, el impacto directo se refleja en un mejor servicio al consumidor final."}]},{"question":"¿La gestión eficiente de la cadena de abastecimiento en el sector público de Perú no influye en la calidad de los servicios estatales?","hint":"Reflexiona sobre el propósito del abastecimiento público frente al ciudadano.","options":[{"label":"A","text":"Verdadero","isCorrect":false,"rationale":"La gestión eficiente es fundamental para que el Estado pueda brindar servicios de calidad a la ciudadanía."},{"label":"B","text":"Falso","isCorrect":true,"rationale":"El material concluye que esta gestión es un reto clave para mejorar precisamente la calidad y eficiencia de los servicios del Estado."}]},{"question":"¿Las áreas involucradas en la gestión de la CAP son responsables de la programación del abastecimiento?","hint":"Ubica las responsabilidades de las unidades ejecutoras dentro del SNA.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"Estas áreas operativas ejecutan las actividades del sistema y programan las necesidades de las entidades públicas."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"La gestión y programación son tareas asignadas directamente a las áreas responsables del abastecimiento dentro de cada entidad."}]},{"question":"¿El proceso 'Source' incluye la gestión de inventarios y el control de calidad de la mercancía recibida?","hint":"Evalúa qué actividades ocurren cuando la materia prima entra en contacto con la empresa por primera vez.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"Esta etapa abarca desde la disponibilidad de materia prima hasta los contratos de compra y la recepción de bienes."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"El manejo de los insumos y su calidad al ingresar a la organización es una parte esencial del aprovisionamiento."}]},{"question":"¿La 'Logística Inversa' es un proceso que solo ocurre en empresas privadas y no se contempla en el sector público según el modelo SCOR?","hint":"Considera si el flujo de devoluciones es exclusivo de algún tipo de propiedad organizacional.","options":[{"label":"A","text":"Verdadero","isCorrect":false,"rationale":"El modelo SCOR es aplicable a cualquier organización, incluyendo el sector público, donde también existen retornos y devoluciones."},{"label":"B","text":"Falso","isCorrect":true,"rationale":"El material presenta la logística inversa (Return) como un proceso integrante clave de la cadena de suministro general."}]},{"question":"¿Es posible utilizar escalas de medición distintas a las preguntas dicotómicas para analizar los resultados de las variables?","hint":"Busca la aclaración sobre el tipo de preguntas utilizadas en la elaboración de pedidos.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"Aunque el ejemplo usa 'Sí/No', el texto indica explícitamente que se pueden emplear otras escalas de medición según la necesidad."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"La metodología permite flexibilidad en las herramientas de medición para adaptarse mejor a la realidad del sector o la competencia."}]},{"question":"¿El proceso de 'Distribución' incluye la gestión del ciclo de vida del producto?","hint":"Piensa en las responsabilidades informativas del área que entrega el producto al cliente.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"El registro y seguimiento del ciclo de vida es una de las actividades detalladas dentro del bloque de entregas (Deliver)."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"La distribución no solo mueve cajas, sino que también gestiona la información sobre la vida útil y vigencia del producto."}]},{"question":"¿La planificación de la demanda considera factores como la incertidumbre del mercado?","hint":"Considera si la planificación es un cálculo exacto o una gestión de probabilidades.","options":[{"label":"A","text":"Falso","isCorrect":false,"rationale":"Ignorar la incertidumbre haría que la planificación fuera ineficaz frente a las variaciones reales de la demanda proyectada."},{"label":"B","text":"Verdadero","isCorrect":true,"rationale":"El modelo SCOR enfatiza que la planificación debe gestionar la incertidumbre para cubrir las necesidades previstas de la empresa."}]},{"question":"¿El modelo SCOR combina benchmarking con ingeniería de procesos para crear un marco de referencia líder?","hint":"Recuerda los componentes principales que se combinan en un 'único marco' según el texto.","options":[{"label":"A","text":"Falso","isCorrect":false,"rationale":"El benchmarking es, de hecho, uno de los tres pilares fundamentales que el material menciona como parte de la estructura de SCOR."},{"label":"B","text":"Verdadero","isCorrect":true,"rationale":"Al integrar mejores prácticas y comparaciones con el mercado, el modelo permite a las empresas saber qué tan eficientes son realmente."}]},{"question":"¿El proceso de 'Devolución' incluye el registro correcto del inventario para evitar complicaciones?","hint":"Analiza la importancia administrativa del retorno de bienes físicos.","options":[{"label":"A","text":"Falso","isCorrect":false,"rationale":"Sin un registro de inventario, la etapa de devolución generaría ineficiencias y pérdida de activos para la organización."},{"label":"B","text":"Verdadero","isCorrect":true,"rationale":"Un registro preciso es vital para mantener la trazabilidad y el control financiero de los bienes que retornan."}]},{"question":"¿Los Lead Times de las tiendas deben ignorar la productividad de la preparación de pedidos para simplificar el gráfico GAP?","hint":"Considera si la simplificación de datos ayuda o perjudica la precisión de un análisis de brechas.","options":[{"label":"A","text":"Falso","isCorrect":true,"rationale":"En el ejemplo práctico, se señala que considerar la productividad en los Lead Times es una variable clave de cumplimiento."},{"label":"B","text":"Verdadero","isCorrect":false,"rationale":"Al contrario, los Lead Times deben considerar esta productividad para reflejar una medición real del desempeño."}]}];
+const tr = {"correct":"¡Correcto!","incorrect":"Incorrecto","next":"Siguiente pregunta →","seeResults":"Ver resultados","complete":"¡Cuestionario completado!","scoreText":"Obtuviste {correct} de {total} correctas","tryAgain":"Intentar de nuevo","rightAnswer":"Respuesta correcta","notQuite":"No del todo"};
+let currentQ = 0, correctCount = 0, answered = false;
+
+function init() {
+  document.querySelectorAll('.question').forEach((q, i) => q.classList.toggle('active', i === 0));
+  updateProgress();
+  document.querySelectorAll('.option').forEach(opt => opt.addEventListener('click', () => selectOption(opt)));
+  document.querySelectorAll('.next-btn').forEach(btn => btn.addEventListener('click', nextQuestion));
+}
+
+function selectOption(opt) {
+  if (answered) return;
+  answered = true;
+  const q = opt.closest('.question');
+  const options = q.querySelectorAll('.option');
+  const nextBtn = q.querySelector('.next-btn');
+  const isCorrect = opt.dataset.correct === 'true';
+  
+  // Mark all options as disabled
+  options.forEach(o => o.classList.add('disabled'));
+  
+  // Style selected option
+  opt.classList.add('selected', isCorrect ? 'correct' : 'incorrect');
+  
+  // Show correct answer if wrong
+  if (!isCorrect) {
+    const correctOpt = [...options].find(o => o.dataset.correct === 'true');
+    if (correctOpt) correctOpt.classList.add('show-correct');
+  }
+  
+  if (isCorrect) correctCount++;
+  
+  // Show feedback for ALL options that have rationale
+  options.forEach(o => {
+    const wrapper = o.closest('.option-wrapper');
+    const feedback = wrapper.querySelector('.option-feedback');
+    const rationale = o.dataset.rationale;
+    const isThisCorrect = o.dataset.correct === 'true';
+    
+    if (rationale && rationale.trim()) {
+      feedback.classList.remove('hidden');
+      feedback.classList.add(isThisCorrect ? 'correct-feedback' : 'incorrect-feedback');
+      
+      const statusEl = feedback.querySelector('.feedback-status');
+      statusEl.className = 'feedback-status ' + (isThisCorrect ? 'correct' : 'incorrect');
+      statusEl.innerHTML = isThisCorrect 
+        ? '✓ ' + tr.rightAnswer
+        : '✗ ' + tr.notQuite;
+    }
+  });
+  
+  nextBtn.classList.remove('hidden');
+  if (currentQ === quizData.length - 1) nextBtn.textContent = tr.seeResults;
+}
+
+function nextQuestion() {
+  answered = false;
+  currentQ++;
+  if (currentQ >= quizData.length) { showResults(); return; }
+  document.querySelectorAll('.question').forEach((q, i) => q.classList.toggle('active', i === currentQ));
+  updateProgress();
+}
+
+function updateProgress() {
+  document.querySelector('.progress-fill').style.width = (currentQ / quizData.length * 100) + '%';
+}
+
+function showResults() {
+  document.querySelectorAll('.question').forEach(q => q.classList.remove('active'));
+  document.getElementById('results').classList.add('active');
+  const pct = Math.round((correctCount / quizData.length) * 100);
+  document.getElementById('score').textContent = pct + '%';
+  document.getElementById('score-text').textContent = tr.scoreText.replace('{correct}', correctCount).replace('{total}', quizData.length);
+  document.querySelector('.progress-fill').style.width = '100%';
+}
+
+function restart() {
+  currentQ = 0; correctCount = 0; answered = false;
+  document.getElementById('results').classList.remove('active');
+  document.querySelectorAll('.question').forEach((q, i) => {
+    q.classList.toggle('active', i === 0);
+    q.querySelectorAll('.option').forEach(o => o.classList.remove('selected', 'correct', 'incorrect', 'disabled', 'show-correct'));
+    q.querySelectorAll('.option-feedback').forEach(f => {
+      f.classList.add('hidden');
+      f.classList.remove('correct-feedback', 'incorrect-feedback');
+    });
+    const btn = q.querySelector('.next-btn');
+    btn.classList.add('hidden');
+    btn.textContent = tr.next;
+  });
+  updateProgress();
+}
+
+init();
+</script>
+</body>
+</html>
