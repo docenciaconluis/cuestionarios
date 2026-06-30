@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="es" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>S15.1 Auto</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  min-height: 100vh; padding: 20px; color: #333;
+}
+.container { max-width: 700px; margin: 0 auto; }
+.header { text-align: center; color: #fff; padding: 30px 20px; }
+.header h1 { font-size: 28px; font-weight: 700; margin-bottom: 8px; text-shadow: 0 2px 10px rgba(0,0,0,0.2); }
+.header .meta { font-size: 14px; opacity: 0.9; }
+.progress-bar { background: rgba(255,255,255,0.3); border-radius: 10px; height: 8px; margin: 20px 0; overflow: hidden; }
+.progress-fill { background: #fff; height: 100%; width: 0%; transition: width 0.4s ease; border-radius: 10px; }
+.question { background: #fff; border-radius: 16px; padding: 30px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); display: none; }
+.question.active { display: block; }
+.q-header { display: flex; justify-content: space-between; margin-bottom: 20px; font-size: 13px; color: #888; }
+.q-number { font-weight: 600; color: #667eea; }
+.q-text { font-size: 18px; font-weight: 600; line-height: 1.5; margin-bottom: 25px; color: #222; }
+.options { display: flex; flex-direction: column; gap: 12px; }
+.option-wrapper { display: flex; flex-direction: column; }
+.option {
+  display: flex; align-items: flex-start; gap: 14px; padding: 16px 18px;
+  border: 2px solid #e8e8e8; border-radius: 12px; background: #fafafa;
+  cursor: pointer; transition: all 0.2s; text-align: left; font-size: 15px; width: 100%;
+}
+[dir="rtl"] .option { text-align: right; flex-direction: row-reverse; }
+.option:hover:not(.disabled) { border-color: #667eea; background: #f5f3ff; }
+.option.selected { border-color: #667eea; background: #ede9fe; }
+.option.correct { border-color: #22c55e; background: #dcfce7; }
+.option.incorrect { border-color: #ef4444; background: #fee2e2; }
+.option.disabled { cursor: default; }
+.option.show-correct { border-color: #22c55e; background: #dcfce7; }
+.opt-label {
+  display: flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; border-radius: 50%; background: #e8e8e8;
+  font-weight: 700; font-size: 14px; flex-shrink: 0;
+}
+.option.selected .opt-label { background: #667eea; color: #fff; }
+.option.correct .opt-label { background: #22c55e; color: #fff; }
+.option.incorrect .opt-label { background: #ef4444; color: #fff; }
+.option.show-correct .opt-label { background: #22c55e; color: #fff; }
+.opt-text { padding-top: 5px; line-height: 1.5; }
+
+/* Individual option feedback */
+.option-feedback {
+  margin: 8px 0 4px 46px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+[dir="rtl"] .option-feedback { margin-left: 0; margin-right: 46px; }
+.option-feedback.correct-feedback {
+  background: #dcfce7;
+  border-left: 3px solid #22c55e;
+}
+.option-feedback.incorrect-feedback {
+  background: #fef3f2;
+  border-left: 3px solid #fca5a5;
+}
+[dir="rtl"] .option-feedback.correct-feedback,
+[dir="rtl"] .option-feedback.incorrect-feedback {
+  border-left: none;
+  border-right: 3px solid;
+}
+[dir="rtl"] .option-feedback.correct-feedback { border-right-color: #22c55e; }
+[dir="rtl"] .option-feedback.incorrect-feedback { border-right-color: #fca5a5; }
+.feedback-status {
+  font-weight: 600;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.feedback-status.correct { color: #166534; }
+.feedback-status.incorrect { color: #991b1b; }
+.feedback-rationale { color: #444; }
+
+/* Hint box */
+.hint-box {
+  margin: 12px 0;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+}
+.hint-toggle {
+  width: 100%;
+  padding: 10px 16px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  color: #92400e;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.hint-toggle:hover { background: #fef3c7; }
+.hint-content {
+  padding: 0 16px;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s, padding 0.3s;
+  font-size: 14px;
+  color: #78350f;
+  line-height: 1.5;
+}
+.hint-box.show .hint-content {
+  padding: 0 16px 12px;
+  max-height: 200px;
+}
+
+.next-btn {
+  margin-top: 20px; width: 100%; padding: 14px;
+  background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; border: none;
+  border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.next-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(102,126,234,0.4); }
+.hidden { display: none !important; }
+.results { background: #fff; border-radius: 16px; padding: 40px; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.15); display: none; }
+.results.active { display: block; }
+.results h2 { font-size: 28px; margin-bottom: 10px; color: #333; }
+.results .score { font-size: 64px; font-weight: 700; color: #667eea; margin: 20px 0; }
+.results .score-text { font-size: 18px; color: #666; margin-bottom: 30px; }
+.restart-btn {
+  padding: 14px 40px; background: linear-gradient(135deg, #667eea, #764ba2);
+  color: #fff; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer;
+}
+
+/* Math CSS */
+.math, .math-block { font-family: "Cambria Math", "Times New Roman", Times, serif; font-style: italic; }
+.math-block { display: block; text-align: center; margin: 10px 0; font-size: 110%; }
+.frac { display: inline-flex; flex-direction: column; align-items: center; vertical-align: middle; margin: 0 3px; font-size: 0.9em; }
+.frac-num { border-bottom: 1px solid currentColor; padding: 0 4px 2px; line-height: 1.2; }
+.frac-den { padding: 2px 4px 0; line-height: 1.2; }
+.sqrt { white-space: nowrap; }
+.sqrt-content { border-top: 1px solid currentColor; padding: 0 3px; margin-left: 2px; }
+sup, sub { font-size: 0.75em; }
+sup { vertical-align: super; }
+sub { vertical-align: sub; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>S15.1 Auto</h1>
+    <div class="meta">10 preguntas</div>
+    <div class="progress-bar"><div class="progress-fill"></div></div>
+  </div>
+  <div id="quiz-container">
+        <div class="question" data-index="0">
+          <div class="q-header">
+            <span class="q-number">Pregunta 1</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿La Industria 5.0 se define primordialmente por buscar la automatización total de las fábricas eliminando por completo la intervención de operarios humanos?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considera si el concepto actual de industria busca reemplazar al humano o trabajar junto a él.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Esta visión corresponde más a una interpretación extrema de la automatización industrial previa, mientras que la nueva etapa prioriza la colaboración.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esta visión corresponde más a una interpretación extrema de la automatización industrial previa, mientras que la nueva etapa prioriza la colaboración.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="La Industria 5.0 se centra en un enfoque humano-céntrico, fomentando la colaboración entre personas y máquinas inteligentes para el bienestar y la resiliencia.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La Industria 5.0 se centra en un enfoque humano-céntrico, fomentando la colaboración entre personas y máquinas inteligentes para el bienestar y la resiliencia.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="1">
+          <div class="q-header">
+            <span class="q-number">Pregunta 2</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿El flujo PDP (physical-to-digital-to-physical) es una metodología que ayuda a obtener acceso a la información en tiempo real dentro del contexto de la Industria 4.0?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Recuerda la relación entre los sistemas virtuales y físicos mencionada por Klaus Schwab.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Este ciclo permite conectar el mundo físico con el digital para analizar datos y luego aplicar acciones de vuelta en el entorno físico.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Este ciclo permite conectar el mundo físico con el digital para analizar datos y luego aplicar acciones de vuelta en el entorno físico.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Este proceso es fundamental para la visibilidad y el control en tiempo real que caracterizan a las fábricas inteligentes.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Este proceso es fundamental para la visibilidad y el control en tiempo real que caracterizan a las fábricas inteligentes.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="2">
+          <div class="q-header">
+            <span class="q-number">Pregunta 3</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿Los robots colaborativos, también conocidos como 'cobots', están diseñados para operar de forma aislada en celdas de seguridad debido a su alta peligrosidad para los humanos?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Analiza el significado del término 'colaborativo' en el entorno de producción.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Ese es el comportamiento de los robots industriales tradicionales, no de aquellos diseñados específicamente para interactuar con personas.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Ese es el comportamiento de los robots industriales tradicionales, no de aquellos diseñados específicamente para interactuar con personas.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Los cobots están diseñados específicamente para trabajar de la mano con operarios humanos, combinando precisión robótica con adaptabilidad humana.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Los cobots están diseñados específicamente para trabajar de la mano con operarios humanos, combinando precisión robótica con adaptabilidad humana.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="3">
+          <div class="q-header">
+            <span class="q-number">Pregunta 4</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿El concepto de Industria 5.0 fue impulsado mediante un informe de la Comisión Europea en enero del año 2021?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Ubica temporalmente la aparición de términos como sostenibilidad y resiliencia en los documentos oficiales europeos.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Dicho organismo internacional fue clave para formalizar y dar una estructura teórica a esta nueva fase industrial en ese periodo.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Dicho organismo internacional fue clave para formalizar y dar una estructura teórica a esta nueva fase industrial en ese periodo.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="En dicha fecha se presentó el informe que destaca la necesidad de una industria sostenible, resiliente y centrada en el ser humano.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">En dicha fecha se presentó el informe que destaca la necesidad de una industria sostenible, resiliente y centrada en el ser humano.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="4">
+          <div class="q-header">
+            <span class="q-number">Pregunta 5</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿La Realidad Aumentada (RA) en la industria permite a los técnicos visualizar instrucciones y diagramas superpuestos directamente sobre la maquinaria física que están reparando?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piensa en el beneficio de tener información 'paso a paso' sin quitar la vista de la máquina.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Esta tecnología se diferencia de la realidad virtual justamente por no aislar al usuario, sino por enriquecer su visión del mundo físico.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esta tecnología se diferencia de la realidad virtual justamente por no aislar al usuario, sino por enriquecer su visión del mundo físico.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="La RA facilita el mantenimiento al proyectar información digital útil sobre el entorno real del operario en tiempo real.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La RA facilita el mantenimiento al proyectar información digital útil sobre el entorno real del operario en tiempo real.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="5">
+          <div class="q-header">
+            <span class="q-number">Pregunta 6</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿El uso de algoritmos de Aprendizaje Automático (Machine Learning) tiene como único objetivo la programación rígida de tareas repetitivas en una línea de ensamblaje?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Reflexiona sobre si esta tecnología se limita a seguir órdenes fijas o si puede 'aprender' del entorno.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="El Machine Learning permite que los sistemas se adapten, detecten patrones de falla y mejoren continuamente basándose en los datos recopilados.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El Machine Learning permite que los sistemas se adapten, detecten patrones de falla y mejoren continuamente basándose en los datos recopilados.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="La programación rígida es característica de la automatización básica; el aprendizaje automático busca la mejora continua mediante datos.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La programación rígida es característica de la automatización básica; el aprendizaje automático busca la mejora continua mediante datos.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="6">
+          <div class="q-header">
+            <span class="q-number">Pregunta 7</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿La manufactura aditiva o impresión 3D contribuye a la sostenibilidad al permitir la fabricación de piezas complejas con una reducción significativa del desperdicio de material?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Compara el proceso de 'quitar material' (tradicional) con el de 'añadir material' (3D).</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Esta tecnología es valorada precisamente por su eficiencia en el uso de recursos y su capacidad de personalización sin desperdicios masivos.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esta tecnología es valorada precisamente por su eficiencia en el uso de recursos y su capacidad de personalización sin desperdicios masivos.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Al construir objetos capa por capa a partir de modelos digitales, se utiliza solo el material estrictamente necesario para la pieza.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Al construir objetos capa por capa a partir de modelos digitales, se utiliza solo el material estrictamente necesario para la pieza.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="7">
+          <div class="q-header">
+            <span class="q-number">Pregunta 8</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿El Internet de las Cosas (IoT) requiere obligatoriamente que todos los datos sean procesados de forma manual por operarios antes de ser enviados a un sistema central?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considera si la red de sensores depende de la acción humana para transmitir información.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="El IoT facilita la interconexión y el intercambio de datos de forma automática y en tiempo real entre dispositivos y maquinaria.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El IoT facilita la interconexión y el intercambio de datos de forma automática y en tiempo real entre dispositivos y maquinaria.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="La intervención manual constante anularía los beneficios de conectividad y velocidad que el IoT pretende ofrecer.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La intervención manual constante anularía los beneficios de conectividad y velocidad que el IoT pretende ofrecer.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="8">
+          <div class="q-header">
+            <span class="q-number">Pregunta 9</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿Klaus Schwab definió la Cuarta Revolución Industrial como un mundo donde los sistemas de fabricación virtuales y físicos cooperan de manera flexible a nivel global?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Recuerda quién es citado en el material como el autor de la definición de la industria 4.0 en 2016.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Dicha premisa es el núcleo de la visión de Schwab sobre cómo las tecnologías digitales transforman la manufactura actual.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Dicha premisa es el núcleo de la visión de Schwab sobre cómo las tecnologías digitales transforman la manufactura actual.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Esta definición fue presentada en el Foro Económico Mundial de 2016 para describir la integración de tecnologías digitales avanzadas.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esta definición fue presentada en el Foro Económico Mundial de 2016 para describir la integración de tecnologías digitales avanzadas.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="9">
+          <div class="q-header">
+            <span class="q-number">Pregunta 10</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿El análisis de Big Data en una planta de manufactura sirve únicamente para generar informes históricos, sin capacidad para predecir fallos futuros en las máquinas?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piensa en el uso de sensores para anticiparse a problemas técnicos.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Limitar el análisis a lo histórico ignoraría el potencial predictivo que es vital para el mantenimiento preventivo moderno.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Limitar el análisis a lo histórico ignoraría el potencial predictivo que es vital para el mantenimiento preventivo moderno.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="El análisis masivo de datos permite detectar patrones de falla antes de que ocurran, optimizando el mantenimiento y la eficiencia productiva.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El análisis masivo de datos permite detectar patrones de falla antes de que ocurran, optimizando el mantenimiento y la eficiencia productiva.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      </div>
+  <div class="results" id="results">
+    <h2>¡Cuestionario completado!</h2>
+    <div class="score" id="score">0%</div>
+    <div class="score-text" id="score-text"></div>
+    <button class="restart-btn" onclick="restart()">Intentar de nuevo</button>
+  </div>
+</div>
+<script>
+const quizData = [{"question":"¿La Industria 5.0 se define primordialmente por buscar la automatización total de las fábricas eliminando por completo la intervención de operarios humanos?","hint":"Considera si el concepto actual de industria busca reemplazar al humano o trabajar junto a él.","options":[{"label":"A","text":"Verdadero","isCorrect":false,"rationale":"Esta visión corresponde más a una interpretación extrema de la automatización industrial previa, mientras que la nueva etapa prioriza la colaboración."},{"label":"B","text":"Falso","isCorrect":true,"rationale":"La Industria 5.0 se centra en un enfoque humano-céntrico, fomentando la colaboración entre personas y máquinas inteligentes para el bienestar y la resiliencia."}]},{"question":"¿El flujo PDP (physical-to-digital-to-physical) es una metodología que ayuda a obtener acceso a la información en tiempo real dentro del contexto de la Industria 4.0?","hint":"Recuerda la relación entre los sistemas virtuales y físicos mencionada por Klaus Schwab.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"Este ciclo permite conectar el mundo físico con el digital para analizar datos y luego aplicar acciones de vuelta en el entorno físico."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"Este proceso es fundamental para la visibilidad y el control en tiempo real que caracterizan a las fábricas inteligentes."}]},{"question":"¿Los robots colaborativos, también conocidos como 'cobots', están diseñados para operar de forma aislada en celdas de seguridad debido a su alta peligrosidad para los humanos?","hint":"Analiza el significado del término 'colaborativo' en el entorno de producción.","options":[{"label":"A","text":"Verdadero","isCorrect":false,"rationale":"Ese es el comportamiento de los robots industriales tradicionales, no de aquellos diseñados específicamente para interactuar con personas."},{"label":"B","text":"Falso","isCorrect":true,"rationale":"Los cobots están diseñados específicamente para trabajar de la mano con operarios humanos, combinando precisión robótica con adaptabilidad humana."}]},{"question":"¿El concepto de Industria 5.0 fue impulsado mediante un informe de la Comisión Europea en enero del año 2021?","hint":"Ubica temporalmente la aparición de términos como sostenibilidad y resiliencia en los documentos oficiales europeos.","options":[{"label":"A","text":"Falso","isCorrect":false,"rationale":"Dicho organismo internacional fue clave para formalizar y dar una estructura teórica a esta nueva fase industrial en ese periodo."},{"label":"B","text":"Verdadero","isCorrect":true,"rationale":"En dicha fecha se presentó el informe que destaca la necesidad de una industria sostenible, resiliente y centrada en el ser humano."}]},{"question":"¿La Realidad Aumentada (RA) en la industria permite a los técnicos visualizar instrucciones y diagramas superpuestos directamente sobre la maquinaria física que están reparando?","hint":"Piensa en el beneficio de tener información 'paso a paso' sin quitar la vista de la máquina.","options":[{"label":"A","text":"Falso","isCorrect":false,"rationale":"Esta tecnología se diferencia de la realidad virtual justamente por no aislar al usuario, sino por enriquecer su visión del mundo físico."},{"label":"B","text":"Verdadero","isCorrect":true,"rationale":"La RA facilita el mantenimiento al proyectar información digital útil sobre el entorno real del operario en tiempo real."}]},{"question":"¿El uso de algoritmos de Aprendizaje Automático (Machine Learning) tiene como único objetivo la programación rígida de tareas repetitivas en una línea de ensamblaje?","hint":"Reflexiona sobre si esta tecnología se limita a seguir órdenes fijas o si puede 'aprender' del entorno.","options":[{"label":"A","text":"Falso","isCorrect":true,"rationale":"El Machine Learning permite que los sistemas se adapten, detecten patrones de falla y mejoren continuamente basándose en los datos recopilados."},{"label":"B","text":"Verdadero","isCorrect":false,"rationale":"La programación rígida es característica de la automatización básica; el aprendizaje automático busca la mejora continua mediante datos."}]},{"question":"¿La manufactura aditiva o impresión 3D contribuye a la sostenibilidad al permitir la fabricación de piezas complejas con una reducción significativa del desperdicio de material?","hint":"Compara el proceso de 'quitar material' (tradicional) con el de 'añadir material' (3D).","options":[{"label":"A","text":"Falso","isCorrect":false,"rationale":"Esta tecnología es valorada precisamente por su eficiencia en el uso de recursos y su capacidad de personalización sin desperdicios masivos."},{"label":"B","text":"Verdadero","isCorrect":true,"rationale":"Al construir objetos capa por capa a partir de modelos digitales, se utiliza solo el material estrictamente necesario para la pieza."}]},{"question":"¿El Internet de las Cosas (IoT) requiere obligatoriamente que todos los datos sean procesados de forma manual por operarios antes de ser enviados a un sistema central?","hint":"Considera si la red de sensores depende de la acción humana para transmitir información.","options":[{"label":"A","text":"Falso","isCorrect":true,"rationale":"El IoT facilita la interconexión y el intercambio de datos de forma automática y en tiempo real entre dispositivos y maquinaria."},{"label":"B","text":"Verdadero","isCorrect":false,"rationale":"La intervención manual constante anularía los beneficios de conectividad y velocidad que el IoT pretende ofrecer."}]},{"question":"¿Klaus Schwab definió la Cuarta Revolución Industrial como un mundo donde los sistemas de fabricación virtuales y físicos cooperan de manera flexible a nivel global?","hint":"Recuerda quién es citado en el material como el autor de la definición de la industria 4.0 en 2016.","options":[{"label":"A","text":"Falso","isCorrect":false,"rationale":"Dicha premisa es el núcleo de la visión de Schwab sobre cómo las tecnologías digitales transforman la manufactura actual."},{"label":"B","text":"Verdadero","isCorrect":true,"rationale":"Esta definición fue presentada en el Foro Económico Mundial de 2016 para describir la integración de tecnologías digitales avanzadas."}]},{"question":"¿El análisis de Big Data en una planta de manufactura sirve únicamente para generar informes históricos, sin capacidad para predecir fallos futuros en las máquinas?","hint":"Piensa en el uso de sensores para anticiparse a problemas técnicos.","options":[{"label":"A","text":"Verdadero","isCorrect":false,"rationale":"Limitar el análisis a lo histórico ignoraría el potencial predictivo que es vital para el mantenimiento preventivo moderno."},{"label":"B","text":"Falso","isCorrect":true,"rationale":"El análisis masivo de datos permite detectar patrones de falla antes de que ocurran, optimizando el mantenimiento y la eficiencia productiva."}]}];
+const tr = {"correct":"¡Correcto!","incorrect":"Incorrecto","next":"Siguiente pregunta →","seeResults":"Ver resultados","complete":"¡Cuestionario completado!","scoreText":"Obtuviste {correct} de {total} correctas","tryAgain":"Intentar de nuevo","rightAnswer":"Respuesta correcta","notQuite":"No del todo"};
+let currentQ = 0, correctCount = 0, answered = false;
+
+function init() {
+  document.querySelectorAll('.question').forEach((q, i) => q.classList.toggle('active', i === 0));
+  updateProgress();
+  document.querySelectorAll('.option').forEach(opt => opt.addEventListener('click', () => selectOption(opt)));
+  document.querySelectorAll('.next-btn').forEach(btn => btn.addEventListener('click', nextQuestion));
+}
+
+function selectOption(opt) {
+  if (answered) return;
+  answered = true;
+  const q = opt.closest('.question');
+  const options = q.querySelectorAll('.option');
+  const nextBtn = q.querySelector('.next-btn');
+  const isCorrect = opt.dataset.correct === 'true';
+  
+  // Mark all options as disabled
+  options.forEach(o => o.classList.add('disabled'));
+  
+  // Style selected option
+  opt.classList.add('selected', isCorrect ? 'correct' : 'incorrect');
+  
+  // Show correct answer if wrong
+  if (!isCorrect) {
+    const correctOpt = [...options].find(o => o.dataset.correct === 'true');
+    if (correctOpt) correctOpt.classList.add('show-correct');
+  }
+  
+  if (isCorrect) correctCount++;
+  
+  // Show feedback for ALL options that have rationale
+  options.forEach(o => {
+    const wrapper = o.closest('.option-wrapper');
+    const feedback = wrapper.querySelector('.option-feedback');
+    const rationale = o.dataset.rationale;
+    const isThisCorrect = o.dataset.correct === 'true';
+    
+    if (rationale && rationale.trim()) {
+      feedback.classList.remove('hidden');
+      feedback.classList.add(isThisCorrect ? 'correct-feedback' : 'incorrect-feedback');
+      
+      const statusEl = feedback.querySelector('.feedback-status');
+      statusEl.className = 'feedback-status ' + (isThisCorrect ? 'correct' : 'incorrect');
+      statusEl.innerHTML = isThisCorrect 
+        ? '✓ ' + tr.rightAnswer
+        : '✗ ' + tr.notQuite;
+    }
+  });
+  
+  nextBtn.classList.remove('hidden');
+  if (currentQ === quizData.length - 1) nextBtn.textContent = tr.seeResults;
+}
+
+function nextQuestion() {
+  answered = false;
+  currentQ++;
+  if (currentQ >= quizData.length) { showResults(); return; }
+  document.querySelectorAll('.question').forEach((q, i) => q.classList.toggle('active', i === currentQ));
+  updateProgress();
+}
+
+function updateProgress() {
+  document.querySelector('.progress-fill').style.width = (currentQ / quizData.length * 100) + '%';
+}
+
+function showResults() {
+  document.querySelectorAll('.question').forEach(q => q.classList.remove('active'));
+  document.getElementById('results').classList.add('active');
+  const pct = Math.round((correctCount / quizData.length) * 100);
+  document.getElementById('score').textContent = pct + '%';
+  document.getElementById('score-text').textContent = tr.scoreText.replace('{correct}', correctCount).replace('{total}', quizData.length);
+  document.querySelector('.progress-fill').style.width = '100%';
+}
+
+function restart() {
+  currentQ = 0; correctCount = 0; answered = false;
+  document.getElementById('results').classList.remove('active');
+  document.querySelectorAll('.question').forEach((q, i) => {
+    q.classList.toggle('active', i === 0);
+    q.querySelectorAll('.option').forEach(o => o.classList.remove('selected', 'correct', 'incorrect', 'disabled', 'show-correct'));
+    q.querySelectorAll('.option-feedback').forEach(f => {
+      f.classList.add('hidden');
+      f.classList.remove('correct-feedback', 'incorrect-feedback');
+    });
+    const btn = q.querySelector('.next-btn');
+    btn.classList.add('hidden');
+    btn.textContent = tr.next;
+  });
+  updateProgress();
+}
+
+init();
+</script>
+</body>
+</html>
