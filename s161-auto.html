@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="es" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>S16.1 Automatización</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  min-height: 100vh; padding: 20px; color: #333;
+}
+.container { max-width: 700px; margin: 0 auto; }
+.header { text-align: center; color: #fff; padding: 30px 20px; }
+.header h1 { font-size: 28px; font-weight: 700; margin-bottom: 8px; text-shadow: 0 2px 10px rgba(0,0,0,0.2); }
+.header .meta { font-size: 14px; opacity: 0.9; }
+.progress-bar { background: rgba(255,255,255,0.3); border-radius: 10px; height: 8px; margin: 20px 0; overflow: hidden; }
+.progress-fill { background: #fff; height: 100%; width: 0%; transition: width 0.4s ease; border-radius: 10px; }
+.question { background: #fff; border-radius: 16px; padding: 30px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); display: none; }
+.question.active { display: block; }
+.q-header { display: flex; justify-content: space-between; margin-bottom: 20px; font-size: 13px; color: #888; }
+.q-number { font-weight: 600; color: #667eea; }
+.q-text { font-size: 18px; font-weight: 600; line-height: 1.5; margin-bottom: 25px; color: #222; }
+.options { display: flex; flex-direction: column; gap: 12px; }
+.option-wrapper { display: flex; flex-direction: column; }
+.option {
+  display: flex; align-items: flex-start; gap: 14px; padding: 16px 18px;
+  border: 2px solid #e8e8e8; border-radius: 12px; background: #fafafa;
+  cursor: pointer; transition: all 0.2s; text-align: left; font-size: 15px; width: 100%;
+}
+[dir="rtl"] .option { text-align: right; flex-direction: row-reverse; }
+.option:hover:not(.disabled) { border-color: #667eea; background: #f5f3ff; }
+.option.selected { border-color: #667eea; background: #ede9fe; }
+.option.correct { border-color: #22c55e; background: #dcfce7; }
+.option.incorrect { border-color: #ef4444; background: #fee2e2; }
+.option.disabled { cursor: default; }
+.option.show-correct { border-color: #22c55e; background: #dcfce7; }
+.opt-label {
+  display: flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; border-radius: 50%; background: #e8e8e8;
+  font-weight: 700; font-size: 14px; flex-shrink: 0;
+}
+.option.selected .opt-label { background: #667eea; color: #fff; }
+.option.correct .opt-label { background: #22c55e; color: #fff; }
+.option.incorrect .opt-label { background: #ef4444; color: #fff; }
+.option.show-correct .opt-label { background: #22c55e; color: #fff; }
+.opt-text { padding-top: 5px; line-height: 1.5; }
+
+/* Individual option feedback */
+.option-feedback {
+  margin: 8px 0 4px 46px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+[dir="rtl"] .option-feedback { margin-left: 0; margin-right: 46px; }
+.option-feedback.correct-feedback {
+  background: #dcfce7;
+  border-left: 3px solid #22c55e;
+}
+.option-feedback.incorrect-feedback {
+  background: #fef3f2;
+  border-left: 3px solid #fca5a5;
+}
+[dir="rtl"] .option-feedback.correct-feedback,
+[dir="rtl"] .option-feedback.incorrect-feedback {
+  border-left: none;
+  border-right: 3px solid;
+}
+[dir="rtl"] .option-feedback.correct-feedback { border-right-color: #22c55e; }
+[dir="rtl"] .option-feedback.incorrect-feedback { border-right-color: #fca5a5; }
+.feedback-status {
+  font-weight: 600;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.feedback-status.correct { color: #166534; }
+.feedback-status.incorrect { color: #991b1b; }
+.feedback-rationale { color: #444; }
+
+/* Hint box */
+.hint-box {
+  margin: 12px 0;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+}
+.hint-toggle {
+  width: 100%;
+  padding: 10px 16px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  color: #92400e;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.hint-toggle:hover { background: #fef3c7; }
+.hint-content {
+  padding: 0 16px;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s, padding 0.3s;
+  font-size: 14px;
+  color: #78350f;
+  line-height: 1.5;
+}
+.hint-box.show .hint-content {
+  padding: 0 16px 12px;
+  max-height: 200px;
+}
+
+.next-btn {
+  margin-top: 20px; width: 100%; padding: 14px;
+  background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; border: none;
+  border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.next-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(102,126,234,0.4); }
+.hidden { display: none !important; }
+.results { background: #fff; border-radius: 16px; padding: 40px; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.15); display: none; }
+.results.active { display: block; }
+.results h2 { font-size: 28px; margin-bottom: 10px; color: #333; }
+.results .score { font-size: 64px; font-weight: 700; color: #667eea; margin: 20px 0; }
+.results .score-text { font-size: 18px; color: #666; margin-bottom: 30px; }
+.restart-btn {
+  padding: 14px 40px; background: linear-gradient(135deg, #667eea, #764ba2);
+  color: #fff; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer;
+}
+
+/* Math CSS */
+.math, .math-block { font-family: "Cambria Math", "Times New Roman", Times, serif; font-style: italic; }
+.math-block { display: block; text-align: center; margin: 10px 0; font-size: 110%; }
+.frac { display: inline-flex; flex-direction: column; align-items: center; vertical-align: middle; margin: 0 3px; font-size: 0.9em; }
+.frac-num { border-bottom: 1px solid currentColor; padding: 0 4px 2px; line-height: 1.2; }
+.frac-den { padding: 2px 4px 0; line-height: 1.2; }
+.sqrt { white-space: nowrap; }
+.sqrt-content { border-top: 1px solid currentColor; padding: 0 3px; margin-left: 2px; }
+sup, sub { font-size: 0.75em; }
+sup { vertical-align: super; }
+sub { vertical-align: sub; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>S16.1 Automatización</h1>
+    <div class="meta">10 preguntas</div>
+    <div class="progress-bar"><div class="progress-fill"></div></div>
+  </div>
+  <div id="quiz-container">
+        <div class="question" data-index="0">
+          <div class="q-header">
+            <span class="q-number">Pregunta 1</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">Kevin Ashton es reconocido como el &quot;padre del Internet de las Cosas&quot; (IoT).</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Se menciona a un tecnólogo específico en las diapositivas iniciales sobre la utilidad del tema.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="El material identifica explícitamente a Kevin Ashton como el tecnólogo visionario que acuñó este concepto.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El material identifica explícitamente a Kevin Ashton como el tecnólogo visionario que acuñó este concepto.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Esta afirmación contradice el reconocimiento histórico otorgado a Ashton en la sección de utilidad del tema.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esta afirmación contradice el reconocimiento histórico otorgado a Ashton en la sección de utilidad del tema.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="1">
+          <div class="q-header">
+            <span class="q-number">Pregunta 2</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">Para garantizar una integración fluida en IIoT, los dispositivos de distintos fabricantes deben adoptar estándares cerrados y propietarios.</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considera la importancia de la interoperabilidad en un entorno industrial diverso.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="La tecnología IIoT requiere estándares abiertos y colaborativos para asegurar que dispositivos de diversos fabricantes se comuniquen sin problemas.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La tecnología IIoT requiere estándares abiertos y colaborativos para asegurar que dispositivos de diversos fabricantes se comuniquen sin problemas.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Los estándares cerrados suelen dificultar la interoperabilidad entre diferentes marcas, lo opuesto a lo buscado en IIoT.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Los estándares cerrados suelen dificultar la interoperabilidad entre diferentes marcas, lo opuesto a lo buscado en IIoT.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="2">
+          <div class="q-header">
+            <span class="q-number">Pregunta 3</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">El Edge Computing ayuda a reducir la congestión del ancho de banda en los proyectos de IIoT.</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piensa en el efecto de procesar la información de manera local en el borde de la red.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Esta tecnología está diseñada precisamente para aliviar la carga de la red, no para incrementarla.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esta tecnología está diseñada precisamente para aliviar la carga de la red, no para incrementarla.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Al procesar datos cerca de la fuente en lugar de enviarlos todos a la nube, se optimiza el uso del ancho de banda disponible.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Al procesar datos cerca de la fuente en lugar de enviarlos todos a la nube, se optimiza el uso del ancho de banda disponible.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="3">
+          <div class="q-header">
+            <span class="q-number">Pregunta 4</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">Docker es un gestor de contenedores que se utiliza para facilitar la comunicación a nivel de software en IIoT.</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Se menciona específicamente en el contexto de la tecnología de Edge Computing.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="La integración de Dockers se menciona como una herramienta clave para simplificar la comunicación y gestión de software.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La integración de Dockers se menciona como una herramienta clave para simplificar la comunicación y gestión de software.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El material destaca a Docker como un componente que apoya la arquitectura de software en el entorno industrial.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El material destaca a Docker como un componente que apoya la arquitectura de software en el entorno industrial.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="4">
+          <div class="q-header">
+            <span class="q-number">Pregunta 5</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">El aprendizaje automático (Machine Learning) en IIoT tiene como objetivo principal asegurar la calidad y fiabilidad de los datos.</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Relaciona esta tecnología con la validación de la información recibida de los sensores.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Ignora el papel fundamental que desempeña el aprendizaje automático para garantizar la integridad de la información en la red.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Ignora el papel fundamental que desempeña el aprendizaje automático para garantizar la integridad de la información en la red.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="El enfoque de la IA en este contexto se centra en validar que los datos recolectados sean precisos y útiles para la toma de decisiones.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El enfoque de la IA en este contexto se centra en validar que los datos recolectados sean precisos y útiles para la toma de decisiones.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="5">
+          <div class="q-header">
+            <span class="q-number">Pregunta 6</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">La ciberseguridad en el mundo IIoT es un componente que prescinde de la gestión de accesos y claves.</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Revisa los elementos de seguridad mencionados para prevenir ciberataques.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="La gestión de accesos es, por el contrario, un pilar fundamental para prevenir ingresos no autorizados al sistema.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La gestión de accesos es, por el contrario, un pilar fundamental para prevenir ingresos no autorizados al sistema.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="La seguridad abarca aspectos críticos como la autenticación, encriptación y la gestión rigurosa de accesos y contraseñas.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La seguridad abarca aspectos críticos como la autenticación, encriptación y la gestión rigurosa de accesos y contraseñas.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="6">
+          <div class="q-header">
+            <span class="q-number">Pregunta 7</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">Según Oxford Economics, el IIoT podría impactar en industrias que representan el 62 % del PIB en los países del G20.</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Este dato se encuentra en la sección de cierre sobre el impacto económico mundial.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Esta cifra es un dato clave proporcionado en el cierre del material para ilustrar el alcance del IIoT.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esta cifra es un dato clave proporcionado en el cierre del material para ilustrar el alcance del IIoT.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Este dato estadístico resalta la enorme importancia económica de la automatización industrial a nivel global.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Este dato estadístico resalta la enorme importancia económica de la automatización industrial a nivel global.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="7">
+          <div class="q-header">
+            <span class="q-number">Pregunta 8</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">La aplicación del IIoT en el sector de la salud es idéntica a su aplicación en el monitoreo doméstico.</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Compara las categorías mostradas en el diagrama de Industrial vs. Consumidor.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="El material distingue claramente entre el Internet de las Cosas de consumo (doméstico) y el industrial (salud, fábricas).">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El material distingue claramente entre el Internet de las Cosas de consumo (doméstico) y el industrial (salud, fábricas).</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Aunque comparten tecnología base, el IIoT se enfoca en sectores críticos como salud y fábricas, mientras que el IoT de consumo se orienta a celulares y domótica.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aunque comparten tecnología base, el IIoT se enfoca en sectores críticos como salud y fábricas, mientras que el IoT de consumo se orienta a celulares y domótica.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="8">
+          <div class="q-header">
+            <span class="q-number">Pregunta 9</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">La implementación de protocolos de comunicación industrial permite un intercambio de datos rápido y transversal entre los componentes de la red.</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Es uno de los componentes fundamentales para el funcionamiento de la tecnología IoT.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Sin estos protocolos, el intercambio de datos sería lento y fragmentado, dificultando la operación en tiempo real.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Sin estos protocolos, el intercambio de datos sería lento y fragmentado, dificultando la operación en tiempo real.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Estos protocolos son esenciales para que la información fluya eficientemente por toda la estructura de automatización.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Estos protocolos son esenciales para que la información fluya eficientemente por toda la estructura de automatización.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="9">
+          <div class="q-header">
+            <span class="q-number">Pregunta 10</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">La analítica de datos en tiempo real no es una tendencia relevante para el Internet Industrial de las Cosas.</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considera la importancia de la velocidad de respuesta en una fábrica automatizada.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="La respuesta inmediata basada en datos es, de hecho, una de las tendencias y beneficios más críticos del IIoT.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La respuesta inmediata basada en datos es, de hecho, una de las tendencias y beneficios más críticos del IIoT.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="La capacidad de analizar y responder a los datos en tiempo real es fundamental para la eficiencia y productividad industrial moderna.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La capacidad de analizar y responder a los datos en tiempo real es fundamental para la eficiencia y productividad industrial moderna.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      </div>
+  <div class="results" id="results">
+    <h2>¡Cuestionario completado!</h2>
+    <div class="score" id="score">0%</div>
+    <div class="score-text" id="score-text"></div>
+    <button class="restart-btn" onclick="restart()">Intentar de nuevo</button>
+  </div>
+</div>
+<script>
+const quizData = [{"question":"Kevin Ashton es reconocido como el \"padre del Internet de las Cosas\" (IoT).","hint":"Se menciona a un tecnólogo específico en las diapositivas iniciales sobre la utilidad del tema.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"El material identifica explícitamente a Kevin Ashton como el tecnólogo visionario que acuñó este concepto."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"Esta afirmación contradice el reconocimiento histórico otorgado a Ashton en la sección de utilidad del tema."}]},{"question":"Para garantizar una integración fluida en IIoT, los dispositivos de distintos fabricantes deben adoptar estándares cerrados y propietarios.","hint":"Considera la importancia de la interoperabilidad en un entorno industrial diverso.","options":[{"label":"A","text":"Falso","isCorrect":true,"rationale":"La tecnología IIoT requiere estándares abiertos y colaborativos para asegurar que dispositivos de diversos fabricantes se comuniquen sin problemas."},{"label":"B","text":"Verdadero","isCorrect":false,"rationale":"Los estándares cerrados suelen dificultar la interoperabilidad entre diferentes marcas, lo opuesto a lo buscado en IIoT."}]},{"question":"El Edge Computing ayuda a reducir la congestión del ancho de banda en los proyectos de IIoT.","hint":"Piensa en el efecto de procesar la información de manera local en el borde de la red.","options":[{"label":"A","text":"Falso","isCorrect":false,"rationale":"Esta tecnología está diseñada precisamente para aliviar la carga de la red, no para incrementarla."},{"label":"B","text":"Verdadero","isCorrect":true,"rationale":"Al procesar datos cerca de la fuente en lugar de enviarlos todos a la nube, se optimiza el uso del ancho de banda disponible."}]},{"question":"Docker es un gestor de contenedores que se utiliza para facilitar la comunicación a nivel de software en IIoT.","hint":"Se menciona específicamente en el contexto de la tecnología de Edge Computing.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"La integración de Dockers se menciona como una herramienta clave para simplificar la comunicación y gestión de software."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"El material destaca a Docker como un componente que apoya la arquitectura de software en el entorno industrial."}]},{"question":"El aprendizaje automático (Machine Learning) en IIoT tiene como objetivo principal asegurar la calidad y fiabilidad de los datos.","hint":"Relaciona esta tecnología con la validación de la información recibida de los sensores.","options":[{"label":"A","text":"Falso","isCorrect":false,"rationale":"Ignora el papel fundamental que desempeña el aprendizaje automático para garantizar la integridad de la información en la red."},{"label":"B","text":"Verdadero","isCorrect":true,"rationale":"El enfoque de la IA en este contexto se centra en validar que los datos recolectados sean precisos y útiles para la toma de decisiones."}]},{"question":"La ciberseguridad en el mundo IIoT es un componente que prescinde de la gestión de accesos y claves.","hint":"Revisa los elementos de seguridad mencionados para prevenir ciberataques.","options":[{"label":"A","text":"Verdadero","isCorrect":false,"rationale":"La gestión de accesos es, por el contrario, un pilar fundamental para prevenir ingresos no autorizados al sistema."},{"label":"B","text":"Falso","isCorrect":true,"rationale":"La seguridad abarca aspectos críticos como la autenticación, encriptación y la gestión rigurosa de accesos y contraseñas."}]},{"question":"Según Oxford Economics, el IIoT podría impactar en industrias que representan el 62 % del PIB en los países del G20.","hint":"Este dato se encuentra en la sección de cierre sobre el impacto económico mundial.","options":[{"label":"A","text":"Falso","isCorrect":false,"rationale":"Esta cifra es un dato clave proporcionado en el cierre del material para ilustrar el alcance del IIoT."},{"label":"B","text":"Verdadero","isCorrect":true,"rationale":"Este dato estadístico resalta la enorme importancia económica de la automatización industrial a nivel global."}]},{"question":"La aplicación del IIoT en el sector de la salud es idéntica a su aplicación en el monitoreo doméstico.","hint":"Compara las categorías mostradas en el diagrama de Industrial vs. Consumidor.","options":[{"label":"A","text":"Verdadero","isCorrect":false,"rationale":"El material distingue claramente entre el Internet de las Cosas de consumo (doméstico) y el industrial (salud, fábricas)."},{"label":"B","text":"Falso","isCorrect":true,"rationale":"Aunque comparten tecnología base, el IIoT se enfoca en sectores críticos como salud y fábricas, mientras que el IoT de consumo se orienta a celulares y domótica."}]},{"question":"La implementación de protocolos de comunicación industrial permite un intercambio de datos rápido y transversal entre los componentes de la red.","hint":"Es uno de los componentes fundamentales para el funcionamiento de la tecnología IoT.","options":[{"label":"A","text":"Falso","isCorrect":false,"rationale":"Sin estos protocolos, el intercambio de datos sería lento y fragmentado, dificultando la operación en tiempo real."},{"label":"B","text":"Verdadero","isCorrect":true,"rationale":"Estos protocolos son esenciales para que la información fluya eficientemente por toda la estructura de automatización."}]},{"question":"La analítica de datos en tiempo real no es una tendencia relevante para el Internet Industrial de las Cosas.","hint":"Considera la importancia de la velocidad de respuesta en una fábrica automatizada.","options":[{"label":"A","text":"Verdadero","isCorrect":false,"rationale":"La respuesta inmediata basada en datos es, de hecho, una de las tendencias y beneficios más críticos del IIoT."},{"label":"B","text":"Falso","isCorrect":true,"rationale":"La capacidad de analizar y responder a los datos en tiempo real es fundamental para la eficiencia y productividad industrial moderna."}]}];
+const tr = {"correct":"¡Correcto!","incorrect":"Incorrecto","next":"Siguiente pregunta →","seeResults":"Ver resultados","complete":"¡Cuestionario completado!","scoreText":"Obtuviste {correct} de {total} correctas","tryAgain":"Intentar de nuevo","rightAnswer":"Respuesta correcta","notQuite":"No del todo"};
+let currentQ = 0, correctCount = 0, answered = false;
+
+function init() {
+  document.querySelectorAll('.question').forEach((q, i) => q.classList.toggle('active', i === 0));
+  updateProgress();
+  document.querySelectorAll('.option').forEach(opt => opt.addEventListener('click', () => selectOption(opt)));
+  document.querySelectorAll('.next-btn').forEach(btn => btn.addEventListener('click', nextQuestion));
+}
+
+function selectOption(opt) {
+  if (answered) return;
+  answered = true;
+  const q = opt.closest('.question');
+  const options = q.querySelectorAll('.option');
+  const nextBtn = q.querySelector('.next-btn');
+  const isCorrect = opt.dataset.correct === 'true';
+  
+  // Mark all options as disabled
+  options.forEach(o => o.classList.add('disabled'));
+  
+  // Style selected option
+  opt.classList.add('selected', isCorrect ? 'correct' : 'incorrect');
+  
+  // Show correct answer if wrong
+  if (!isCorrect) {
+    const correctOpt = [...options].find(o => o.dataset.correct === 'true');
+    if (correctOpt) correctOpt.classList.add('show-correct');
+  }
+  
+  if (isCorrect) correctCount++;
+  
+  // Show feedback for ALL options that have rationale
+  options.forEach(o => {
+    const wrapper = o.closest('.option-wrapper');
+    const feedback = wrapper.querySelector('.option-feedback');
+    const rationale = o.dataset.rationale;
+    const isThisCorrect = o.dataset.correct === 'true';
+    
+    if (rationale && rationale.trim()) {
+      feedback.classList.remove('hidden');
+      feedback.classList.add(isThisCorrect ? 'correct-feedback' : 'incorrect-feedback');
+      
+      const statusEl = feedback.querySelector('.feedback-status');
+      statusEl.className = 'feedback-status ' + (isThisCorrect ? 'correct' : 'incorrect');
+      statusEl.innerHTML = isThisCorrect 
+        ? '✓ ' + tr.rightAnswer
+        : '✗ ' + tr.notQuite;
+    }
+  });
+  
+  nextBtn.classList.remove('hidden');
+  if (currentQ === quizData.length - 1) nextBtn.textContent = tr.seeResults;
+}
+
+function nextQuestion() {
+  answered = false;
+  currentQ++;
+  if (currentQ >= quizData.length) { showResults(); return; }
+  document.querySelectorAll('.question').forEach((q, i) => q.classList.toggle('active', i === currentQ));
+  updateProgress();
+}
+
+function updateProgress() {
+  document.querySelector('.progress-fill').style.width = (currentQ / quizData.length * 100) + '%';
+}
+
+function showResults() {
+  document.querySelectorAll('.question').forEach(q => q.classList.remove('active'));
+  document.getElementById('results').classList.add('active');
+  const pct = Math.round((correctCount / quizData.length) * 100);
+  document.getElementById('score').textContent = pct + '%';
+  document.getElementById('score-text').textContent = tr.scoreText.replace('{correct}', correctCount).replace('{total}', quizData.length);
+  document.querySelector('.progress-fill').style.width = '100%';
+}
+
+function restart() {
+  currentQ = 0; correctCount = 0; answered = false;
+  document.getElementById('results').classList.remove('active');
+  document.querySelectorAll('.question').forEach((q, i) => {
+    q.classList.toggle('active', i === 0);
+    q.querySelectorAll('.option').forEach(o => o.classList.remove('selected', 'correct', 'incorrect', 'disabled', 'show-correct'));
+    q.querySelectorAll('.option-feedback').forEach(f => {
+      f.classList.add('hidden');
+      f.classList.remove('correct-feedback', 'incorrect-feedback');
+    });
+    const btn = q.querySelector('.next-btn');
+    btn.classList.add('hidden');
+    btn.textContent = tr.next;
+  });
+  updateProgress();
+}
+
+init();
+</script>
+</body>
+</html>
