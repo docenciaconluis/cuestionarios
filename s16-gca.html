@@ -1,0 +1,1346 @@
+<!DOCTYPE html>
+<html lang="es" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>S16 GCA</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  min-height: 100vh; padding: 20px; color: #333;
+}
+.container { max-width: 700px; margin: 0 auto; }
+.header { text-align: center; color: #fff; padding: 30px 20px; }
+.header h1 { font-size: 28px; font-weight: 700; margin-bottom: 8px; text-shadow: 0 2px 10px rgba(0,0,0,0.2); }
+.header .meta { font-size: 14px; opacity: 0.9; }
+.progress-bar { background: rgba(255,255,255,0.3); border-radius: 10px; height: 8px; margin: 20px 0; overflow: hidden; }
+.progress-fill { background: #fff; height: 100%; width: 0%; transition: width 0.4s ease; border-radius: 10px; }
+.question { background: #fff; border-radius: 16px; padding: 30px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); display: none; }
+.question.active { display: block; }
+.q-header { display: flex; justify-content: space-between; margin-bottom: 20px; font-size: 13px; color: #888; }
+.q-number { font-weight: 600; color: #667eea; }
+.q-text { font-size: 18px; font-weight: 600; line-height: 1.5; margin-bottom: 25px; color: #222; }
+.options { display: flex; flex-direction: column; gap: 12px; }
+.option-wrapper { display: flex; flex-direction: column; }
+.option {
+  display: flex; align-items: flex-start; gap: 14px; padding: 16px 18px;
+  border: 2px solid #e8e8e8; border-radius: 12px; background: #fafafa;
+  cursor: pointer; transition: all 0.2s; text-align: left; font-size: 15px; width: 100%;
+}
+[dir="rtl"] .option { text-align: right; flex-direction: row-reverse; }
+.option:hover:not(.disabled) { border-color: #667eea; background: #f5f3ff; }
+.option.selected { border-color: #667eea; background: #ede9fe; }
+.option.correct { border-color: #22c55e; background: #dcfce7; }
+.option.incorrect { border-color: #ef4444; background: #fee2e2; }
+.option.disabled { cursor: default; }
+.option.show-correct { border-color: #22c55e; background: #dcfce7; }
+.opt-label {
+  display: flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; border-radius: 50%; background: #e8e8e8;
+  font-weight: 700; font-size: 14px; flex-shrink: 0;
+}
+.option.selected .opt-label { background: #667eea; color: #fff; }
+.option.correct .opt-label { background: #22c55e; color: #fff; }
+.option.incorrect .opt-label { background: #ef4444; color: #fff; }
+.option.show-correct .opt-label { background: #22c55e; color: #fff; }
+.opt-text { padding-top: 5px; line-height: 1.5; }
+
+/* Individual option feedback */
+.option-feedback {
+  margin: 8px 0 4px 46px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+[dir="rtl"] .option-feedback { margin-left: 0; margin-right: 46px; }
+.option-feedback.correct-feedback {
+  background: #dcfce7;
+  border-left: 3px solid #22c55e;
+}
+.option-feedback.incorrect-feedback {
+  background: #fef3f2;
+  border-left: 3px solid #fca5a5;
+}
+[dir="rtl"] .option-feedback.correct-feedback,
+[dir="rtl"] .option-feedback.incorrect-feedback {
+  border-left: none;
+  border-right: 3px solid;
+}
+[dir="rtl"] .option-feedback.correct-feedback { border-right-color: #22c55e; }
+[dir="rtl"] .option-feedback.incorrect-feedback { border-right-color: #fca5a5; }
+.feedback-status {
+  font-weight: 600;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.feedback-status.correct { color: #166534; }
+.feedback-status.incorrect { color: #991b1b; }
+.feedback-rationale { color: #444; }
+
+/* Hint box */
+.hint-box {
+  margin: 12px 0;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+}
+.hint-toggle {
+  width: 100%;
+  padding: 10px 16px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  color: #92400e;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.hint-toggle:hover { background: #fef3c7; }
+.hint-content {
+  padding: 0 16px;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s, padding 0.3s;
+  font-size: 14px;
+  color: #78350f;
+  line-height: 1.5;
+}
+.hint-box.show .hint-content {
+  padding: 0 16px 12px;
+  max-height: 200px;
+}
+
+.next-btn {
+  margin-top: 20px; width: 100%; padding: 14px;
+  background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; border: none;
+  border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.next-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(102,126,234,0.4); }
+.hidden { display: none !important; }
+.results { background: #fff; border-radius: 16px; padding: 40px; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.15); display: none; }
+.results.active { display: block; }
+.results h2 { font-size: 28px; margin-bottom: 10px; color: #333; }
+.results .score { font-size: 64px; font-weight: 700; color: #667eea; margin: 20px 0; }
+.results .score-text { font-size: 18px; color: #666; margin-bottom: 30px; }
+.restart-btn {
+  padding: 14px 40px; background: linear-gradient(135deg, #667eea, #764ba2);
+  color: #fff; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer;
+}
+
+/* Math CSS */
+.math, .math-block { font-family: "Cambria Math", "Times New Roman", Times, serif; font-style: italic; }
+.math-block { display: block; text-align: center; margin: 10px 0; font-size: 110%; }
+.frac { display: inline-flex; flex-direction: column; align-items: center; vertical-align: middle; margin: 0 3px; font-size: 0.9em; }
+.frac-num { border-bottom: 1px solid currentColor; padding: 0 4px 2px; line-height: 1.2; }
+.frac-den { padding: 2px 4px 0; line-height: 1.2; }
+.sqrt { white-space: nowrap; }
+.sqrt-content { border-top: 1px solid currentColor; padding: 0 3px; margin-left: 2px; }
+sup, sub { font-size: 0.75em; }
+sup { vertical-align: super; }
+sub { vertical-align: sub; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>S16 GCA</h1>
+    <div class="meta">27 preguntas</div>
+    <div class="progress-bar"><div class="progress-fill"></div></div>
+  </div>
+  <div id="quiz-container">
+        <div class="question" data-index="0">
+          <div class="q-header">
+            <span class="q-number">Pregunta 1</span>
+            <span class="q-of">/ 27</span>
+          </div>
+          <div class="q-text">¿Una cadena de suministro global se limita exclusivamente a la gestión de proveedores dentro de una misma región geográfica?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considere el significado del término 'global' en el contexto de la gestión empresarial.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Las cadenas de suministro globales implican por definición la coordinación de proveedores, clientes y operaciones a través de diversos países y regiones.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Las cadenas de suministro globales implican por definición la coordinación de proveedores, clientes y operaciones a través de diversos países y regiones.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Este concepto ignora la naturaleza global de estas cadenas, las cuales abarcan operaciones y clientes en múltiples regiones y países.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Este concepto ignora la naturaleza global de estas cadenas, las cuales abarcan operaciones y clientes en múltiples regiones y países.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="1">
+          <div class="q-header">
+            <span class="q-number">Pregunta 2</span>
+            <span class="q-of">/ 27</span>
+          </div>
+          <div class="q-text">¿El uso de Big Data permite a empresas como Amazon anticipar las necesidades de los clientes y optimizar sus niveles de inventario?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piense en el papel del análisis predictivo en la gestión de almacenes modernos.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="El material indica explícitamente que el sistema de pronóstico de demanda de Amazon se basa en esta tecnología para su optimización.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El material indica explícitamente que el sistema de pronóstico de demanda de Amazon se basa en esta tecnología para su optimización.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="El análisis de grandes volúmenes de datos permite realizar pronósticos de demanda más precisos para mejorar la disponibilidad de productos.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El análisis de grandes volúmenes de datos permite realizar pronósticos de demanda más precisos para mejorar la disponibilidad de productos.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="2">
+          <div class="q-header">
+            <span class="q-number">Pregunta 3</span>
+            <span class="q-of">/ 27</span>
+          </div>
+          <div class="q-text">¿La calidad y los tiempos de entrega son criterios secundarios al momento de seleccionar proveedores internacionales?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Evalúe qué factores aseguran que el producto final llegue correctamente al consumidor.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Ignorar la calidad y los tiempos de entrega comprometería la competitividad y la satisfacción del cliente final.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Ignorar la calidad y los tiempos de entrega comprometería la competitividad y la satisfacción del cliente final.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Junto con el costo y el cumplimiento normativo, la calidad y la puntualidad son factores críticos para la selección de proveedores.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Junto con el costo y el cumplimiento normativo, la calidad y la puntualidad son factores críticos para la selección de proveedores.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="3">
+          <div class="q-header">
+            <span class="q-number">Pregunta 4</span>
+            <span class="q-of">/ 27</span>
+          </div>
+          <div class="q-text">¿Las fluctuaciones cambiarias y los aranceles son considerados tipos de riesgos operativos en la cadena global?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Distinga entre los riesgos relacionados con el dinero y los relacionados con la ejecución de tareas.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Las fluctuaciones de moneda y los impuestos de importación se clasifican específicamente como riesgos financieros.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Las fluctuaciones de moneda y los impuestos de importación se clasifican específicamente como riesgos financieros.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Estos elementos están directamente relacionados con aspectos monetarios y de costos de importación, no con la ejecución de procesos internos.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Estos elementos están directamente relacionados con aspectos monetarios y de costos de importación, no con la ejecución de procesos internos.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="4">
+          <div class="q-header">
+            <span class="q-number">Pregunta 5</span>
+            <span class="q-of">/ 27</span>
+          </div>
+          <div class="q-text">¿Los conflictos comerciales y las sanciones gubernamentales forman parte de los riesgos geopolíticos?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piense en eventos que dependen de las políticas de estado de cada país.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="El material clasifica las restricciones gubernamentales y conflictos comerciales bajo la categoría geopolítica.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El material clasifica las restricciones gubernamentales y conflictos comerciales bajo la categoría geopolítica.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Estos riesgos surgen de las decisiones políticas y las relaciones entre diferentes naciones que afectan el comercio.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Estos riesgos surgen de las decisiones políticas y las relaciones entre diferentes naciones que afectan el comercio.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="5">
+          <div class="q-header">
+            <span class="q-number">Pregunta 6</span>
+            <span class="q-of">/ 27</span>
+          </div>
+          <div class="q-text">¿La diversificación de proveedores en diferentes países es una estrategia efectiva para mitigar riesgos en la cadena de suministro?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Reflexione sobre el dicho 'no pongas todos los huevos en una misma canasta'.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Tener múltiples fuentes de suministro reduce la dependencia de un solo país o proveedor ante posibles interrupciones locales.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Tener múltiples fuentes de suministro reduce la dependencia de un solo país o proveedor ante posibles interrupciones locales.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Al contrario de aumentar el riesgo, esta práctica ayuda a la empresa a ser más resiliente ante crisis regionales.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Al contrario de aumentar el riesgo, esta práctica ayuda a la empresa a ser más resiliente ante crisis regionales.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="6">
+          <div class="q-header">
+            <span class="q-number">Pregunta 7</span>
+            <span class="q-of">/ 27</span>
+          </div>
+          <div class="q-text">¿La implementación de contratos flexibles permite a las empresas adaptarse rápidamente a cambios en el entorno global?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considere qué tipo de acuerdo legal facilitaría la reacción ante una crisis repentina.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Los contratos rígidos suelen ser una barrera ante las interrupciones; la flexibilidad es lo que facilita la adaptación.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Los contratos rígidos suelen ser una barrera ante las interrupciones; la flexibilidad es lo que facilita la adaptación.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="La flexibilidad contractual es una estrategia de mitigación que permite ajustar pedidos o condiciones ante eventos imprevistos.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La flexibilidad contractual es una estrategia de mitigación que permite ajustar pedidos o condiciones ante eventos imprevistos.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="7">
+          <div class="q-header">
+            <span class="q-number">Pregunta 8</span>
+            <span class="q-of">/ 27</span>
+          </div>
+          <div class="q-text">¿La automatización de almacenes, mediante el uso de robots, tiene como objetivo principal aumentar el costo operativo?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piense en el impacto económico de agilizar procesos manuales como el picking y packing.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="La tecnología busca precisamente lo opuesto: maximizar la rentabilidad mediante la reducción de gastos y tiempos.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La tecnología busca precisamente lo opuesto: maximizar la rentabilidad mediante la reducción de gastos y tiempos.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="El uso de robots y sistemas autónomos busca mejorar la eficiencia operativa y reducir los costos asociados al manejo de materiales.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El uso de robots y sistemas autónomos busca mejorar la eficiencia operativa y reducir los costos asociados al manejo de materiales.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="8">
+          <div class="q-header">
+            <span class="q-number">Pregunta 9</span>
+            <span class="q-of">/ 27</span>
+          </div>
+          <div class="q-text">¿La logística digital integra plataformas para la gestión en tiempo real de inventarios, rutas y proveedores?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considere la utilidad de tener información actualizada al instante sobre el estado de un envío.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="La gestión en tiempo real es uno de los beneficios fundamentales de la transformación digital en la cadena de suministro.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La gestión en tiempo real es uno de los beneficios fundamentales de la transformación digital en la cadena de suministro.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="La digitalización permite una visibilidad instantánea de toda la red logística para tomar decisiones rápidas.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La digitalización permite una visibilidad instantánea de toda la red logística para tomar decisiones rápidas.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="9">
+          <div class="q-header">
+            <span class="q-number">Pregunta 10</span>
+            <span class="q-of">/ 27</span>
+          </div>
+          <div class="q-text">¿El uso de drones en la distribución se aplica principalmente para mejorar la eficiencia en la 'última milla' de entrega?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Identifique a qué parte del proceso logístico se refiere el término 'distribución final'.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Empresas como UPS y FedEx utilizan drones para reducir costos y tiempos en el tramo final de la entrega, especialmente en zonas rurales.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Empresas como UPS y FedEx utilizan drones para reducir costos y tiempos en el tramo final de la entrega, especialmente en zonas rurales.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Aunque es una tecnología emergente, su aplicación actual más destacada es precisamente la distribución final al cliente.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aunque es una tecnología emergente, su aplicación actual más destacada es precisamente la distribución final al cliente.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="10">
+          <div class="q-header">
+            <span class="q-number">Pregunta 11</span>
+            <span class="q-of">/ 27</span>
+          </div>
+          <div class="q-text">¿La personalización de servicios según la cultura y regulaciones de cada país es irrelevante para los clientes internacionales?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piense si un mismo enfoque de venta funcionaría igual en Perú, Japón y Alemania.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Ignorar las diferencias culturales y legales puede llevar al fracaso de la expansión en mercados extranjeros.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Ignorar las diferencias culturales y legales puede llevar al fracaso de la expansión en mercados extranjeros.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="La adaptación a las normas locales y preferencias culturales es vital para la satisfacción del cliente y el cumplimiento legal.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La adaptación a las normas locales y preferencias culturales es vital para la satisfacción del cliente y el cumplimiento legal.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="11">
+          <div class="q-header">
+            <span class="q-number">Pregunta 12</span>
+            <span class="q-of">/ 27</span>
+          </div>
+          <div class="q-text">¿El análisis predictivo ayuda a las empresas a anticipar posibles interrupciones en la cadena de suministro?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Relacione el término 'predictivo' con la capacidad de ver hacia el futuro basándose en datos.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="La anticipación proactiva es el objetivo central de aplicar analítica avanzada en la gestión de riesgos.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La anticipación proactiva es el objetivo central de aplicar analítica avanzada en la gestión de riesgos.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Esta herramienta utiliza datos históricos y modelos para identificar señales de riesgo antes de que ocurran las fallas.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esta herramienta utiliza datos históricos y modelos para identificar señales de riesgo antes de que ocurran las fallas.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="12">
+          <div class="q-header">
+            <span class="q-number">Pregunta 13</span>
+            <span class="q-of">/ 27</span>
+          </div>
+          <div class="q-text">¿Las fallas de los proveedores y los problemas de calidad se clasifican como riesgos financieros?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considere si el problema reside en el valor de la moneda o en el proceso de fabricación.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Los problemas relacionados con el desempeño del proveedor y la calidad del producto son considerados riesgos operativos.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Los problemas relacionados con el desempeño del proveedor y la calidad del producto son considerados riesgos operativos.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Aunque tienen un impacto económico, estos problemas se derivan de la ejecución del trabajo y la producción.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aunque tienen un impacto económico, estos problemas se derivan de la ejecución del trabajo y la producción.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="13">
+          <div class="q-header">
+            <span class="q-number">Pregunta 14</span>
+            <span class="q-of">/ 27</span>
+          </div>
+          <div class="q-text">¿La implementación de software ERP es una parte fundamental de la transformación digital en las empresas manufactureras?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piense en la herramienta informática básica para integrar todas las áreas de una empresa.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Los sistemas ERP centralizan la información y optimizan los procesos internos, siendo pilares de la digitalización.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Los sistemas ERP centralizan la información y optimizan los procesos internos, siendo pilares de la digitalización.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El material destaca el ERP junto con la IA como tecnologías clave para la optimización de procesos.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El material destaca el ERP junto con la IA como tecnologías clave para la optimización de procesos.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="14">
+          <div class="q-header">
+            <span class="q-number">Pregunta 15</span>
+            <span class="q-of">/ 27</span>
+          </div>
+          <div class="q-text">¿La globalización ha permitido a las empresas expandir sus redes para reducir costos y mejorar la competitividad?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Recuerde los beneficios mencionados sobre la importancia de la cadena de suministro en la economía actual.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="La expansión internacional es precisamente lo que impulsa la competitividad en la economía global actual.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La expansión internacional es precisamente lo que impulsa la competitividad en la economía global actual.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Acceder a mercados y proveedores globales permite encontrar eficiencias que no siempre están disponibles localmente.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Acceder a mercados y proveedores globales permite encontrar eficiencias que no siempre están disponibles localmente.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="15">
+          <div class="q-header">
+            <span class="q-number">Pregunta 16</span>
+            <span class="q-of">/ 27</span>
+          </div>
+          <div class="q-text">¿Los vehículos autónomos son una tecnología aplicada para mejorar la eficiencia logística en zonas rurales?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Evalúe el impacto de eliminar la necesidad de un conductor humano en rutas de entrega.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="El material agrupa a estos vehículos con los drones como tecnologías emergentes para la distribución eficiente.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El material agrupa a estos vehículos con los drones como tecnologías emergentes para la distribución eficiente.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Tanto drones como vehículos autónomos se mencionan como soluciones para mejorar la distribución y reducir tiempos de entrega.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Tanto drones como vehículos autónomos se mencionan como soluciones para mejorar la distribución y reducir tiempos de entrega.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="16">
+          <div class="q-header">
+            <span class="q-number">Pregunta 17</span>
+            <span class="q-of">/ 27</span>
+          </div>
+          <div class="q-text">¿El cumplimiento normativo internacional es un desafío menor cuando una empresa se expande de Latinoamérica a Europa?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considere la complejidad legal de operar en diferentes jurisdicciones internacionales.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Cada región tiene leyes estrictas que, si se ignoran, pueden resultar en sanciones severas o el bloqueo de operaciones.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Cada región tiene leyes estrictas que, si se ignoran, pueden resultar en sanciones severas o el bloqueo de operaciones.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="La adaptación a las regulaciones de diferentes continentes es uno de los desafíos más complejos en la expansión global.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La adaptación a las regulaciones de diferentes continentes es uno de los desafíos más complejos en la expansión global.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="17">
+          <div class="q-header">
+            <span class="q-number">Pregunta 18</span>
+            <span class="q-of">/ 27</span>
+          </div>
+          <div class="q-text">¿La inteligencia artificial y el Machine Learning se utilizan para la optimización de procesos en las cadenas globales?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piense en tecnologías capaces de aprender de los datos para mejorar la operación.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Estas tecnologías permiten analizar patrones complejos y tomar decisiones automatizadas para mejorar la eficiencia.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Estas tecnologías permiten analizar patrones complejos y tomar decisiones automatizadas para mejorar la eficiencia.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El material las señala específicamente como herramientas clave dentro de la transformación digital lograda por empresas líderes.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El material las señala específicamente como herramientas clave dentro de la transformación digital lograda por empresas líderes.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="18">
+          <div class="q-header">
+            <span class="q-number">Pregunta 19</span>
+            <span class="q-of">/ 27</span>
+          </div>
+          <div class="q-text">¿La sostenibilidad será una de las claves para el desarrollo futuro de cadenas de suministro eficientes?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considere las recomendaciones finales sobre el desarrollo de cadenas a largo plazo.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Lejos de ser secundaria, la sostenibilidad se presenta como un factor determinante para las cadenas globales modernas.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Lejos de ser secundaria, la sostenibilidad se presenta como un factor determinante para las cadenas globales modernas.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Las conclusiones del material indican que la sostenibilidad, junto con la IA, definirá el desarrollo futuro de estas redes.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Las conclusiones del material indican que la sostenibilidad, junto con la IA, definirá el desarrollo futuro de estas redes.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="19">
+          <div class="q-header">
+            <span class="q-number">Pregunta 20</span>
+            <span class="q-of">/ 27</span>
+          </div>
+          <div class="q-text">¿La gestión eficiente de inventarios mediante técnicas avanzadas ayuda a reducir costos operativos?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piense en el impacto de tener solo el material necesario en el momento adecuado.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="La optimización de inventarios es una de las recomendaciones finales para mejorar la eficiencia financiera de la empresa.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La optimización de inventarios es una de las recomendaciones finales para mejorar la eficiencia financiera de la empresa.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Optimizar el almacenamiento evita el exceso de stock y reduce los gastos asociados a la gestión de materiales.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Optimizar el almacenamiento evita el exceso de stock y reduce los gastos asociados a la gestión de materiales.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="20">
+          <div class="q-header">
+            <span class="q-number">Pregunta 21</span>
+            <span class="q-of">/ 27</span>
+          </div>
+          <div class="q-text">¿La automatización solo impacta en la velocidad de entrega, pero no en la reducción de errores operativos?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considere si un robot es más o menos propenso a cometer un error de conteo que una persona cansada.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Al eliminar el factor humano en tareas repetitivas, la automatización reduce significativamente la probabilidad de equivocaciones.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Al eliminar el factor humano en tareas repetitivas, la automatización reduce significativamente la probabilidad de equivocaciones.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="El material menciona explícitamente que la automatización en almacenes ayuda a reducir tanto los tiempos como los errores operativos.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El material menciona explícitamente que la automatización en almacenes ayuda a reducir tanto los tiempos como los errores operativos.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="21">
+          <div class="q-header">
+            <span class="q-number">Pregunta 22</span>
+            <span class="q-of">/ 27</span>
+          </div>
+          <div class="q-text">¿Los seguros de suministro son una táctica válida para la mitigación de riesgos en la cadena global?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piense en herramientas financieras que cubren pérdidas ante accidentes o desastres.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Contar con seguros permite a la empresa protegerse financieramente ante interrupciones imprevistas en la provisión de materiales.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Contar con seguros permite a la empresa protegerse financieramente ante interrupciones imprevistas en la provisión de materiales.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Los seguros son una de las tres estrategias de mitigación mencionadas junto a la diversificación y los contratos flexibles.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Los seguros son una de las tres estrategias de mitigación mencionadas junto a la diversificación y los contratos flexibles.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="22">
+          <div class="q-header">
+            <span class="q-number">Pregunta 23</span>
+            <span class="q-of">/ 27</span>
+          </div>
+          <div class="q-text">¿Una empresa manufacturera que busca expandirse a Asia no necesita evaluar la calidad de sus nuevos proveedores?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Evalúe los requisitos del desafío planteado para la empresa latinoamericana.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="La evaluación de calidad es obligatoria para garantizar que el producto final cumpla con los estándares del mercado objetivo.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La evaluación de calidad es obligatoria para garantizar que el producto final cumpla con los estándares del mercado objetivo.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="La evaluación de nuevos proveedores para asegurar calidad y costos competitivos es un desafío crítico identificado en el caso de estudio.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La evaluación de nuevos proveedores para asegurar calidad y costos competitivos es un desafío crítico identificado en el caso de estudio.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="23">
+          <div class="q-header">
+            <span class="q-number">Pregunta 24</span>
+            <span class="q-of">/ 27</span>
+          </div>
+          <div class="q-text">¿Los retrasos logísticos se consideran un riesgo que debe ser mitigado mediante planes de contingencia?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piense en la importancia de tener un 'Plan B' para los envíos internacionales.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Contar con planes de respuesta rápida permite minimizar el impacto negativo de los cuellos de botella en el transporte.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Contar con planes de respuesta rápida permite minimizar el impacto negativo de los cuellos de botella en el transporte.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Los planes de contingencia son recomendaciones fundamentales para adaptarse a los cambios constantes del entorno global.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Los planes de contingencia son recomendaciones fundamentales para adaptarse a los cambios constantes del entorno global.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="24">
+          <div class="q-header">
+            <span class="q-number">Pregunta 25</span>
+            <span class="q-of">/ 27</span>
+          </div>
+          <div class="q-text">¿La cadena de suministro global solo afecta la disponibilidad de productos, pero no influye en la satisfacción del cliente?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considere cómo se siente un cliente cuando su pedido internacional llega tarde.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Si un producto no llega a tiempo o en buen estado, la percepción y satisfacción del cliente se verán seriamente afectadas.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Si un producto no llega a tiempo o en buen estado, la percepción y satisfacción del cliente se verán seriamente afectadas.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="La eficiencia en la gestión global impacta directamente tanto en la disponibilidad como en la experiencia final del consumidor.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La eficiencia en la gestión global impacta directamente tanto en la disponibilidad como en la experiencia final del consumidor.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="25">
+          <div class="q-header">
+            <span class="q-number">Pregunta 26</span>
+            <span class="q-of">/ 27</span>
+          </div>
+          <div class="q-text">¿El picking y packing son procesos que se han agilizado gracias a la robótica en almacenes automatizados?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Identifique las actividades de almacén que consisten en recoger y empacar artículos.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="La intervención de robots en la selección y empaque de productos reduce drásticamente el ciclo de procesamiento de pedidos.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La intervención de robots en la selección y empaque de productos reduce drásticamente el ciclo de procesamiento de pedidos.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Amazon es el ejemplo principal citado de cómo los robots mejoran específicamente estas dos etapas operativas.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Amazon es el ejemplo principal citado de cómo los robots mejoran específicamente estas dos etapas operativas.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="26">
+          <div class="q-header">
+            <span class="q-number">Pregunta 27</span>
+            <span class="q-of">/ 27</span>
+          </div>
+          <div class="q-text">¿La gestión de riesgos geopolíticos incluye el análisis de las restricciones gubernamentales en mercados extranjeros?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piense en las leyes que un gobierno impone a las empresas de otros países.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Las restricciones de los gobiernos son un componente central de los riesgos derivados de la política internacional.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Las restricciones de los gobiernos son un componente central de los riesgos derivados de la política internacional.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Conocer las limitaciones legales impuestas por gobiernos extranjeros es esencial para evitar sanciones o bloqueos comerciales.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Conocer las limitaciones legales impuestas por gobiernos extranjeros es esencial para evitar sanciones o bloqueos comerciales.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      </div>
+  <div class="results" id="results">
+    <h2>¡Cuestionario completado!</h2>
+    <div class="score" id="score">0%</div>
+    <div class="score-text" id="score-text"></div>
+    <button class="restart-btn" onclick="restart()">Intentar de nuevo</button>
+  </div>
+</div>
+<script>
+const quizData = [{"question":"¿Una cadena de suministro global se limita exclusivamente a la gestión de proveedores dentro de una misma región geográfica?","hint":"Considere el significado del término 'global' en el contexto de la gestión empresarial.","options":[{"label":"A","text":"Falso","isCorrect":true,"rationale":"Las cadenas de suministro globales implican por definición la coordinación de proveedores, clientes y operaciones a través de diversos países y regiones."},{"label":"B","text":"Verdadero","isCorrect":false,"rationale":"Este concepto ignora la naturaleza global de estas cadenas, las cuales abarcan operaciones y clientes en múltiples regiones y países."}]},{"question":"¿El uso de Big Data permite a empresas como Amazon anticipar las necesidades de los clientes y optimizar sus niveles de inventario?","hint":"Piense en el papel del análisis predictivo en la gestión de almacenes modernos.","options":[{"label":"A","text":"Falso","isCorrect":false,"rationale":"El material indica explícitamente que el sistema de pronóstico de demanda de Amazon se basa en esta tecnología para su optimización."},{"label":"B","text":"Verdadero","isCorrect":true,"rationale":"El análisis de grandes volúmenes de datos permite realizar pronósticos de demanda más precisos para mejorar la disponibilidad de productos."}]},{"question":"¿La calidad y los tiempos de entrega son criterios secundarios al momento de seleccionar proveedores internacionales?","hint":"Evalúe qué factores aseguran que el producto final llegue correctamente al consumidor.","options":[{"label":"A","text":"Verdadero","isCorrect":false,"rationale":"Ignorar la calidad y los tiempos de entrega comprometería la competitividad y la satisfacción del cliente final."},{"label":"B","text":"Falso","isCorrect":true,"rationale":"Junto con el costo y el cumplimiento normativo, la calidad y la puntualidad son factores críticos para la selección de proveedores."}]},{"question":"¿Las fluctuaciones cambiarias y los aranceles son considerados tipos de riesgos operativos en la cadena global?","hint":"Distinga entre los riesgos relacionados con el dinero y los relacionados con la ejecución de tareas.","options":[{"label":"A","text":"Falso","isCorrect":true,"rationale":"Las fluctuaciones de moneda y los impuestos de importación se clasifican específicamente como riesgos financieros."},{"label":"B","text":"Verdadero","isCorrect":false,"rationale":"Estos elementos están directamente relacionados con aspectos monetarios y de costos de importación, no con la ejecución de procesos internos."}]},{"question":"¿Los conflictos comerciales y las sanciones gubernamentales forman parte de los riesgos geopolíticos?","hint":"Piense en eventos que dependen de las políticas de estado de cada país.","options":[{"label":"A","text":"Falso","isCorrect":false,"rationale":"El material clasifica las restricciones gubernamentales y conflictos comerciales bajo la categoría geopolítica."},{"label":"B","text":"Verdadero","isCorrect":true,"rationale":"Estos riesgos surgen de las decisiones políticas y las relaciones entre diferentes naciones que afectan el comercio."}]},{"question":"¿La diversificación de proveedores en diferentes países es una estrategia efectiva para mitigar riesgos en la cadena de suministro?","hint":"Reflexione sobre el dicho 'no pongas todos los huevos en una misma canasta'.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"Tener múltiples fuentes de suministro reduce la dependencia de un solo país o proveedor ante posibles interrupciones locales."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"Al contrario de aumentar el riesgo, esta práctica ayuda a la empresa a ser más resiliente ante crisis regionales."}]},{"question":"¿La implementación de contratos flexibles permite a las empresas adaptarse rápidamente a cambios en el entorno global?","hint":"Considere qué tipo de acuerdo legal facilitaría la reacción ante una crisis repentina.","options":[{"label":"A","text":"Falso","isCorrect":false,"rationale":"Los contratos rígidos suelen ser una barrera ante las interrupciones; la flexibilidad es lo que facilita la adaptación."},{"label":"B","text":"Verdadero","isCorrect":true,"rationale":"La flexibilidad contractual es una estrategia de mitigación que permite ajustar pedidos o condiciones ante eventos imprevistos."}]},{"question":"¿La automatización de almacenes, mediante el uso de robots, tiene como objetivo principal aumentar el costo operativo?","hint":"Piense en el impacto económico de agilizar procesos manuales como el picking y packing.","options":[{"label":"A","text":"Verdadero","isCorrect":false,"rationale":"La tecnología busca precisamente lo opuesto: maximizar la rentabilidad mediante la reducción de gastos y tiempos."},{"label":"B","text":"Falso","isCorrect":true,"rationale":"El uso de robots y sistemas autónomos busca mejorar la eficiencia operativa y reducir los costos asociados al manejo de materiales."}]},{"question":"¿La logística digital integra plataformas para la gestión en tiempo real de inventarios, rutas y proveedores?","hint":"Considere la utilidad de tener información actualizada al instante sobre el estado de un envío.","options":[{"label":"A","text":"Falso","isCorrect":false,"rationale":"La gestión en tiempo real es uno de los beneficios fundamentales de la transformación digital en la cadena de suministro."},{"label":"B","text":"Verdadero","isCorrect":true,"rationale":"La digitalización permite una visibilidad instantánea de toda la red logística para tomar decisiones rápidas."}]},{"question":"¿El uso de drones en la distribución se aplica principalmente para mejorar la eficiencia en la 'última milla' de entrega?","hint":"Identifique a qué parte del proceso logístico se refiere el término 'distribución final'.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"Empresas como UPS y FedEx utilizan drones para reducir costos y tiempos en el tramo final de la entrega, especialmente en zonas rurales."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"Aunque es una tecnología emergente, su aplicación actual más destacada es precisamente la distribución final al cliente."}]},{"question":"¿La personalización de servicios según la cultura y regulaciones de cada país es irrelevante para los clientes internacionales?","hint":"Piense si un mismo enfoque de venta funcionaría igual en Perú, Japón y Alemania.","options":[{"label":"A","text":"Verdadero","isCorrect":false,"rationale":"Ignorar las diferencias culturales y legales puede llevar al fracaso de la expansión en mercados extranjeros."},{"label":"B","text":"Falso","isCorrect":true,"rationale":"La adaptación a las normas locales y preferencias culturales es vital para la satisfacción del cliente y el cumplimiento legal."}]},{"question":"¿El análisis predictivo ayuda a las empresas a anticipar posibles interrupciones en la cadena de suministro?","hint":"Relacione el término 'predictivo' con la capacidad de ver hacia el futuro basándose en datos.","options":[{"label":"A","text":"Falso","isCorrect":false,"rationale":"La anticipación proactiva es el objetivo central de aplicar analítica avanzada en la gestión de riesgos."},{"label":"B","text":"Verdadero","isCorrect":true,"rationale":"Esta herramienta utiliza datos históricos y modelos para identificar señales de riesgo antes de que ocurran las fallas."}]},{"question":"¿Las fallas de los proveedores y los problemas de calidad se clasifican como riesgos financieros?","hint":"Considere si el problema reside en el valor de la moneda o en el proceso de fabricación.","options":[{"label":"A","text":"Falso","isCorrect":true,"rationale":"Los problemas relacionados con el desempeño del proveedor y la calidad del producto son considerados riesgos operativos."},{"label":"B","text":"Verdadero","isCorrect":false,"rationale":"Aunque tienen un impacto económico, estos problemas se derivan de la ejecución del trabajo y la producción."}]},{"question":"¿La implementación de software ERP es una parte fundamental de la transformación digital en las empresas manufactureras?","hint":"Piense en la herramienta informática básica para integrar todas las áreas de una empresa.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"Los sistemas ERP centralizan la información y optimizan los procesos internos, siendo pilares de la digitalización."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"El material destaca el ERP junto con la IA como tecnologías clave para la optimización de procesos."}]},{"question":"¿La globalización ha permitido a las empresas expandir sus redes para reducir costos y mejorar la competitividad?","hint":"Recuerde los beneficios mencionados sobre la importancia de la cadena de suministro en la economía actual.","options":[{"label":"A","text":"Falso","isCorrect":false,"rationale":"La expansión internacional es precisamente lo que impulsa la competitividad en la economía global actual."},{"label":"B","text":"Verdadero","isCorrect":true,"rationale":"Acceder a mercados y proveedores globales permite encontrar eficiencias que no siempre están disponibles localmente."}]},{"question":"¿Los vehículos autónomos son una tecnología aplicada para mejorar la eficiencia logística en zonas rurales?","hint":"Evalúe el impacto de eliminar la necesidad de un conductor humano en rutas de entrega.","options":[{"label":"A","text":"Falso","isCorrect":false,"rationale":"El material agrupa a estos vehículos con los drones como tecnologías emergentes para la distribución eficiente."},{"label":"B","text":"Verdadero","isCorrect":true,"rationale":"Tanto drones como vehículos autónomos se mencionan como soluciones para mejorar la distribución y reducir tiempos de entrega."}]},{"question":"¿El cumplimiento normativo internacional es un desafío menor cuando una empresa se expande de Latinoamérica a Europa?","hint":"Considere la complejidad legal de operar en diferentes jurisdicciones internacionales.","options":[{"label":"A","text":"Verdadero","isCorrect":false,"rationale":"Cada región tiene leyes estrictas que, si se ignoran, pueden resultar en sanciones severas o el bloqueo de operaciones."},{"label":"B","text":"Falso","isCorrect":true,"rationale":"La adaptación a las regulaciones de diferentes continentes es uno de los desafíos más complejos en la expansión global."}]},{"question":"¿La inteligencia artificial y el Machine Learning se utilizan para la optimización de procesos en las cadenas globales?","hint":"Piense en tecnologías capaces de aprender de los datos para mejorar la operación.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"Estas tecnologías permiten analizar patrones complejos y tomar decisiones automatizadas para mejorar la eficiencia."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"El material las señala específicamente como herramientas clave dentro de la transformación digital lograda por empresas líderes."}]},{"question":"¿La sostenibilidad será una de las claves para el desarrollo futuro de cadenas de suministro eficientes?","hint":"Considere las recomendaciones finales sobre el desarrollo de cadenas a largo plazo.","options":[{"label":"A","text":"Falso","isCorrect":false,"rationale":"Lejos de ser secundaria, la sostenibilidad se presenta como un factor determinante para las cadenas globales modernas."},{"label":"B","text":"Verdadero","isCorrect":true,"rationale":"Las conclusiones del material indican que la sostenibilidad, junto con la IA, definirá el desarrollo futuro de estas redes."}]},{"question":"¿La gestión eficiente de inventarios mediante técnicas avanzadas ayuda a reducir costos operativos?","hint":"Piense en el impacto de tener solo el material necesario en el momento adecuado.","options":[{"label":"A","text":"Falso","isCorrect":false,"rationale":"La optimización de inventarios es una de las recomendaciones finales para mejorar la eficiencia financiera de la empresa."},{"label":"B","text":"Verdadero","isCorrect":true,"rationale":"Optimizar el almacenamiento evita el exceso de stock y reduce los gastos asociados a la gestión de materiales."}]},{"question":"¿La automatización solo impacta en la velocidad de entrega, pero no en la reducción de errores operativos?","hint":"Considere si un robot es más o menos propenso a cometer un error de conteo que una persona cansada.","options":[{"label":"A","text":"Verdadero","isCorrect":false,"rationale":"Al eliminar el factor humano en tareas repetitivas, la automatización reduce significativamente la probabilidad de equivocaciones."},{"label":"B","text":"Falso","isCorrect":true,"rationale":"El material menciona explícitamente que la automatización en almacenes ayuda a reducir tanto los tiempos como los errores operativos."}]},{"question":"¿Los seguros de suministro son una táctica válida para la mitigación de riesgos en la cadena global?","hint":"Piense en herramientas financieras que cubren pérdidas ante accidentes o desastres.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"Contar con seguros permite a la empresa protegerse financieramente ante interrupciones imprevistas en la provisión de materiales."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"Los seguros son una de las tres estrategias de mitigación mencionadas junto a la diversificación y los contratos flexibles."}]},{"question":"¿Una empresa manufacturera que busca expandirse a Asia no necesita evaluar la calidad de sus nuevos proveedores?","hint":"Evalúe los requisitos del desafío planteado para la empresa latinoamericana.","options":[{"label":"A","text":"Verdadero","isCorrect":false,"rationale":"La evaluación de calidad es obligatoria para garantizar que el producto final cumpla con los estándares del mercado objetivo."},{"label":"B","text":"Falso","isCorrect":true,"rationale":"La evaluación de nuevos proveedores para asegurar calidad y costos competitivos es un desafío crítico identificado en el caso de estudio."}]},{"question":"¿Los retrasos logísticos se consideran un riesgo que debe ser mitigado mediante planes de contingencia?","hint":"Piense en la importancia de tener un 'Plan B' para los envíos internacionales.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"Contar con planes de respuesta rápida permite minimizar el impacto negativo de los cuellos de botella en el transporte."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"Los planes de contingencia son recomendaciones fundamentales para adaptarse a los cambios constantes del entorno global."}]},{"question":"¿La cadena de suministro global solo afecta la disponibilidad de productos, pero no influye en la satisfacción del cliente?","hint":"Considere cómo se siente un cliente cuando su pedido internacional llega tarde.","options":[{"label":"A","text":"Verdadero","isCorrect":false,"rationale":"Si un producto no llega a tiempo o en buen estado, la percepción y satisfacción del cliente se verán seriamente afectadas."},{"label":"B","text":"Falso","isCorrect":true,"rationale":"La eficiencia en la gestión global impacta directamente tanto en la disponibilidad como en la experiencia final del consumidor."}]},{"question":"¿El picking y packing son procesos que se han agilizado gracias a la robótica en almacenes automatizados?","hint":"Identifique las actividades de almacén que consisten en recoger y empacar artículos.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"La intervención de robots en la selección y empaque de productos reduce drásticamente el ciclo de procesamiento de pedidos."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"Amazon es el ejemplo principal citado de cómo los robots mejoran específicamente estas dos etapas operativas."}]},{"question":"¿La gestión de riesgos geopolíticos incluye el análisis de las restricciones gubernamentales en mercados extranjeros?","hint":"Piense en las leyes que un gobierno impone a las empresas de otros países.","options":[{"label":"A","text":"Falso","isCorrect":false,"rationale":"Las restricciones de los gobiernos son un componente central de los riesgos derivados de la política internacional."},{"label":"B","text":"Verdadero","isCorrect":true,"rationale":"Conocer las limitaciones legales impuestas por gobiernos extranjeros es esencial para evitar sanciones o bloqueos comerciales."}]}];
+const tr = {"correct":"¡Correcto!","incorrect":"Incorrecto","next":"Siguiente pregunta →","seeResults":"Ver resultados","complete":"¡Cuestionario completado!","scoreText":"Obtuviste {correct} de {total} correctas","tryAgain":"Intentar de nuevo","rightAnswer":"Respuesta correcta","notQuite":"No del todo"};
+let currentQ = 0, correctCount = 0, answered = false;
+
+function init() {
+  document.querySelectorAll('.question').forEach((q, i) => q.classList.toggle('active', i === 0));
+  updateProgress();
+  document.querySelectorAll('.option').forEach(opt => opt.addEventListener('click', () => selectOption(opt)));
+  document.querySelectorAll('.next-btn').forEach(btn => btn.addEventListener('click', nextQuestion));
+}
+
+function selectOption(opt) {
+  if (answered) return;
+  answered = true;
+  const q = opt.closest('.question');
+  const options = q.querySelectorAll('.option');
+  const nextBtn = q.querySelector('.next-btn');
+  const isCorrect = opt.dataset.correct === 'true';
+  
+  // Mark all options as disabled
+  options.forEach(o => o.classList.add('disabled'));
+  
+  // Style selected option
+  opt.classList.add('selected', isCorrect ? 'correct' : 'incorrect');
+  
+  // Show correct answer if wrong
+  if (!isCorrect) {
+    const correctOpt = [...options].find(o => o.dataset.correct === 'true');
+    if (correctOpt) correctOpt.classList.add('show-correct');
+  }
+  
+  if (isCorrect) correctCount++;
+  
+  // Show feedback for ALL options that have rationale
+  options.forEach(o => {
+    const wrapper = o.closest('.option-wrapper');
+    const feedback = wrapper.querySelector('.option-feedback');
+    const rationale = o.dataset.rationale;
+    const isThisCorrect = o.dataset.correct === 'true';
+    
+    if (rationale && rationale.trim()) {
+      feedback.classList.remove('hidden');
+      feedback.classList.add(isThisCorrect ? 'correct-feedback' : 'incorrect-feedback');
+      
+      const statusEl = feedback.querySelector('.feedback-status');
+      statusEl.className = 'feedback-status ' + (isThisCorrect ? 'correct' : 'incorrect');
+      statusEl.innerHTML = isThisCorrect 
+        ? '✓ ' + tr.rightAnswer
+        : '✗ ' + tr.notQuite;
+    }
+  });
+  
+  nextBtn.classList.remove('hidden');
+  if (currentQ === quizData.length - 1) nextBtn.textContent = tr.seeResults;
+}
+
+function nextQuestion() {
+  answered = false;
+  currentQ++;
+  if (currentQ >= quizData.length) { showResults(); return; }
+  document.querySelectorAll('.question').forEach((q, i) => q.classList.toggle('active', i === currentQ));
+  updateProgress();
+}
+
+function updateProgress() {
+  document.querySelector('.progress-fill').style.width = (currentQ / quizData.length * 100) + '%';
+}
+
+function showResults() {
+  document.querySelectorAll('.question').forEach(q => q.classList.remove('active'));
+  document.getElementById('results').classList.add('active');
+  const pct = Math.round((correctCount / quizData.length) * 100);
+  document.getElementById('score').textContent = pct + '%';
+  document.getElementById('score-text').textContent = tr.scoreText.replace('{correct}', correctCount).replace('{total}', quizData.length);
+  document.querySelector('.progress-fill').style.width = '100%';
+}
+
+function restart() {
+  currentQ = 0; correctCount = 0; answered = false;
+  document.getElementById('results').classList.remove('active');
+  document.querySelectorAll('.question').forEach((q, i) => {
+    q.classList.toggle('active', i === 0);
+    q.querySelectorAll('.option').forEach(o => o.classList.remove('selected', 'correct', 'incorrect', 'disabled', 'show-correct'));
+    q.querySelectorAll('.option-feedback').forEach(f => {
+      f.classList.add('hidden');
+      f.classList.remove('correct-feedback', 'incorrect-feedback');
+    });
+    const btn = q.querySelector('.next-btn');
+    btn.classList.add('hidden');
+    btn.textContent = tr.next;
+  });
+  updateProgress();
+}
+
+init();
+</script>
+</body>
+</html>
