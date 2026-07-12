@@ -1,0 +1,1386 @@
+<!DOCTYPE html>
+<html lang="es" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>S8 ZEGEL IC</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  min-height: 100vh; padding: 20px; color: #333;
+}
+.container { max-width: 700px; margin: 0 auto; }
+.header { text-align: center; color: #fff; padding: 30px 20px; }
+.header h1 { font-size: 28px; font-weight: 700; margin-bottom: 8px; text-shadow: 0 2px 10px rgba(0,0,0,0.2); }
+.header .meta { font-size: 14px; opacity: 0.9; }
+.progress-bar { background: rgba(255,255,255,0.3); border-radius: 10px; height: 8px; margin: 20px 0; overflow: hidden; }
+.progress-fill { background: #fff; height: 100%; width: 0%; transition: width 0.4s ease; border-radius: 10px; }
+.question { background: #fff; border-radius: 16px; padding: 30px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); display: none; }
+.question.active { display: block; }
+.q-header { display: flex; justify-content: space-between; margin-bottom: 20px; font-size: 13px; color: #888; }
+.q-number { font-weight: 600; color: #667eea; }
+.q-text { font-size: 18px; font-weight: 600; line-height: 1.5; margin-bottom: 25px; color: #222; }
+.options { display: flex; flex-direction: column; gap: 12px; }
+.option-wrapper { display: flex; flex-direction: column; }
+.option {
+  display: flex; align-items: flex-start; gap: 14px; padding: 16px 18px;
+  border: 2px solid #e8e8e8; border-radius: 12px; background: #fafafa;
+  cursor: pointer; transition: all 0.2s; text-align: left; font-size: 15px; width: 100%;
+}
+[dir="rtl"] .option { text-align: right; flex-direction: row-reverse; }
+.option:hover:not(.disabled) { border-color: #667eea; background: #f5f3ff; }
+.option.selected { border-color: #667eea; background: #ede9fe; }
+.option.correct { border-color: #22c55e; background: #dcfce7; }
+.option.incorrect { border-color: #ef4444; background: #fee2e2; }
+.option.disabled { cursor: default; }
+.option.show-correct { border-color: #22c55e; background: #dcfce7; }
+.opt-label {
+  display: flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; border-radius: 50%; background: #e8e8e8;
+  font-weight: 700; font-size: 14px; flex-shrink: 0;
+}
+.option.selected .opt-label { background: #667eea; color: #fff; }
+.option.correct .opt-label { background: #22c55e; color: #fff; }
+.option.incorrect .opt-label { background: #ef4444; color: #fff; }
+.option.show-correct .opt-label { background: #22c55e; color: #fff; }
+.opt-text { padding-top: 5px; line-height: 1.5; }
+
+/* Individual option feedback */
+.option-feedback {
+  margin: 8px 0 4px 46px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+[dir="rtl"] .option-feedback { margin-left: 0; margin-right: 46px; }
+.option-feedback.correct-feedback {
+  background: #dcfce7;
+  border-left: 3px solid #22c55e;
+}
+.option-feedback.incorrect-feedback {
+  background: #fef3f2;
+  border-left: 3px solid #fca5a5;
+}
+[dir="rtl"] .option-feedback.correct-feedback,
+[dir="rtl"] .option-feedback.incorrect-feedback {
+  border-left: none;
+  border-right: 3px solid;
+}
+[dir="rtl"] .option-feedback.correct-feedback { border-right-color: #22c55e; }
+[dir="rtl"] .option-feedback.incorrect-feedback { border-right-color: #fca5a5; }
+.feedback-status {
+  font-weight: 600;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.feedback-status.correct { color: #166534; }
+.feedback-status.incorrect { color: #991b1b; }
+.feedback-rationale { color: #444; }
+
+/* Hint box */
+.hint-box {
+  margin: 12px 0;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+}
+.hint-toggle {
+  width: 100%;
+  padding: 10px 16px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  color: #92400e;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.hint-toggle:hover { background: #fef3c7; }
+.hint-content {
+  padding: 0 16px;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s, padding 0.3s;
+  font-size: 14px;
+  color: #78350f;
+  line-height: 1.5;
+}
+.hint-box.show .hint-content {
+  padding: 0 16px 12px;
+  max-height: 200px;
+}
+
+.next-btn {
+  margin-top: 20px; width: 100%; padding: 14px;
+  background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; border: none;
+  border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.next-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(102,126,234,0.4); }
+.hidden { display: none !important; }
+.results { background: #fff; border-radius: 16px; padding: 40px; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.15); display: none; }
+.results.active { display: block; }
+.results h2 { font-size: 28px; margin-bottom: 10px; color: #333; }
+.results .score { font-size: 64px; font-weight: 700; color: #667eea; margin: 20px 0; }
+.results .score-text { font-size: 18px; color: #666; margin-bottom: 30px; }
+.restart-btn {
+  padding: 14px 40px; background: linear-gradient(135deg, #667eea, #764ba2);
+  color: #fff; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer;
+}
+
+/* Math CSS */
+.math, .math-block { font-family: "Cambria Math", "Times New Roman", Times, serif; font-style: italic; }
+.math-block { display: block; text-align: center; margin: 10px 0; font-size: 110%; }
+.frac { display: inline-flex; flex-direction: column; align-items: center; vertical-align: middle; margin: 0 3px; font-size: 0.9em; }
+.frac-num { border-bottom: 1px solid currentColor; padding: 0 4px 2px; line-height: 1.2; }
+.frac-den { padding: 2px 4px 0; line-height: 1.2; }
+.sqrt { white-space: nowrap; }
+.sqrt-content { border-top: 1px solid currentColor; padding: 0 3px; margin-left: 2px; }
+sup, sub { font-size: 0.75em; }
+sup { vertical-align: super; }
+sub { vertical-align: sub; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>S8 ZEGEL IC</h1>
+    <div class="meta">28 preguntas</div>
+    <div class="progress-bar"><div class="progress-fill"></div></div>
+  </div>
+  <div id="quiz-container">
+        <div class="question" data-index="0">
+          <div class="q-header">
+            <span class="q-number">Pregunta 1</span>
+            <span class="q-of">/ 28</span>
+          </div>
+          <div class="q-text">¿La variable se define como una característica o cualidad de un fenómeno que es susceptible de ser medida u observada?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Recuerda la pregunta guía sobre qué queremos medir exactamente.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="La definición establece que una variable es cualquier propiedad que puede tomar distintos valores y ser objeto de medición.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La definición establece que una variable es cualquier propiedad que puede tomar distintos valores y ser objeto de medición.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Esta afirmación contradice la definición fundamental de variable presentada como concepto clave en la investigación.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esta afirmación contradice la definición fundamental de variable presentada como concepto clave en la investigación.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="1">
+          <div class="q-header">
+            <span class="q-number">Pregunta 2</span>
+            <span class="q-of">/ 28</span>
+          </div>
+          <div class="q-text">¿Los cuestionarios validados que se encuentran en bases de datos académicas se consideran datos primarios para el investigador que los busca?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Diferencia entre la información recolectada por uno mismo y la generada por terceros.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="El material indica que los cuestionarios validados que se buscan en repositorios son un dato secundario clave.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El material indica que los cuestionarios validados que se buscan en repositorios son un dato secundario clave.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Aunque se usarán para recolectar datos primarios, el cuestionario ya existente en un paper es información generada por terceros.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aunque se usarán para recolectar datos primarios, el cuestionario ya existente en un paper es información generada por terceros.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="2">
+          <div class="q-header">
+            <span class="q-number">Pregunta 3</span>
+            <span class="q-of">/ 28</span>
+          </div>
+          <div class="q-text">¿La encuesta y el cuestionario son términos sinónimos que representan el documento físico de recolección de datos?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considera la distinción entre 'técnica' e 'instrumento'.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="La encuesta es la técnica o procedimiento, mientras que el cuestionario es el instrumento o documento físico/digital.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La encuesta es la técnica o procedimiento, mientras que el cuestionario es el instrumento o documento físico/digital.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El texto aclara explícitamente que no son sinónimos, diferenciando entre el método y el documento.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El texto aclara explícitamente que no son sinónimos, diferenciando entre el método y el documento.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="3">
+          <div class="q-header">
+            <span class="q-number">Pregunta 4</span>
+            <span class="q-of">/ 28</span>
+          </div>
+          <div class="q-text">¿La validez de un instrumento evalúa si este realmente mide el concepto o variable que se propone estudiar?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piensa en el propósito de 'medir lo que dice medir'.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="La validez asegura que el instrumento capte la variable objetivo y no una distinta, como el ejemplo del estrés vs. satisfacción.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La validez asegura que el instrumento capte la variable objetivo y no una distinta, como el ejemplo del estrés vs. satisfacción.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Esta es la definición central de validez; lo contrario implicaría que el instrumento mide algo irrelevante para el estudio.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esta es la definición central de validez; lo contrario implicaría que el instrumento mide algo irrelevante para el estudio.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="4">
+          <div class="q-header">
+            <span class="q-number">Pregunta 5</span>
+            <span class="q-of">/ 28</span>
+          </div>
+          <div class="q-text">¿La confiabilidad se refiere a la consistencia y estabilidad de los resultados al repetir la aplicación del instrumento?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Relaciona este concepto con la repetibilidad de los hallazgos.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Un instrumento confiable debe arrojar resultados similares bajo condiciones constantes en distintas ocasiones.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Un instrumento confiable debe arrojar resultados similares bajo condiciones constantes en distintas ocasiones.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="La estabilidad de los resultados es la esencia de la confiabilidad, no de la validez.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La estabilidad de los resultados es la esencia de la confiabilidad, no de la validez.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="5">
+          <div class="q-header">
+            <span class="q-number">Pregunta 6</span>
+            <span class="q-of">/ 28</span>
+          </div>
+          <div class="q-text">¿El coeficiente Alfa de Cronbach (<span class="math">α</span>) se utiliza comúnmente para reportar la validez de un cuestionario?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Identifica a cuál de los dos 'pilares científicos' pertenece este estadístico.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="El Alfa de Cronbach es un estadístico diseñado específicamente para medir la confiabilidad, no la validez.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El Alfa de Cronbach es un estadístico diseñado específicamente para medir la confiabilidad, no la validez.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Este coeficiente es la medida estándar para reportar la consistencia interna o confiabilidad del instrumento.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Este coeficiente es la medida estándar para reportar la consistencia interna o confiabilidad del instrumento.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="6">
+          <div class="q-header">
+            <span class="q-number">Pregunta 7</span>
+            <span class="q-of">/ 28</span>
+          </div>
+          <div class="q-text">¿Para que un instrumento sea considerado confiable, los valores del Alfa de Cronbach (<span class="math">α</span>) deben ser cercanos a 0?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Recuerda qué extremo de la escala de 0 a 1 representa mayor consistencia.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Los valores ideales para demostrar una alta confiabilidad deben ser cercanos a 1.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Los valores ideales para demostrar una alta confiabilidad deben ser cercanos a 1.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Valores cercanos a 0 indican una nula consistencia interna en las respuestas del instrumento.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Valores cercanos a 0 indican una nula consistencia interna en las respuestas del instrumento.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="7">
+          <div class="q-header">
+            <span class="q-number">Pregunta 8</span>
+            <span class="q-of">/ 28</span>
+          </div>
+          <div class="q-text">¿ALICIA y RENATI son repositorios académicos que agrupan principalmente tesis y producción científica peruana?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Determina el alcance geográfico de estas bases de datos.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Ambas plataformas son fuentes nacionales clave para acceder a la investigación académica realizada en el Perú.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Ambas plataformas son fuentes nacionales clave para acceder a la investigación académica realizada en el Perú.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El material las identifica específicamente como repositorios nacionales para la búsqueda de instrumentos.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El material las identifica específicamente como repositorios nacionales para la búsqueda de instrumentos.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="8">
+          <div class="q-header">
+            <span class="q-number">Pregunta 9</span>
+            <span class="q-of">/ 28</span>
+          </div>
+          <div class="q-text">¿SciELO y Redalyc son bases de datos que indexan revistas científicas de Latinoamérica?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piensa en el origen de las revistas que estas bases suelen albergar.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Estas fuentes son mencionadas explícitamente como bases de datos para encontrar instrumentos validados en la región.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Estas fuentes son mencionadas explícitamente como bases de datos para encontrar instrumentos validados en la región.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Son plataformas regionales reconocidas que permiten encontrar cuestionarios con respaldo científico en español.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Son plataformas regionales reconocidas que permiten encontrar cuestionarios con respaldo científico en español.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="9">
+          <div class="q-header">
+            <span class="q-number">Pregunta 10</span>
+            <span class="q-of">/ 28</span>
+          </div>
+          <div class="q-text">¿El cuestionario completo de una investigación suele encontrarse detallado dentro del capítulo de 'Metodología'?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Distingue entre la descripción del instrumento y su visualización total.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="En la metodología se describe el instrumento, pero el documento íntegro se ubica casi siempre al final del trabajo.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">En la metodología se describe el instrumento, pero el documento íntegro se ubica casi siempre al final del trabajo.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="La estructura estándar de un paper o tesis sitúa el cuestionario completo en la sección de 'Anexos'.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La estructura estándar de un paper o tesis sitúa el cuestionario completo en la sección de 'Anexos'.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="10">
+          <div class="q-header">
+            <span class="q-number">Pregunta 11</span>
+            <span class="q-of">/ 28</span>
+          </div>
+          <div class="q-text">¿La escala SERVQUAL está compuesta por 22 preguntas o ítems?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Revisa los datos específicos de la ficha técnica de Parasuraman et al.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Según la ficha técnica del ejemplo, 22 es el número correcto de ítems para esta escala de calidad.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Según la ficha técnica del ejemplo, 22 es el número correcto de ítems para esta escala de calidad.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="El ejemplo práctico detalla que este instrumento validado consta de exactamente 22 preguntas.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El ejemplo práctico detalla que este instrumento validado consta de exactamente 22 preguntas.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="11">
+          <div class="q-header">
+            <span class="q-number">Pregunta 12</span>
+            <span class="q-of">/ 28</span>
+          </div>
+          <div class="q-text">¿Las dimensiones de la escala SERVQUAL incluyen elementos tangibles, fiabilidad, capacidad de respuesta, seguridad y empatía?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Recuerda las categorías en las que se agrupan los 22 ítems de este ejemplo.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Estas son las cinco dimensiones estándar que utiliza este instrumento para medir la calidad del servicio.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Estas son las cinco dimensiones estándar que utiliza este instrumento para medir la calidad del servicio.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El material enumera estas cinco dimensiones como la estructura fundamental del SERVQUAL.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El material enumera estas cinco dimensiones como la estructura fundamental del SERVQUAL.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="12">
+          <div class="q-header">
+            <span class="q-number">Pregunta 13</span>
+            <span class="q-of">/ 28</span>
+          </div>
+          <div class="q-text">¿Un beneficio de utilizar instrumentos ya validados es que se garantiza la comparabilidad de los datos con otros estudios?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piensa en la utilidad de tener un respaldo científico previo.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Al usar el mismo instrumento probado, los resultados pueden compararse directamente con investigaciones previas en el mismo sector.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Al usar el mismo instrumento probado, los resultados pueden compararse directamente con investigaciones previas en el mismo sector.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="La comparabilidad es, de hecho, una ventaja crítica destacada frente a la creación de instrumentos propios sin validar.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La comparabilidad es, de hecho, una ventaja crítica destacada frente a la creación de instrumentos propios sin validar.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="13">
+          <div class="q-header">
+            <span class="q-number">Pregunta 14</span>
+            <span class="q-of">/ 28</span>
+          </div>
+          <div class="q-text">¿Un instrumento sin validar suele presentar preguntas ambiguas o mal formuladas?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considera los riesgos de 'reinventar la rueda'.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="El material advierte que la ambigüedad es un riesgo directo de no utilizar instrumentos previamente probados.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El material advierte que la ambigüedad es un riesgo directo de no utilizar instrumentos previamente probados.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="La falta de validación científica a menudo conlleva errores en la redacción de los ítems, afectando la calidad del dato.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La falta de validación científica a menudo conlleva errores en la redacción de los ítems, afectando la calidad del dato.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="14">
+          <div class="q-header">
+            <span class="q-number">Pregunta 15</span>
+            <span class="q-of">/ 28</span>
+          </div>
+          <div class="q-text">¿La técnica de la encuesta se define como el método sistemático para recopilar información de una muestra de personas?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Enfócate en la encuesta como un proceso o método de investigación.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Esta es la definición exacta proporcionada para la técnica, distinguiéndola del instrumento físico.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esta es la definición exacta proporcionada para la técnica, distinguiéndola del instrumento físico.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="La encuesta es el procedimiento metodológico general que utiliza preguntas para obtener datos.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La encuesta es el procedimiento metodológico general que utiliza preguntas para obtener datos.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="15">
+          <div class="q-header">
+            <span class="q-number">Pregunta 16</span>
+            <span class="q-of">/ 28</span>
+          </div>
+          <div class="q-text">¿La ficha técnica del instrumento debe localizarse exclusivamente en los anexos del documento?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Recuerda en qué parte del texto se describen los materiales y métodos.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="La ficha técnica se ubica dentro de la Metodología para describir el instrumento; los anexos contienen el cuestionario íntegro.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La ficha técnica se ubica dentro de la Metodología para describir el instrumento; los anexos contienen el cuestionario íntegro.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="La ficha técnica, que incluye autor y dimensiones, se busca y ubica en el capítulo de Metodología.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La ficha técnica, que incluye autor y dimensiones, se busca y ubica en el capítulo de Metodología.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="16">
+          <div class="q-header">
+            <span class="q-number">Pregunta 17</span>
+            <span class="q-of">/ 28</span>
+          </div>
+          <div class="q-text">¿Un ítem en escala Likert de 5 puntos siempre requiere que el encuestado responda con una sola palabra abierta?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Observa las opciones de respuesta del ejemplo SERVQUAL.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="La escala Likert es cerrada y ofrece niveles de acuerdo, no es una pregunta de respuesta abierta.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La escala Likert es cerrada y ofrece niveles de acuerdo, no es una pregunta de respuesta abierta.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="La escala Likert utiliza niveles graduados (como del 1 al 5) que van desde el total desacuerdo hasta el total acuerdo.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La escala Likert utiliza niveles graduados (como del 1 al 5) que van desde el total desacuerdo hasta el total acuerdo.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="17">
+          <div class="q-header">
+            <span class="q-number">Pregunta 18</span>
+            <span class="q-of">/ 28</span>
+          </div>
+          <div class="q-text">¿Es posible encontrar cuestionarios validados buscando en los repositorios institucionales de las universidades?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piensa en dónde se almacenan los trabajos de grado y tesis.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Las universidades publican las tesis de sus egresados, las cuales suelen incluir los instrumentos utilizados en sus anexos.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Las universidades publican las tesis de sus egresados, las cuales suelen incluir los instrumentos utilizados en sus anexos.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Los repositorios universitarios son fuentes legítimas mencionadas para hallar producción científica y sus instrumentos.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Los repositorios universitarios son fuentes legítimas mencionadas para hallar producción científica y sus instrumentos.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="18">
+          <div class="q-header">
+            <span class="q-number">Pregunta 19</span>
+            <span class="q-of">/ 28</span>
+          </div>
+          <div class="q-text">¿La validación científica de un instrumento asegura que los resultados sean poco confiables?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considera si la validación suma o resta calidad a la investigación.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Un instrumento validado es la base de una investigación profesional porque garantiza que los datos sean confiables.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Un instrumento validado es la base de una investigación profesional porque garantiza que los datos sean confiables.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="La validación busca precisamente lo opuesto: otorgar rigurosidad y confiabilidad a la investigación.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La validación busca precisamente lo opuesto: otorgar rigurosidad y confiabilidad a la investigación.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="19">
+          <div class="q-header">
+            <span class="q-number">Pregunta 20</span>
+            <span class="q-of">/ 28</span>
+          </div>
+          <div class="q-text">¿Para realizar una búsqueda efectiva en Google Académico, se recomienda usar el comando: variable de estudio + 'cuestionario'?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Revisa los pasos sugeridos en la actividad del taller grupal.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="El taller práctico sugiere este comando exacto como paso para encontrar instrumentos validados eficientemente.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El taller práctico sugiere este comando exacto como paso para encontrar instrumentos validados eficientemente.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Este comando permite filtrar documentos que traten sobre la variable y que específicamente mencionen el instrumento de recolección.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Este comando permite filtrar documentos que traten sobre la variable y que específicamente mencionen el instrumento de recolección.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="20">
+          <div class="q-header">
+            <span class="q-number">Pregunta 21</span>
+            <span class="q-of">/ 28</span>
+          </div>
+          <div class="q-text">¿La rigurosidad científica se pierde al utilizar un instrumento que ya ha sido probado en estudios previos?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piensa si seguir métodos científicos establecidos debilita o fortalece tu trabajo.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="El uso de instrumentos validados es el punto de partida para una investigación rigurosa y profesional.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El uso de instrumentos validados es el punto de partida para una investigación rigurosa y profesional.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Al contrario, utilizar herramientas ya validadas por otros científicos aumenta el rigor del nuevo estudio.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Al contrario, utilizar herramientas ya validadas por otros científicos aumenta el rigor del nuevo estudio.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="21">
+          <div class="q-header">
+            <span class="q-number">Pregunta 22</span>
+            <span class="q-of">/ 28</span>
+          </div>
+          <div class="q-text">¿El ejemplo de ítem 'El personal me brinda una atención rápida y oportuna' pertenece a una escala de tipo nominal?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Identifica el formato de respuesta del 1 al 5 mostrado en el ejemplo.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Este ítem se presenta bajo una escala Likert de 5 puntos para medir el nivel de acuerdo del usuario.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Este ítem se presenta bajo una escala Likert de 5 puntos para medir el nivel de acuerdo del usuario.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Este tipo de ítems con niveles de acuerdo (1 al 5) pertenecen a una escala Likert, no nominal.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Este tipo de ítems con niveles de acuerdo (1 al 5) pertenecen a una escala Likert, no nominal.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="22">
+          <div class="q-header">
+            <span class="q-number">Pregunta 23</span>
+            <span class="q-of">/ 28</span>
+          </div>
+          <div class="q-text">¿La confiabilidad evalúa si el instrumento captura un concepto distinto al que se propone estudiar?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">No confundas la precisión del concepto con la estabilidad de los datos.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Capturar un concepto equivocado es un problema de validez, no de confiabilidad.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Capturar un concepto equivocado es un problema de validez, no de confiabilidad.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="La confiabilidad se centra exclusivamente en la estabilidad y consistencia de los resultados obtenidos.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La confiabilidad se centra exclusivamente en la estabilidad y consistencia de los resultados obtenidos.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="23">
+          <div class="q-header">
+            <span class="q-number">Pregunta 24</span>
+            <span class="q-of">/ 28</span>
+          </div>
+          <div class="q-text">¿La búsqueda y selección de cuestionarios previamente validados permite un ahorro de tiempo en la investigación de mercado?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Recuerda los beneficios destacados al inicio de la presentación.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Evitar la creación y validación desde cero de un instrumento nuevo optimiza los tiempos del investigador.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Evitar la creación y validación desde cero de un instrumento nuevo optimiza los tiempos del investigador.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El ahorro de tiempo es una de las tres ventajas principales mencionadas en el logro de la sesión.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El ahorro de tiempo es una de las tres ventajas principales mencionadas en el logro de la sesión.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="24">
+          <div class="q-header">
+            <span class="q-number">Pregunta 25</span>
+            <span class="q-of">/ 28</span>
+          </div>
+          <div class="q-text">¿En la estructura de un paper, la confiabilidad del instrumento se reporta usualmente con datos estadísticos?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considera qué tipo de información respalda la consistencia del instrumento.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Se requiere reportar coeficientes como el Alfa de Cronbach para demostrar científicamente que el instrumento es estable.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Se requiere reportar coeficientes como el Alfa de Cronbach para demostrar científicamente que el instrumento es estable.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El material indica que se debe revisar si reportan el estadístico de fiabilidad en el documento analizado.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El material indica que se debe revisar si reportan el estadístico de fiabilidad en el documento analizado.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="25">
+          <div class="q-header">
+            <span class="q-number">Pregunta 26</span>
+            <span class="q-of">/ 28</span>
+          </div>
+          <div class="q-text">¿El comando de búsqueda sugerido en el taller grupal prioriza la descarga de archivos en formato PDF?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Identifica el formato de archivo común en la literatura científica.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Los papers y tesis en repositorios académicos suelen estar disponibles principalmente en formato PDF para su lectura y descarga.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Los papers y tesis en repositorios académicos suelen estar disponibles principalmente en formato PDF para su lectura y descarga.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El paso 3 del taller menciona explícitamente descargar el PDF del paper o tesis para localizar los ítems.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El paso 3 del taller menciona explícitamente descargar el PDF del paper o tesis para localizar los ítems.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="26">
+          <div class="q-header">
+            <span class="q-number">Pregunta 27</span>
+            <span class="q-of">/ 28</span>
+          </div>
+          <div class="q-text">¿Un cuestionario validado garantiza que las preguntas no sean ambiguas?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piensa en la ventaja de usar 'ítems probados en estudios previos'.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="La validación previa asegura que los ítems han sido probados y entendidos correctamente por los sujetos de estudio.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La validación previa asegura que los ítems han sido probados y entendidos correctamente por los sujetos de estudio.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Eliminar la ambigüedad es precisamente uno de los beneficios de usar instrumentos que ya pasaron por rigor científico.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Eliminar la ambigüedad es precisamente uno de los beneficios de usar instrumentos que ya pasaron por rigor científico.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="27">
+          <div class="q-header">
+            <span class="q-number">Pregunta 28</span>
+            <span class="q-of">/ 28</span>
+          </div>
+          <div class="q-text">¿La escala Likert de 5 puntos utilizada en SERVQUAL ofrece opciones que van desde 'Total desacuerdo' hasta 'Total acuerdo'?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Observa los extremos de la escala numérica presentados en las diapositivas.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Esta es la estructura exacta mostrada en el esquema del ejemplo práctico de la sesión.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esta es la estructura exacta mostrada en el esquema del ejemplo práctico de la sesión.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="El ejemplo práctico muestra esta progresión clásica de 5 niveles para medir la percepción del cliente.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El ejemplo práctico muestra esta progresión clásica de 5 niveles para medir la percepción del cliente.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      </div>
+  <div class="results" id="results">
+    <h2>¡Cuestionario completado!</h2>
+    <div class="score" id="score">0%</div>
+    <div class="score-text" id="score-text"></div>
+    <button class="restart-btn" onclick="restart()">Intentar de nuevo</button>
+  </div>
+</div>
+<script>
+const quizData = [{"question":"¿La variable se define como una característica o cualidad de un fenómeno que es susceptible de ser medida u observada?","hint":"Recuerda la pregunta guía sobre qué queremos medir exactamente.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"La definición establece que una variable es cualquier propiedad que puede tomar distintos valores y ser objeto de medición."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"Esta afirmación contradice la definición fundamental de variable presentada como concepto clave en la investigación."}]},{"question":"¿Los cuestionarios validados que se encuentran en bases de datos académicas se consideran datos primarios para el investigador que los busca?","hint":"Diferencia entre la información recolectada por uno mismo y la generada por terceros.","options":[{"label":"A","text":"Falso","isCorrect":true,"rationale":"El material indica que los cuestionarios validados que se buscan en repositorios son un dato secundario clave."},{"label":"B","text":"Verdadero","isCorrect":false,"rationale":"Aunque se usarán para recolectar datos primarios, el cuestionario ya existente en un paper es información generada por terceros."}]},{"question":"¿La encuesta y el cuestionario son términos sinónimos que representan el documento físico de recolección de datos?","hint":"Considera la distinción entre 'técnica' e 'instrumento'.","options":[{"label":"A","text":"Falso","isCorrect":true,"rationale":"La encuesta es la técnica o procedimiento, mientras que el cuestionario es el instrumento o documento físico/digital."},{"label":"B","text":"Verdadero","isCorrect":false,"rationale":"El texto aclara explícitamente que no son sinónimos, diferenciando entre el método y el documento."}]},{"question":"¿La validez de un instrumento evalúa si este realmente mide el concepto o variable que se propone estudiar?","hint":"Piensa en el propósito de 'medir lo que dice medir'.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"La validez asegura que el instrumento capte la variable objetivo y no una distinta, como el ejemplo del estrés vs. satisfacción."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"Esta es la definición central de validez; lo contrario implicaría que el instrumento mide algo irrelevante para el estudio."}]},{"question":"¿La confiabilidad se refiere a la consistencia y estabilidad de los resultados al repetir la aplicación del instrumento?","hint":"Relaciona este concepto con la repetibilidad de los hallazgos.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"Un instrumento confiable debe arrojar resultados similares bajo condiciones constantes en distintas ocasiones."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"La estabilidad de los resultados es la esencia de la confiabilidad, no de la validez."}]},{"question":"¿El coeficiente Alfa de Cronbach ($\\alpha$) se utiliza comúnmente para reportar la validez de un cuestionario?","hint":"Identifica a cuál de los dos 'pilares científicos' pertenece este estadístico.","options":[{"label":"A","text":"Verdadero","isCorrect":false,"rationale":"El Alfa de Cronbach es un estadístico diseñado específicamente para medir la confiabilidad, no la validez."},{"label":"B","text":"Falso","isCorrect":true,"rationale":"Este coeficiente es la medida estándar para reportar la consistencia interna o confiabilidad del instrumento."}]},{"question":"¿Para que un instrumento sea considerado confiable, los valores del Alfa de Cronbach ($\\alpha$) deben ser cercanos a 0?","hint":"Recuerda qué extremo de la escala de 0 a 1 representa mayor consistencia.","options":[{"label":"A","text":"Falso","isCorrect":true,"rationale":"Los valores ideales para demostrar una alta confiabilidad deben ser cercanos a 1."},{"label":"B","text":"Verdadero","isCorrect":false,"rationale":"Valores cercanos a 0 indican una nula consistencia interna en las respuestas del instrumento."}]},{"question":"¿ALICIA y RENATI son repositorios académicos que agrupan principalmente tesis y producción científica peruana?","hint":"Determina el alcance geográfico de estas bases de datos.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"Ambas plataformas son fuentes nacionales clave para acceder a la investigación académica realizada en el Perú."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"El material las identifica específicamente como repositorios nacionales para la búsqueda de instrumentos."}]},{"question":"¿SciELO y Redalyc son bases de datos que indexan revistas científicas de Latinoamérica?","hint":"Piensa en el origen de las revistas que estas bases suelen albergar.","options":[{"label":"A","text":"Falso","isCorrect":false,"rationale":"Estas fuentes son mencionadas explícitamente como bases de datos para encontrar instrumentos validados en la región."},{"label":"B","text":"Verdadero","isCorrect":true,"rationale":"Son plataformas regionales reconocidas que permiten encontrar cuestionarios con respaldo científico en español."}]},{"question":"¿El cuestionario completo de una investigación suele encontrarse detallado dentro del capítulo de 'Metodología'?","hint":"Distingue entre la descripción del instrumento y su visualización total.","options":[{"label":"A","text":"Verdadero","isCorrect":false,"rationale":"En la metodología se describe el instrumento, pero el documento íntegro se ubica casi siempre al final del trabajo."},{"label":"B","text":"Falso","isCorrect":true,"rationale":"La estructura estándar de un paper o tesis sitúa el cuestionario completo en la sección de 'Anexos'."}]},{"question":"¿La escala SERVQUAL está compuesta por 22 preguntas o ítems?","hint":"Revisa los datos específicos de la ficha técnica de Parasuraman et al.","options":[{"label":"A","text":"Falso","isCorrect":false,"rationale":"Según la ficha técnica del ejemplo, 22 es el número correcto de ítems para esta escala de calidad."},{"label":"B","text":"Verdadero","isCorrect":true,"rationale":"El ejemplo práctico detalla que este instrumento validado consta de exactamente 22 preguntas."}]},{"question":"¿Las dimensiones de la escala SERVQUAL incluyen elementos tangibles, fiabilidad, capacidad de respuesta, seguridad y empatía?","hint":"Recuerda las categorías en las que se agrupan los 22 ítems de este ejemplo.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"Estas son las cinco dimensiones estándar que utiliza este instrumento para medir la calidad del servicio."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"El material enumera estas cinco dimensiones como la estructura fundamental del SERVQUAL."}]},{"question":"¿Un beneficio de utilizar instrumentos ya validados es que se garantiza la comparabilidad de los datos con otros estudios?","hint":"Piensa en la utilidad de tener un respaldo científico previo.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"Al usar el mismo instrumento probado, los resultados pueden compararse directamente con investigaciones previas en el mismo sector."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"La comparabilidad es, de hecho, una ventaja crítica destacada frente a la creación de instrumentos propios sin validar."}]},{"question":"¿Un instrumento sin validar suele presentar preguntas ambiguas o mal formuladas?","hint":"Considera los riesgos de 'reinventar la rueda'.","options":[{"label":"A","text":"Falso","isCorrect":false,"rationale":"El material advierte que la ambigüedad es un riesgo directo de no utilizar instrumentos previamente probados."},{"label":"B","text":"Verdadero","isCorrect":true,"rationale":"La falta de validación científica a menudo conlleva errores en la redacción de los ítems, afectando la calidad del dato."}]},{"question":"¿La técnica de la encuesta se define como el método sistemático para recopilar información de una muestra de personas?","hint":"Enfócate en la encuesta como un proceso o método de investigación.","options":[{"label":"A","text":"Falso","isCorrect":false,"rationale":"Esta es la definición exacta proporcionada para la técnica, distinguiéndola del instrumento físico."},{"label":"B","text":"Verdadero","isCorrect":true,"rationale":"La encuesta es el procedimiento metodológico general que utiliza preguntas para obtener datos."}]},{"question":"¿La ficha técnica del instrumento debe localizarse exclusivamente en los anexos del documento?","hint":"Recuerda en qué parte del texto se describen los materiales y métodos.","options":[{"label":"A","text":"Verdadero","isCorrect":false,"rationale":"La ficha técnica se ubica dentro de la Metodología para describir el instrumento; los anexos contienen el cuestionario íntegro."},{"label":"B","text":"Falso","isCorrect":true,"rationale":"La ficha técnica, que incluye autor y dimensiones, se busca y ubica en el capítulo de Metodología."}]},{"question":"¿Un ítem en escala Likert de 5 puntos siempre requiere que el encuestado responda con una sola palabra abierta?","hint":"Observa las opciones de respuesta del ejemplo SERVQUAL.","options":[{"label":"A","text":"Verdadero","isCorrect":false,"rationale":"La escala Likert es cerrada y ofrece niveles de acuerdo, no es una pregunta de respuesta abierta."},{"label":"B","text":"Falso","isCorrect":true,"rationale":"La escala Likert utiliza niveles graduados (como del 1 al 5) que van desde el total desacuerdo hasta el total acuerdo."}]},{"question":"¿Es posible encontrar cuestionarios validados buscando en los repositorios institucionales de las universidades?","hint":"Piensa en dónde se almacenan los trabajos de grado y tesis.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"Las universidades publican las tesis de sus egresados, las cuales suelen incluir los instrumentos utilizados en sus anexos."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"Los repositorios universitarios son fuentes legítimas mencionadas para hallar producción científica y sus instrumentos."}]},{"question":"¿La validación científica de un instrumento asegura que los resultados sean poco confiables?","hint":"Considera si la validación suma o resta calidad a la investigación.","options":[{"label":"A","text":"Falso","isCorrect":true,"rationale":"Un instrumento validado es la base de una investigación profesional porque garantiza que los datos sean confiables."},{"label":"B","text":"Verdadero","isCorrect":false,"rationale":"La validación busca precisamente lo opuesto: otorgar rigurosidad y confiabilidad a la investigación."}]},{"question":"¿Para realizar una búsqueda efectiva en Google Académico, se recomienda usar el comando: variable de estudio + 'cuestionario'?","hint":"Revisa los pasos sugeridos en la actividad del taller grupal.","options":[{"label":"A","text":"Falso","isCorrect":false,"rationale":"El taller práctico sugiere este comando exacto como paso para encontrar instrumentos validados eficientemente."},{"label":"B","text":"Verdadero","isCorrect":true,"rationale":"Este comando permite filtrar documentos que traten sobre la variable y que específicamente mencionen el instrumento de recolección."}]},{"question":"¿La rigurosidad científica se pierde al utilizar un instrumento que ya ha sido probado en estudios previos?","hint":"Piensa si seguir métodos científicos establecidos debilita o fortalece tu trabajo.","options":[{"label":"A","text":"Falso","isCorrect":true,"rationale":"El uso de instrumentos validados es el punto de partida para una investigación rigurosa y profesional."},{"label":"B","text":"Verdadero","isCorrect":false,"rationale":"Al contrario, utilizar herramientas ya validadas por otros científicos aumenta el rigor del nuevo estudio."}]},{"question":"¿El ejemplo de ítem 'El personal me brinda una atención rápida y oportuna' pertenece a una escala de tipo nominal?","hint":"Identifica el formato de respuesta del 1 al 5 mostrado en el ejemplo.","options":[{"label":"A","text":"Falso","isCorrect":true,"rationale":"Este ítem se presenta bajo una escala Likert de 5 puntos para medir el nivel de acuerdo del usuario."},{"label":"B","text":"Verdadero","isCorrect":false,"rationale":"Este tipo de ítems con niveles de acuerdo (1 al 5) pertenecen a una escala Likert, no nominal."}]},{"question":"¿La confiabilidad evalúa si el instrumento captura un concepto distinto al que se propone estudiar?","hint":"No confundas la precisión del concepto con la estabilidad de los datos.","options":[{"label":"A","text":"Verdadero","isCorrect":false,"rationale":"Capturar un concepto equivocado es un problema de validez, no de confiabilidad."},{"label":"B","text":"Falso","isCorrect":true,"rationale":"La confiabilidad se centra exclusivamente en la estabilidad y consistencia de los resultados obtenidos."}]},{"question":"¿La búsqueda y selección de cuestionarios previamente validados permite un ahorro de tiempo en la investigación de mercado?","hint":"Recuerda los beneficios destacados al inicio de la presentación.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"Evitar la creación y validación desde cero de un instrumento nuevo optimiza los tiempos del investigador."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"El ahorro de tiempo es una de las tres ventajas principales mencionadas en el logro de la sesión."}]},{"question":"¿En la estructura de un paper, la confiabilidad del instrumento se reporta usualmente con datos estadísticos?","hint":"Considera qué tipo de información respalda la consistencia del instrumento.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"Se requiere reportar coeficientes como el Alfa de Cronbach para demostrar científicamente que el instrumento es estable."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"El material indica que se debe revisar si reportan el estadístico de fiabilidad en el documento analizado."}]},{"question":"¿El comando de búsqueda sugerido en el taller grupal prioriza la descarga de archivos en formato PDF?","hint":"Identifica el formato de archivo común en la literatura científica.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"Los papers y tesis en repositorios académicos suelen estar disponibles principalmente en formato PDF para su lectura y descarga."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"El paso 3 del taller menciona explícitamente descargar el PDF del paper o tesis para localizar los ítems."}]},{"question":"¿Un cuestionario validado garantiza que las preguntas no sean ambiguas?","hint":"Piensa en la ventaja de usar 'ítems probados en estudios previos'.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"La validación previa asegura que los ítems han sido probados y entendidos correctamente por los sujetos de estudio."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"Eliminar la ambigüedad es precisamente uno de los beneficios de usar instrumentos que ya pasaron por rigor científico."}]},{"question":"¿La escala Likert de 5 puntos utilizada en SERVQUAL ofrece opciones que van desde 'Total desacuerdo' hasta 'Total acuerdo'?","hint":"Observa los extremos de la escala numérica presentados en las diapositivas.","options":[{"label":"A","text":"Falso","isCorrect":false,"rationale":"Esta es la estructura exacta mostrada en el esquema del ejemplo práctico de la sesión."},{"label":"B","text":"Verdadero","isCorrect":true,"rationale":"El ejemplo práctico muestra esta progresión clásica de 5 niveles para medir la percepción del cliente."}]}];
+const tr = {"correct":"¡Correcto!","incorrect":"Incorrecto","next":"Siguiente pregunta →","seeResults":"Ver resultados","complete":"¡Cuestionario completado!","scoreText":"Obtuviste {correct} de {total} correctas","tryAgain":"Intentar de nuevo","rightAnswer":"Respuesta correcta","notQuite":"No del todo"};
+let currentQ = 0, correctCount = 0, answered = false;
+
+function init() {
+  document.querySelectorAll('.question').forEach((q, i) => q.classList.toggle('active', i === 0));
+  updateProgress();
+  document.querySelectorAll('.option').forEach(opt => opt.addEventListener('click', () => selectOption(opt)));
+  document.querySelectorAll('.next-btn').forEach(btn => btn.addEventListener('click', nextQuestion));
+}
+
+function selectOption(opt) {
+  if (answered) return;
+  answered = true;
+  const q = opt.closest('.question');
+  const options = q.querySelectorAll('.option');
+  const nextBtn = q.querySelector('.next-btn');
+  const isCorrect = opt.dataset.correct === 'true';
+  
+  // Mark all options as disabled
+  options.forEach(o => o.classList.add('disabled'));
+  
+  // Style selected option
+  opt.classList.add('selected', isCorrect ? 'correct' : 'incorrect');
+  
+  // Show correct answer if wrong
+  if (!isCorrect) {
+    const correctOpt = [...options].find(o => o.dataset.correct === 'true');
+    if (correctOpt) correctOpt.classList.add('show-correct');
+  }
+  
+  if (isCorrect) correctCount++;
+  
+  // Show feedback for ALL options that have rationale
+  options.forEach(o => {
+    const wrapper = o.closest('.option-wrapper');
+    const feedback = wrapper.querySelector('.option-feedback');
+    const rationale = o.dataset.rationale;
+    const isThisCorrect = o.dataset.correct === 'true';
+    
+    if (rationale && rationale.trim()) {
+      feedback.classList.remove('hidden');
+      feedback.classList.add(isThisCorrect ? 'correct-feedback' : 'incorrect-feedback');
+      
+      const statusEl = feedback.querySelector('.feedback-status');
+      statusEl.className = 'feedback-status ' + (isThisCorrect ? 'correct' : 'incorrect');
+      statusEl.innerHTML = isThisCorrect 
+        ? '✓ ' + tr.rightAnswer
+        : '✗ ' + tr.notQuite;
+    }
+  });
+  
+  nextBtn.classList.remove('hidden');
+  if (currentQ === quizData.length - 1) nextBtn.textContent = tr.seeResults;
+}
+
+function nextQuestion() {
+  answered = false;
+  currentQ++;
+  if (currentQ >= quizData.length) { showResults(); return; }
+  document.querySelectorAll('.question').forEach((q, i) => q.classList.toggle('active', i === currentQ));
+  updateProgress();
+}
+
+function updateProgress() {
+  document.querySelector('.progress-fill').style.width = (currentQ / quizData.length * 100) + '%';
+}
+
+function showResults() {
+  document.querySelectorAll('.question').forEach(q => q.classList.remove('active'));
+  document.getElementById('results').classList.add('active');
+  const pct = Math.round((correctCount / quizData.length) * 100);
+  document.getElementById('score').textContent = pct + '%';
+  document.getElementById('score-text').textContent = tr.scoreText.replace('{correct}', correctCount).replace('{total}', quizData.length);
+  document.querySelector('.progress-fill').style.width = '100%';
+}
+
+function restart() {
+  currentQ = 0; correctCount = 0; answered = false;
+  document.getElementById('results').classList.remove('active');
+  document.querySelectorAll('.question').forEach((q, i) => {
+    q.classList.toggle('active', i === 0);
+    q.querySelectorAll('.option').forEach(o => o.classList.remove('selected', 'correct', 'incorrect', 'disabled', 'show-correct'));
+    q.querySelectorAll('.option-feedback').forEach(f => {
+      f.classList.add('hidden');
+      f.classList.remove('correct-feedback', 'incorrect-feedback');
+    });
+    const btn = q.querySelector('.next-btn');
+    btn.classList.add('hidden');
+    btn.textContent = tr.next;
+  });
+  updateProgress();
+}
+
+init();
+</script>
+</body>
+</html>
