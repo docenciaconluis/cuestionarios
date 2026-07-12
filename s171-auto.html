@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="es" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>S17.1 Auto</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  min-height: 100vh; padding: 20px; color: #333;
+}
+.container { max-width: 700px; margin: 0 auto; }
+.header { text-align: center; color: #fff; padding: 30px 20px; }
+.header h1 { font-size: 28px; font-weight: 700; margin-bottom: 8px; text-shadow: 0 2px 10px rgba(0,0,0,0.2); }
+.header .meta { font-size: 14px; opacity: 0.9; }
+.progress-bar { background: rgba(255,255,255,0.3); border-radius: 10px; height: 8px; margin: 20px 0; overflow: hidden; }
+.progress-fill { background: #fff; height: 100%; width: 0%; transition: width 0.4s ease; border-radius: 10px; }
+.question { background: #fff; border-radius: 16px; padding: 30px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); display: none; }
+.question.active { display: block; }
+.q-header { display: flex; justify-content: space-between; margin-bottom: 20px; font-size: 13px; color: #888; }
+.q-number { font-weight: 600; color: #667eea; }
+.q-text { font-size: 18px; font-weight: 600; line-height: 1.5; margin-bottom: 25px; color: #222; }
+.options { display: flex; flex-direction: column; gap: 12px; }
+.option-wrapper { display: flex; flex-direction: column; }
+.option {
+  display: flex; align-items: flex-start; gap: 14px; padding: 16px 18px;
+  border: 2px solid #e8e8e8; border-radius: 12px; background: #fafafa;
+  cursor: pointer; transition: all 0.2s; text-align: left; font-size: 15px; width: 100%;
+}
+[dir="rtl"] .option { text-align: right; flex-direction: row-reverse; }
+.option:hover:not(.disabled) { border-color: #667eea; background: #f5f3ff; }
+.option.selected { border-color: #667eea; background: #ede9fe; }
+.option.correct { border-color: #22c55e; background: #dcfce7; }
+.option.incorrect { border-color: #ef4444; background: #fee2e2; }
+.option.disabled { cursor: default; }
+.option.show-correct { border-color: #22c55e; background: #dcfce7; }
+.opt-label {
+  display: flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; border-radius: 50%; background: #e8e8e8;
+  font-weight: 700; font-size: 14px; flex-shrink: 0;
+}
+.option.selected .opt-label { background: #667eea; color: #fff; }
+.option.correct .opt-label { background: #22c55e; color: #fff; }
+.option.incorrect .opt-label { background: #ef4444; color: #fff; }
+.option.show-correct .opt-label { background: #22c55e; color: #fff; }
+.opt-text { padding-top: 5px; line-height: 1.5; }
+
+/* Individual option feedback */
+.option-feedback {
+  margin: 8px 0 4px 46px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+[dir="rtl"] .option-feedback { margin-left: 0; margin-right: 46px; }
+.option-feedback.correct-feedback {
+  background: #dcfce7;
+  border-left: 3px solid #22c55e;
+}
+.option-feedback.incorrect-feedback {
+  background: #fef3f2;
+  border-left: 3px solid #fca5a5;
+}
+[dir="rtl"] .option-feedback.correct-feedback,
+[dir="rtl"] .option-feedback.incorrect-feedback {
+  border-left: none;
+  border-right: 3px solid;
+}
+[dir="rtl"] .option-feedback.correct-feedback { border-right-color: #22c55e; }
+[dir="rtl"] .option-feedback.incorrect-feedback { border-right-color: #fca5a5; }
+.feedback-status {
+  font-weight: 600;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.feedback-status.correct { color: #166534; }
+.feedback-status.incorrect { color: #991b1b; }
+.feedback-rationale { color: #444; }
+
+/* Hint box */
+.hint-box {
+  margin: 12px 0;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+}
+.hint-toggle {
+  width: 100%;
+  padding: 10px 16px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  color: #92400e;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.hint-toggle:hover { background: #fef3c7; }
+.hint-content {
+  padding: 0 16px;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s, padding 0.3s;
+  font-size: 14px;
+  color: #78350f;
+  line-height: 1.5;
+}
+.hint-box.show .hint-content {
+  padding: 0 16px 12px;
+  max-height: 200px;
+}
+
+.next-btn {
+  margin-top: 20px; width: 100%; padding: 14px;
+  background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; border: none;
+  border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.next-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(102,126,234,0.4); }
+.hidden { display: none !important; }
+.results { background: #fff; border-radius: 16px; padding: 40px; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.15); display: none; }
+.results.active { display: block; }
+.results h2 { font-size: 28px; margin-bottom: 10px; color: #333; }
+.results .score { font-size: 64px; font-weight: 700; color: #667eea; margin: 20px 0; }
+.results .score-text { font-size: 18px; color: #666; margin-bottom: 30px; }
+.restart-btn {
+  padding: 14px 40px; background: linear-gradient(135deg, #667eea, #764ba2);
+  color: #fff; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer;
+}
+
+/* Math CSS */
+.math, .math-block { font-family: "Cambria Math", "Times New Roman", Times, serif; font-style: italic; }
+.math-block { display: block; text-align: center; margin: 10px 0; font-size: 110%; }
+.frac { display: inline-flex; flex-direction: column; align-items: center; vertical-align: middle; margin: 0 3px; font-size: 0.9em; }
+.frac-num { border-bottom: 1px solid currentColor; padding: 0 4px 2px; line-height: 1.2; }
+.frac-den { padding: 2px 4px 0; line-height: 1.2; }
+.sqrt { white-space: nowrap; }
+.sqrt-content { border-top: 1px solid currentColor; padding: 0 3px; margin-left: 2px; }
+sup, sub { font-size: 0.75em; }
+sup { vertical-align: super; }
+sub { vertical-align: sub; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>S17.1 Auto</h1>
+    <div class="meta">10 preguntas</div>
+    <div class="progress-bar"><div class="progress-fill"></div></div>
+  </div>
+  <div id="quiz-container">
+        <div class="question" data-index="0">
+          <div class="q-header">
+            <span class="q-number">Pregunta 1</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">El protocolo MQTT se basa en la arquitectura de red TCP/IP (<span class="math">Transmission</span> <span class="math">Control</span> <span class="math">Protocol</span>/<span class="math">Internet</span> <span class="math">Protocol</span>).</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Recuerda sobre qué estándares de red se construyen los protocolos de comunicación modernos en IoT.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Este protocolo depende precisamente de la pila TCP/IP para su funcionamiento en aplicaciones de Internet de las Cosas.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Este protocolo depende precisamente de la pila TCP/IP para su funcionamiento en aplicaciones de Internet de las Cosas.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="MQTT utiliza el protocolo de red TCP/IP como base para garantizar la entrega de datos de manera ligera y eficiente.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">MQTT utiliza el protocolo de red TCP/IP como base para garantizar la entrega de datos de manera ligera y eficiente.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="1">
+          <div class="q-header">
+            <span class="q-number">Pregunta 2</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">OPC-UA es un protocolo cerrado y propietario que limita la interoperabilidad entre diferentes fabricantes industriales.</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considera si el objetivo de OPC-UA es restringir el uso a una marca o facilitar la integración global.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Aunque muchos protocolos industriales antiguos eran cerrados, OPC-UA se define específicamente como un estándar abierto.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aunque muchos protocolos industriales antiguos eran cerrados, OPC-UA se define específicamente como un estándar abierto.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="OPC-UA es un protocolo abierto diseñado para permitir que máquinas de distintos proveedores se comuniquen sin barreras.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">OPC-UA es un protocolo abierto diseñado para permitir que máquinas de distintos proveedores se comuniquen sin barreras.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="2">
+          <div class="q-header">
+            <span class="q-number">Pregunta 3</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">En una arquitectura MQTT, el Broker es responsable de gestionar los estados de conexión y eliminar conexiones vulnerables.</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piensa en el componente central que coordina la comunicación entre los dispositivos y las aplicaciones.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="El Broker actúa como el núcleo de seguridad y gestión, filtrando conexiones que no cumplen con los requisitos de integridad.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El Broker actúa como el núcleo de seguridad y gestión, filtrando conexiones que no cumplen con los requisitos de integridad.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El Broker no es solo un pasamanos de mensajes; tiene funciones críticas de gestión de red y seguridad para proteger el sistema.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El Broker no es solo un pasamanos de mensajes; tiene funciones críticas de gestión de red y seguridad para proteger el sistema.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="3">
+          <div class="q-header">
+            <span class="q-number">Pregunta 4</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">OPC-UA se utiliza principalmente para recolectar datos en tiempo real de dispositivos como PLCs y sistemas SCADA.</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Reflexiona sobre la ubicación de OPC-UA dentro de la pirámide de automatización industrial.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="La recolección de datos de sensores y controladores es una de las aplicaciones fundamentales de OPC-UA en la automatización.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La recolección de datos de sensores y controladores es una de las aplicaciones fundamentales de OPC-UA en la automatización.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Este protocolo es el estándar para el intercambio de información entre el hardware de control y el software de monitoreo en la planta.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Este protocolo es el estándar para el intercambio de información entre el hardware de control y el software de monitoreo en la planta.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="4">
+          <div class="q-header">
+            <span class="q-number">Pregunta 5</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">MQTT se caracteriza por ser un protocolo de alta potencia diseñado para transmitir archivos de video de gran tamaño.</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Evalúa si un sensor alimentado por batería preferiría un protocolo pesado o uno ligero.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="MQTT está diseñado para conjuntos de datos sencillos y sensores de baja potencia, no para flujos de datos masivos como video.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">MQTT está diseñado para conjuntos de datos sencillos y sensores de baja potencia, no para flujos de datos masivos como video.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="MQTT es un protocolo ligero y de baja potencia, ideal para transmitir telemetría simple de manera eficiente.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">MQTT es un protocolo ligero y de baja potencia, ideal para transmitir telemetría simple de manera eficiente.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="5">
+          <div class="q-header">
+            <span class="q-number">Pregunta 6</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">Una configuración común de IIoT es usar OPC-UA para la comunicación dentro de la planta y MQTT para transmitir datos a la nube.</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Recuerda el esquema de integración donde cada protocolo cumple un rol específico según el entorno (planta vs. nube).</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Esta combinación es una práctica recomendada para optimizar tanto la interoperabilidad local como la eficiencia en el ancho de banda hacia la nube.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esta combinación es una práctica recomendada para optimizar tanto la interoperabilidad local como la eficiencia en el ancho de banda hacia la nube.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Se aprovecha la robustez de OPC-UA para el intercambio máquina a máquina local y la ligereza de MQTT para la conectividad externa.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Se aprovecha la robustez de OPC-UA para el intercambio máquina a máquina local y la ligereza de MQTT para la conectividad externa.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="6">
+          <div class="q-header">
+            <span class="q-number">Pregunta 7</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">El protocolo OPC-UA es compatible únicamente con direcciones IPv4.</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considera si un protocolo diseñado para la Industria 4.0 se limitaría solo al direccionamiento IP antiguo.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="OPC-UA es una plataforma flexible que soporta tanto IPv4 como el estándar más reciente de direccionamiento.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">OPC-UA es una plataforma flexible que soporta tanto IPv4 como el estándar más reciente de direccionamiento.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="OPC-UA es compatible con IPv4 e IPv6, lo que garantiza su aplicación en redes industriales modernas y futuras.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">OPC-UA es compatible con IPv4 e IPv6, lo que garantiza su aplicación en redes industriales modernas y futuras.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="7">
+          <div class="q-header">
+            <span class="q-number">Pregunta 8</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">La seguridad en sistemas MQTT se divide en tres capas principales: infraestructura, sistema operativo y el broker.</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Repasa las secciones del material que detallan los niveles de protección para evitar ataques y tiempos de inactividad.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Cada capa aborda diferentes riesgos, desde la topología de red hasta los agujeros de seguridad en el software del servidor.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Cada capa aborda diferentes riesgos, desde la topología de red hasta los agujeros de seguridad en el software del servidor.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El enfoque de seguridad es integral y requiere proteger tanto el entorno donde corre el broker como el broker mismo.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El enfoque de seguridad es integral y requiere proteger tanto el entorno donde corre el broker como el broker mismo.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="8">
+          <div class="q-header">
+            <span class="q-number">Pregunta 9</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">OPC-UA permite compartir datos de automatización con un alto nivel de interoperabilidad, independientemente del proveedor de hardware.</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piensa en el significado de 'agnóstico al proveedor' en el contexto de integración de sistemas.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Ser agnóstico al proveedor permite integrar sistemas MES o ERP de distintos fabricantes de manera fiable.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Ser agnóstico al proveedor permite integrar sistemas MES o ERP de distintos fabricantes de manera fiable.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="La interoperabilidad global es el pilar central de OPC-UA para unificar el intercambio de información entre diversos componentes.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La interoperabilidad global es el pilar central de OPC-UA para unificar el intercambio de información entre diversos componentes.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="9">
+          <div class="q-header">
+            <span class="q-number">Pregunta 10</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">El significado de las siglas MQTT es 'Message Queue Telemetry Transport'.</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Recuerda la definición completa del protocolo que se presenta al inicio de la sección de transformación.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Esas son las siglas correctas del protocolo estándar utilizado ampliamente en el Internet de las Cosas.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esas son las siglas correctas del protocolo estándar utilizado ampliamente en el Internet de las Cosas.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Este nombre refleja su función principal de transportar mensajes de telemetría de forma eficiente en redes con restricciones.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Este nombre refleja su función principal de transportar mensajes de telemetría de forma eficiente en redes con restricciones.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      </div>
+  <div class="results" id="results">
+    <h2>¡Cuestionario completado!</h2>
+    <div class="score" id="score">0%</div>
+    <div class="score-text" id="score-text"></div>
+    <button class="restart-btn" onclick="restart()">Intentar de nuevo</button>
+  </div>
+</div>
+<script>
+const quizData = [{"question":"El protocolo MQTT se basa en la arquitectura de red TCP/IP ($Transmission$ $Control$ $Protocol$/$Internet$ $Protocol$).","hint":"Recuerda sobre qué estándares de red se construyen los protocolos de comunicación modernos en IoT.","options":[{"label":"A","text":"Falso","isCorrect":false,"rationale":"Este protocolo depende precisamente de la pila TCP/IP para su funcionamiento en aplicaciones de Internet de las Cosas."},{"label":"B","text":"Verdadero","isCorrect":true,"rationale":"MQTT utiliza el protocolo de red TCP/IP como base para garantizar la entrega de datos de manera ligera y eficiente."}]},{"question":"OPC-UA es un protocolo cerrado y propietario que limita la interoperabilidad entre diferentes fabricantes industriales.","hint":"Considera si el objetivo de OPC-UA es restringir el uso a una marca o facilitar la integración global.","options":[{"label":"A","text":"Verdadero","isCorrect":false,"rationale":"Aunque muchos protocolos industriales antiguos eran cerrados, OPC-UA se define específicamente como un estándar abierto."},{"label":"B","text":"Falso","isCorrect":true,"rationale":"OPC-UA es un protocolo abierto diseñado para permitir que máquinas de distintos proveedores se comuniquen sin barreras."}]},{"question":"En una arquitectura MQTT, el Broker es responsable de gestionar los estados de conexión y eliminar conexiones vulnerables.","hint":"Piensa en el componente central que coordina la comunicación entre los dispositivos y las aplicaciones.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"El Broker actúa como el núcleo de seguridad y gestión, filtrando conexiones que no cumplen con los requisitos de integridad."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"El Broker no es solo un pasamanos de mensajes; tiene funciones críticas de gestión de red y seguridad para proteger el sistema."}]},{"question":"OPC-UA se utiliza principalmente para recolectar datos en tiempo real de dispositivos como PLCs y sistemas SCADA.","hint":"Reflexiona sobre la ubicación de OPC-UA dentro de la pirámide de automatización industrial.","options":[{"label":"A","text":"Falso","isCorrect":false,"rationale":"La recolección de datos de sensores y controladores es una de las aplicaciones fundamentales de OPC-UA en la automatización."},{"label":"B","text":"Verdadero","isCorrect":true,"rationale":"Este protocolo es el estándar para el intercambio de información entre el hardware de control y el software de monitoreo en la planta."}]},{"question":"MQTT se caracteriza por ser un protocolo de alta potencia diseñado para transmitir archivos de video de gran tamaño.","hint":"Evalúa si un sensor alimentado por batería preferiría un protocolo pesado o uno ligero.","options":[{"label":"A","text":"Verdadero","isCorrect":false,"rationale":"MQTT está diseñado para conjuntos de datos sencillos y sensores de baja potencia, no para flujos de datos masivos como video."},{"label":"B","text":"Falso","isCorrect":true,"rationale":"MQTT es un protocolo ligero y de baja potencia, ideal para transmitir telemetría simple de manera eficiente."}]},{"question":"Una configuración común de IIoT es usar OPC-UA para la comunicación dentro de la planta y MQTT para transmitir datos a la nube.","hint":"Recuerda el esquema de integración donde cada protocolo cumple un rol específico según el entorno (planta vs. nube).","options":[{"label":"A","text":"Falso","isCorrect":false,"rationale":"Esta combinación es una práctica recomendada para optimizar tanto la interoperabilidad local como la eficiencia en el ancho de banda hacia la nube."},{"label":"B","text":"Verdadero","isCorrect":true,"rationale":"Se aprovecha la robustez de OPC-UA para el intercambio máquina a máquina local y la ligereza de MQTT para la conectividad externa."}]},{"question":"El protocolo OPC-UA es compatible únicamente con direcciones IPv4.","hint":"Considera si un protocolo diseñado para la Industria 4.0 se limitaría solo al direccionamiento IP antiguo.","options":[{"label":"A","text":"Verdadero","isCorrect":false,"rationale":"OPC-UA es una plataforma flexible que soporta tanto IPv4 como el estándar más reciente de direccionamiento."},{"label":"B","text":"Falso","isCorrect":true,"rationale":"OPC-UA es compatible con IPv4 e IPv6, lo que garantiza su aplicación en redes industriales modernas y futuras."}]},{"question":"La seguridad en sistemas MQTT se divide en tres capas principales: infraestructura, sistema operativo y el broker.","hint":"Repasa las secciones del material que detallan los niveles de protección para evitar ataques y tiempos de inactividad.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"Cada capa aborda diferentes riesgos, desde la topología de red hasta los agujeros de seguridad en el software del servidor."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"El enfoque de seguridad es integral y requiere proteger tanto el entorno donde corre el broker como el broker mismo."}]},{"question":"OPC-UA permite compartir datos de automatización con un alto nivel de interoperabilidad, independientemente del proveedor de hardware.","hint":"Piensa en el significado de 'agnóstico al proveedor' en el contexto de integración de sistemas.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"Ser agnóstico al proveedor permite integrar sistemas MES o ERP de distintos fabricantes de manera fiable."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"La interoperabilidad global es el pilar central de OPC-UA para unificar el intercambio de información entre diversos componentes."}]},{"question":"El significado de las siglas MQTT es 'Message Queue Telemetry Transport'.","hint":"Recuerda la definición completa del protocolo que se presenta al inicio de la sección de transformación.","options":[{"label":"A","text":"Falso","isCorrect":false,"rationale":"Esas son las siglas correctas del protocolo estándar utilizado ampliamente en el Internet de las Cosas."},{"label":"B","text":"Verdadero","isCorrect":true,"rationale":"Este nombre refleja su función principal de transportar mensajes de telemetría de forma eficiente en redes con restricciones."}]}];
+const tr = {"correct":"¡Correcto!","incorrect":"Incorrecto","next":"Siguiente pregunta →","seeResults":"Ver resultados","complete":"¡Cuestionario completado!","scoreText":"Obtuviste {correct} de {total} correctas","tryAgain":"Intentar de nuevo","rightAnswer":"Respuesta correcta","notQuite":"No del todo"};
+let currentQ = 0, correctCount = 0, answered = false;
+
+function init() {
+  document.querySelectorAll('.question').forEach((q, i) => q.classList.toggle('active', i === 0));
+  updateProgress();
+  document.querySelectorAll('.option').forEach(opt => opt.addEventListener('click', () => selectOption(opt)));
+  document.querySelectorAll('.next-btn').forEach(btn => btn.addEventListener('click', nextQuestion));
+}
+
+function selectOption(opt) {
+  if (answered) return;
+  answered = true;
+  const q = opt.closest('.question');
+  const options = q.querySelectorAll('.option');
+  const nextBtn = q.querySelector('.next-btn');
+  const isCorrect = opt.dataset.correct === 'true';
+  
+  // Mark all options as disabled
+  options.forEach(o => o.classList.add('disabled'));
+  
+  // Style selected option
+  opt.classList.add('selected', isCorrect ? 'correct' : 'incorrect');
+  
+  // Show correct answer if wrong
+  if (!isCorrect) {
+    const correctOpt = [...options].find(o => o.dataset.correct === 'true');
+    if (correctOpt) correctOpt.classList.add('show-correct');
+  }
+  
+  if (isCorrect) correctCount++;
+  
+  // Show feedback for ALL options that have rationale
+  options.forEach(o => {
+    const wrapper = o.closest('.option-wrapper');
+    const feedback = wrapper.querySelector('.option-feedback');
+    const rationale = o.dataset.rationale;
+    const isThisCorrect = o.dataset.correct === 'true';
+    
+    if (rationale && rationale.trim()) {
+      feedback.classList.remove('hidden');
+      feedback.classList.add(isThisCorrect ? 'correct-feedback' : 'incorrect-feedback');
+      
+      const statusEl = feedback.querySelector('.feedback-status');
+      statusEl.className = 'feedback-status ' + (isThisCorrect ? 'correct' : 'incorrect');
+      statusEl.innerHTML = isThisCorrect 
+        ? '✓ ' + tr.rightAnswer
+        : '✗ ' + tr.notQuite;
+    }
+  });
+  
+  nextBtn.classList.remove('hidden');
+  if (currentQ === quizData.length - 1) nextBtn.textContent = tr.seeResults;
+}
+
+function nextQuestion() {
+  answered = false;
+  currentQ++;
+  if (currentQ >= quizData.length) { showResults(); return; }
+  document.querySelectorAll('.question').forEach((q, i) => q.classList.toggle('active', i === currentQ));
+  updateProgress();
+}
+
+function updateProgress() {
+  document.querySelector('.progress-fill').style.width = (currentQ / quizData.length * 100) + '%';
+}
+
+function showResults() {
+  document.querySelectorAll('.question').forEach(q => q.classList.remove('active'));
+  document.getElementById('results').classList.add('active');
+  const pct = Math.round((correctCount / quizData.length) * 100);
+  document.getElementById('score').textContent = pct + '%';
+  document.getElementById('score-text').textContent = tr.scoreText.replace('{correct}', correctCount).replace('{total}', quizData.length);
+  document.querySelector('.progress-fill').style.width = '100%';
+}
+
+function restart() {
+  currentQ = 0; correctCount = 0; answered = false;
+  document.getElementById('results').classList.remove('active');
+  document.querySelectorAll('.question').forEach((q, i) => {
+    q.classList.toggle('active', i === 0);
+    q.querySelectorAll('.option').forEach(o => o.classList.remove('selected', 'correct', 'incorrect', 'disabled', 'show-correct'));
+    q.querySelectorAll('.option-feedback').forEach(f => {
+      f.classList.add('hidden');
+      f.classList.remove('correct-feedback', 'incorrect-feedback');
+    });
+    const btn = q.querySelector('.next-btn');
+    btn.classList.add('hidden');
+    btn.textContent = tr.next;
+  });
+  updateProgress();
+}
+
+init();
+</script>
+</body>
+</html>
