@@ -1,0 +1,1306 @@
+<!DOCTYPE html>
+<html lang="es" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>S17 GCA</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  min-height: 100vh; padding: 20px; color: #333;
+}
+.container { max-width: 700px; margin: 0 auto; }
+.header { text-align: center; color: #fff; padding: 30px 20px; }
+.header h1 { font-size: 28px; font-weight: 700; margin-bottom: 8px; text-shadow: 0 2px 10px rgba(0,0,0,0.2); }
+.header .meta { font-size: 14px; opacity: 0.9; }
+.progress-bar { background: rgba(255,255,255,0.3); border-radius: 10px; height: 8px; margin: 20px 0; overflow: hidden; }
+.progress-fill { background: #fff; height: 100%; width: 0%; transition: width 0.4s ease; border-radius: 10px; }
+.question { background: #fff; border-radius: 16px; padding: 30px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); display: none; }
+.question.active { display: block; }
+.q-header { display: flex; justify-content: space-between; margin-bottom: 20px; font-size: 13px; color: #888; }
+.q-number { font-weight: 600; color: #667eea; }
+.q-text { font-size: 18px; font-weight: 600; line-height: 1.5; margin-bottom: 25px; color: #222; }
+.options { display: flex; flex-direction: column; gap: 12px; }
+.option-wrapper { display: flex; flex-direction: column; }
+.option {
+  display: flex; align-items: flex-start; gap: 14px; padding: 16px 18px;
+  border: 2px solid #e8e8e8; border-radius: 12px; background: #fafafa;
+  cursor: pointer; transition: all 0.2s; text-align: left; font-size: 15px; width: 100%;
+}
+[dir="rtl"] .option { text-align: right; flex-direction: row-reverse; }
+.option:hover:not(.disabled) { border-color: #667eea; background: #f5f3ff; }
+.option.selected { border-color: #667eea; background: #ede9fe; }
+.option.correct { border-color: #22c55e; background: #dcfce7; }
+.option.incorrect { border-color: #ef4444; background: #fee2e2; }
+.option.disabled { cursor: default; }
+.option.show-correct { border-color: #22c55e; background: #dcfce7; }
+.opt-label {
+  display: flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; border-radius: 50%; background: #e8e8e8;
+  font-weight: 700; font-size: 14px; flex-shrink: 0;
+}
+.option.selected .opt-label { background: #667eea; color: #fff; }
+.option.correct .opt-label { background: #22c55e; color: #fff; }
+.option.incorrect .opt-label { background: #ef4444; color: #fff; }
+.option.show-correct .opt-label { background: #22c55e; color: #fff; }
+.opt-text { padding-top: 5px; line-height: 1.5; }
+
+/* Individual option feedback */
+.option-feedback {
+  margin: 8px 0 4px 46px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+[dir="rtl"] .option-feedback { margin-left: 0; margin-right: 46px; }
+.option-feedback.correct-feedback {
+  background: #dcfce7;
+  border-left: 3px solid #22c55e;
+}
+.option-feedback.incorrect-feedback {
+  background: #fef3f2;
+  border-left: 3px solid #fca5a5;
+}
+[dir="rtl"] .option-feedback.correct-feedback,
+[dir="rtl"] .option-feedback.incorrect-feedback {
+  border-left: none;
+  border-right: 3px solid;
+}
+[dir="rtl"] .option-feedback.correct-feedback { border-right-color: #22c55e; }
+[dir="rtl"] .option-feedback.incorrect-feedback { border-right-color: #fca5a5; }
+.feedback-status {
+  font-weight: 600;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.feedback-status.correct { color: #166534; }
+.feedback-status.incorrect { color: #991b1b; }
+.feedback-rationale { color: #444; }
+
+/* Hint box */
+.hint-box {
+  margin: 12px 0;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+}
+.hint-toggle {
+  width: 100%;
+  padding: 10px 16px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  color: #92400e;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.hint-toggle:hover { background: #fef3c7; }
+.hint-content {
+  padding: 0 16px;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s, padding 0.3s;
+  font-size: 14px;
+  color: #78350f;
+  line-height: 1.5;
+}
+.hint-box.show .hint-content {
+  padding: 0 16px 12px;
+  max-height: 200px;
+}
+
+.next-btn {
+  margin-top: 20px; width: 100%; padding: 14px;
+  background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; border: none;
+  border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.next-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(102,126,234,0.4); }
+.hidden { display: none !important; }
+.results { background: #fff; border-radius: 16px; padding: 40px; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.15); display: none; }
+.results.active { display: block; }
+.results h2 { font-size: 28px; margin-bottom: 10px; color: #333; }
+.results .score { font-size: 64px; font-weight: 700; color: #667eea; margin: 20px 0; }
+.results .score-text { font-size: 18px; color: #666; margin-bottom: 30px; }
+.restart-btn {
+  padding: 14px 40px; background: linear-gradient(135deg, #667eea, #764ba2);
+  color: #fff; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer;
+}
+
+/* Math CSS */
+.math, .math-block { font-family: "Cambria Math", "Times New Roman", Times, serif; font-style: italic; }
+.math-block { display: block; text-align: center; margin: 10px 0; font-size: 110%; }
+.frac { display: inline-flex; flex-direction: column; align-items: center; vertical-align: middle; margin: 0 3px; font-size: 0.9em; }
+.frac-num { border-bottom: 1px solid currentColor; padding: 0 4px 2px; line-height: 1.2; }
+.frac-den { padding: 2px 4px 0; line-height: 1.2; }
+.sqrt { white-space: nowrap; }
+.sqrt-content { border-top: 1px solid currentColor; padding: 0 3px; margin-left: 2px; }
+sup, sub { font-size: 0.75em; }
+sup { vertical-align: super; }
+sub { vertical-align: sub; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>S17 GCA</h1>
+    <div class="meta">26 preguntas</div>
+    <div class="progress-bar"><div class="progress-fill"></div></div>
+  </div>
+  <div id="quiz-container">
+        <div class="question" data-index="0">
+          <div class="q-header">
+            <span class="q-number">Pregunta 1</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿Una alianza estratégica se define como una relación comercial donde organizaciones independientes colaboran para alcanzar metas comunes?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considere si la independencia de las empresas se mantiene al buscar objetivos específicos.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Las alianzas estratégicas involucran el esfuerzo conjunto de dos o más entidades autónomas con objetivos compartidos.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Las alianzas estratégicas involucran el esfuerzo conjunto de dos o más entidades autónomas con objetivos compartidos.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Este concepto describe precisamente la naturaleza colaborativa e independiente de los participantes en una alianza.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Este concepto describe precisamente la naturaleza colaborativa e independiente de los participantes en una alianza.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="1">
+          <div class="q-header">
+            <span class="q-number">Pregunta 2</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿El material sugiere que una alianza estratégica debe considerarse similar a un matrimonio en términos de esfuerzo y compromiso?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piense en la comparación relacional que se hace para describir el trabajo conjunto.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Las diapositivas comparan explícitamente estas alianzas con un matrimonio para ilustrar la profundidad del compromiso requerido.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Las diapositivas comparan explícitamente estas alianzas con un matrimonio para ilustrar la profundidad del compromiso requerido.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="La analogía del matrimonio se utiliza para enfatizar el trabajo constante, la compatibilidad y la necesidad de entender al otro.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La analogía del matrimonio se utiliza para enfatizar el trabajo constante, la compatibilidad y la necesidad de entender al otro.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="2">
+          <div class="q-header">
+            <span class="q-number">Pregunta 3</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿Las alianzas estratégicas están diseñadas para funcionar únicamente durante periodos de éxito y estabilidad económica?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Recuerde la premisa sobre la resiliencia de la sociedad ante las dificultades.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="El texto especifica que las alianzas deben sostenerse 'en las buenas y en las malas' para ser efectivas.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El texto especifica que las alianzas deben sostenerse 'en las buenas y en las malas' para ser efectivas.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Limitar la alianza solo a los buenos tiempos contradice el principio de compromiso total mencionado en el material.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Limitar la alianza solo a los buenos tiempos contradice el principio de compromiso total mencionado en el material.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="3">
+          <div class="q-header">
+            <span class="q-number">Pregunta 4</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿La falta de apoyo de la alta gerencia es un factor que se debe evitar para lograr una alianza estratégica real?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Reflexione sobre la importancia del liderazgo organizacional en estos acuerdos.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Sin el respaldo de los niveles directivos, la alianza carece de los recursos y la legitimidad necesarios para prosperar.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Sin el respaldo de los niveles directivos, la alianza carece de los recursos y la legitimidad necesarios para prosperar.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El apoyo directivo es fundamental; su ausencia es una de las principales barreras identificadas para el éxito.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El apoyo directivo es fundamental; su ausencia es una de las principales barreras identificadas para el éxito.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="4">
+          <div class="q-header">
+            <span class="q-number">Pregunta 5</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿Es recomendable que los participantes de una alianza estratégica mantengan sus compromisos de manera dispareja para fomentar la competencia?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considere si la desigualdad en la dedicación beneficia o perjudica la cooperación.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Los compromisos desiguales generan desequilibrios que suelen llevar al fracaso de la colaboración.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Los compromisos desiguales generan desequilibrios que suelen llevar al fracaso de la colaboración.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="El material señala que se deben evitar los compromisos disparejos para mantener una relación saludable y equilibrada.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El material señala que se deben evitar los compromisos disparejos para mantener una relación saludable y equilibrada.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="5">
+          <div class="q-header">
+            <span class="q-number">Pregunta 6</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿Para que una alianza funcione, es indispensable que los socios comprendan la cultura y estructura organizacional del otro?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Evalúe el peso que tiene el factor humano y organizacional en la integración de procesos.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Entender el entorno interno del socio es un requisito explícito mencionado en las conclusiones para una colaboración efectiva.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Entender el entorno interno del socio es un requisito explícito mencionado en las conclusiones para una colaboración efectiva.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="El conocimiento mutuo de la cultura y estructura facilita la integración y la resolución de conflictos.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El conocimiento mutuo de la cultura y estructura facilita la integración y la resolución de conflictos.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="6">
+          <div class="q-header">
+            <span class="q-number">Pregunta 7</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿El CPFR es un proceso que se limita exclusivamente al uso de infraestructura tecnológica?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Determine si existen otros componentes no tecnológicos que sean vitales para el CPFR.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="El material enfatiza que el CPFR no depende solo de la tecnología, sino de la integración interna y externa de los socios.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El material enfatiza que el CPFR no depende solo de la tecnología, sino de la integración interna y externa de los socios.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Aunque usa tecnología, el proceso requiere también una alta integración humana y estratégica entre las partes.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Aunque usa tecnología, el proceso requiere también una alta integración humana y estratégica entre las partes.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="7">
+          <div class="q-header">
+            <span class="q-number">Pregunta 8</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿En el modelo CPFR, la integración externa se refiere primordialmente a la relación entre el proveedor y el detallista (retailer)?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Identifique a los dos actores principales fuera de la empresa que coordinan el flujo de bienes.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="El vínculo proveedor-retailer es el núcleo de la integración externa descrita en el proceso CPFR.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El vínculo proveedor-retailer es el núcleo de la integración externa descrita en el proceso CPFR.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Esta conexión permite sincronizar la oferta del proveedor con la demanda real del consumidor captada por el detallista.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esta conexión permite sincronizar la oferta del proveedor con la demanda real del consumidor captada por el detallista.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="8">
+          <div class="q-header">
+            <span class="q-number">Pregunta 9</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿El primer paso en la implementación del CPFR es el desarrollo de un plan conjunto de negocios?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Revise el orden cronológico de las fases de implementación mencionadas.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="El plan conjunto de negocios es en realidad el segundo paso; el primero es el acuerdo de principio a fin.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El plan conjunto de negocios es en realidad el segundo paso; el primero es el acuerdo de principio a fin.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="La implementación comienza con el establecimiento de un acuerdo de principio a fin que define responsabilidades y metas.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La implementación comienza con el establecimiento de un acuerdo de principio a fin que define responsabilidades y metas.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="9">
+          <div class="q-header">
+            <span class="q-number">Pregunta 10</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿El acuerdo inicial de CPFR debe incluir aspectos de confidencialidad y el método de medición de indicadores de desempeño?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piense en qué elementos administrativos son necesarios para formalizar una colaboración segura.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Tanto la confidencialidad como los indicadores son componentes esenciales del primer paso del proceso CPFR.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Tanto la confidencialidad como los indicadores son componentes esenciales del primer paso del proceso CPFR.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Definir estos elementos desde el inicio asegura la transparencia y permite evaluar objetivamente el éxito del proceso.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Definir estos elementos desde el inicio asegura la transparencia y permite evaluar objetivamente el éxito del proceso.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="10">
+          <div class="q-header">
+            <span class="q-number">Pregunta 11</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿Las políticas de inventarios y los planes de promociones se definen durante la etapa de colaboración en pronósticos de ventas?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Asocie estos elementos con la fase de planeación estratégica previa a la predicción de demanda.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Estos elementos se definen en el segundo paso, que es el plan conjunto de negocios, no en el pronóstico.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Estos elementos se definen en el segundo paso, que es el plan conjunto de negocios, no en el pronóstico.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="La definición de promociones e inventarios corresponde al 'Plan conjunto de negocios'.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La definición de promociones e inventarios corresponde al 'Plan conjunto de negocios'.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="11">
+          <div class="q-header">
+            <span class="q-number">Pregunta 12</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿La colaboración en los pronósticos de ventas incluye compartir información de ventas en el punto de venta (POS)?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considere qué tipo de datos en tiempo real ayudan a predecir mejor la demanda.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="El intercambio de información POS es un requerimiento básico mencionado para la exactitud del pronóstico de ventas.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El intercambio de información POS es un requerimiento básico mencionado para la exactitud del pronóstico de ventas.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Los datos de POS son cruciales para que los socios elaboren planes de demanda futura basados en la realidad del mercado.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Los datos de POS son cruciales para que los socios elaboren planes de demanda futura basados en la realidad del mercado.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="12">
+          <div class="q-header">
+            <span class="q-number">Pregunta 13</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿En el proceso CPFR, se debe ocultar a los socios cualquier actividad que genere un cambio en la demanda para proteger la estrategia individual?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piense en el principio de comunicación abierta dentro de una sociedad colaborativa.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Ocultar información va en contra de la transparencia necesaria para que el CPFR reduzca la incertidumbre.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Ocultar información va en contra de la transparencia necesaria para que el CPFR reduzca la incertidumbre.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Cualquier plan que afecte la demanda debe ser comunicado a los socios para ajustar las operaciones coordinadamente.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Cualquier plan que afecte la demanda debe ser comunicado a los socios para ajustar las operaciones coordinadamente.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="13">
+          <div class="q-header">
+            <span class="q-number">Pregunta 14</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿El paso número 4 del proceso CPFR se enfoca en establecer un modelo de reabastecimiento que considere el tiempo de entrega?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Recuerde qué paso se encarga de transformar la demanda proyectada en necesidades de suministro.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="El reabastecimiento técnico es precisamente el objetivo de la fase de pronóstico de pedidos.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El reabastecimiento técnico es precisamente el objetivo de la fase de pronóstico de pedidos.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="El pronóstico de pedidos requiere integrar variables como el tiempo de entrega y los niveles de servicio deseados.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El pronóstico de pedidos requiere integrar variables como el tiempo de entrega y los niveles de servicio deseados.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="14">
+          <div class="q-header">
+            <span class="q-number">Pregunta 15</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿La retroalimentación permanente sobre la ruptura de stock es una tarea fundamental durante la ejecución de despacho?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Evalúe si el reporte de incidencias en el almacén ocurre al final del ciclo de pedido.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Informar sobre faltantes permite realizar ajustes inmediatos y mejorar la exactitud del inventario en el futuro.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Informar sobre faltantes permite realizar ajustes inmediatos y mejorar la exactitud del inventario en el futuro.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El monitoreo de faltantes y excesos es parte crítica del paso 5 (Generación de pedido y despacho).">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El monitoreo de faltantes y excesos es parte crítica del paso 5 (Generación de pedido y despacho).</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="15">
+          <div class="q-header">
+            <span class="q-number">Pregunta 16</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿En el primer ejemplo práctico, el fabricante de partes electrónicas lograba despachar el producto al cliente en un periodo de 72 horas desde el inicio?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Diferencie entre la situación inicial problemática y el resultado final optimizado.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="El tiempo inicial era de 4 a 5 semanas debido a la distancia entre la bodega de componentes y la planta de ensamble.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El tiempo inicial era de 4 a 5 semanas debido a la distancia entre la bodega de componentes y la planta de ensamble.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Originalmente el proceso tomaba de 4 a 5 semanas; las 72 horas fueron el resultado tras la mejora.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Originalmente el proceso tomaba de 4 a 5 semanas; las 72 horas fueron el resultado tras la mejora.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="16">
+          <div class="q-header">
+            <span class="q-number">Pregunta 17</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿El uso del Intercambio Electrónico de Documentos (EDI) fue fundamental para que la bodega pública aceptara pedidos en el ejemplo de electrónica?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Busque la sigla tecnológica que facilitó la comunicación digital en el caso.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="El EDI permitió automatizar la comunicación de pedidos, reduciendo drásticamente los tiempos de respuesta.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El EDI permitió automatizar la comunicación de pedidos, reduciendo drásticamente los tiempos de respuesta.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El texto menciona explícitamente el uso de EDI como la herramienta tecnológica que habilitó la rapidez del proceso.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El texto menciona explícitamente el uso de EDI como la herramienta tecnológica que habilitó la rapidez del proceso.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="17">
+          <div class="q-header">
+            <span class="q-number">Pregunta 18</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿La reducción de costos laborales en el ejemplo del fabricante de electrónica fue de aproximadamente un 50%?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Compare las cifras de costo laboral por hora antes y después de la sociedad.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="El costo por hora bajó de $15.25 a $7.25, lo cual representa una reducción significativa cercana a la mitad.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El costo por hora bajó de <span class="math">15.25 a </span>7.25, lo cual representa una reducción significativa cercana a la mitad.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Los datos cuantitativos del texto confirman que los gastos por hora se redujeron a menos de la mitad del costo original.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Los datos cuantitativos del texto confirman que los gastos por hora se redujeron a menos de la mitad del costo original.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="18">
+          <div class="q-header">
+            <span class="q-number">Pregunta 19</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿En el ejemplo de los computadores personales, la consolidación en una bodega en Kentucky mejoró la exactitud del inventario al 99.5%?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Recuerde el porcentaje final de precisión mencionado para las partes desconfiguradas.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="La centralización de operaciones permitió un mejor control, elevando la exactitud desde un 96% inicial.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La centralización de operaciones permitió un mejor control, elevando la exactitud desde un 96% inicial.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El caso cita explícitamente el aumento al 99.5% como un beneficio directo del desarrollo de la relación.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El caso cita explícitamente el aumento al 99.5% como un beneficio directo del desarrollo de la relación.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="19">
+          <div class="q-header">
+            <span class="q-number">Pregunta 20</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿Antes de la alianza en Kentucky, el fabricante de computadoras manejaba devoluciones de manera descentralizada en Colorado, Texas y Florida?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considere si el proceso de devolución era fragmentado antes de la decisión de consolidar.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Tener múltiples sitios para devoluciones dispersaba los inventarios y complicaba la logística de retorno.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Tener múltiples sitios para devoluciones dispersaba los inventarios y complicaba la logística de retorno.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El texto lista estos tres estados como las ubicaciones previas que se consolidaron en un solo lugar.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El texto lista estos tres estados como las ubicaciones previas que se consolidaron en un solo lugar.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="20">
+          <div class="q-header">
+            <span class="q-number">Pregunta 21</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿La consolidación en un solo lugar en el ejemplo 2 incrementó los costos de transporte debido a las largas distancias?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Evalúe el impacto económico habitual de consolidar carga en un centro de distribución estratégico.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Al contrario, consolidar permitió optimizar los envíos y reducir los costos logísticos totales.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Al contrario, consolidar permitió optimizar los envíos y reducir los costos logísticos totales.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="El material afirma que los costos de transporte se redujeron gracias a la consolidación del despacho desde un solo punto.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El material afirma que los costos de transporte se redujeron gracias a la consolidación del despacho desde un solo punto.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="21">
+          <div class="q-header">
+            <span class="q-number">Pregunta 22</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿Es posible lograr una verdadera alianza estratégica si los objetivos de los participantes no están claros?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Reflexione sobre la necesidad de metas bien definidas en cualquier acuerdo comercial.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="El texto señala explícitamente que la falta de claridad en los objetivos es algo que debe evitarse.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El texto señala explícitamente que la falta de claridad en los objetivos es algo que debe evitarse.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="La ambigüedad en los objetivos es una de las fallas críticas que impide el éxito de la alianza.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La ambigüedad en los objetivos es una de las fallas críticas que impide el éxito de la alianza.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="22">
+          <div class="q-header">
+            <span class="q-number">Pregunta 23</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿El reparto de los beneficios financieros obtenidos debe ser acordado exclusivamente al final del proyecto?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Determine en qué momento es más seguro para ambas partes definir cómo se dividirán los ahorros.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Debe establecerse desde el primer paso para evitar conflictos posteriores sobre la distribución de ganancias.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Debe establecerse desde el primer paso para evitar conflictos posteriores sobre la distribución de ganancias.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="El acuerdo de repartición de beneficios financieros es parte del primer paso del proceso CPFR.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El acuerdo de repartición de beneficios financieros es parte del primer paso del proceso CPFR.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="23">
+          <div class="q-header">
+            <span class="q-number">Pregunta 24</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿El CPFR busca mejorar la comunicación y coordinación ante los cambios que ocurren a lo largo de la cadena de suministro?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piense en el objetivo principal de integrar planeación y pronóstico entre empresas.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Su propósito es sincronizar las actividades de los socios para responder ágilmente a las variaciones del mercado.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Su propósito es sincronizar las actividades de los socios para responder ágilmente a las variaciones del mercado.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="La esencia del CPFR es precisamente la colaboración comunicativa para gestionar la cadena de suministro.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La esencia del CPFR es precisamente la colaboración comunicativa para gestionar la cadena de suministro.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="24">
+          <div class="q-header">
+            <span class="q-number">Pregunta 25</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿La capacitación de los trabajadores de una bodega pública en tareas de ensamble es una forma de colaboración global estratégica?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Analice la decisión de mover procesos de producción a instalaciones logísticas de terceros.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Integrar funciones de manufactura en un centro logístico externo ejemplifica una alianza profunda y eficiente.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Integrar funciones de manufactura en un centro logístico externo ejemplifica una alianza profunda y eficiente.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El caso del fabricante de electrónica muestra que esta capacitación fue la clave para reducir el tiempo de respuesta.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El caso del fabricante de electrónica muestra que esta capacitación fue la clave para reducir el tiempo de respuesta.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="25">
+          <div class="q-header">
+            <span class="q-number">Pregunta 26</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">¿En el proceso CPFR, el 'censor' tiene la función de identificar elementos que desvían los planes de lo previsto?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considere la necesidad de un mecanismo de control para detectar anomalías en la planeación.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="El material menciona que el sensor identifica por qué los planes no funcionan como se planearon.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El material menciona que el sensor identifica por qué los planes no funcionan como se planearon.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Esta función de monitoreo permite generar acciones correctivas inmediatas para mantener la alineación con los objetivos.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esta función de monitoreo permite generar acciones correctivas inmediatas para mantener la alineación con los objetivos.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      </div>
+  <div class="results" id="results">
+    <h2>¡Cuestionario completado!</h2>
+    <div class="score" id="score">0%</div>
+    <div class="score-text" id="score-text"></div>
+    <button class="restart-btn" onclick="restart()">Intentar de nuevo</button>
+  </div>
+</div>
+<script>
+const quizData = [{"question":"¿Una alianza estratégica se define como una relación comercial donde organizaciones independientes colaboran para alcanzar metas comunes?","hint":"Considere si la independencia de las empresas se mantiene al buscar objetivos específicos.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"Las alianzas estratégicas involucran el esfuerzo conjunto de dos o más entidades autónomas con objetivos compartidos."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"Este concepto describe precisamente la naturaleza colaborativa e independiente de los participantes en una alianza."}]},{"question":"¿El material sugiere que una alianza estratégica debe considerarse similar a un matrimonio en términos de esfuerzo y compromiso?","hint":"Piense en la comparación relacional que se hace para describir el trabajo conjunto.","options":[{"label":"A","text":"Falso","isCorrect":false,"rationale":"Las diapositivas comparan explícitamente estas alianzas con un matrimonio para ilustrar la profundidad del compromiso requerido."},{"label":"B","text":"Verdadero","isCorrect":true,"rationale":"La analogía del matrimonio se utiliza para enfatizar el trabajo constante, la compatibilidad y la necesidad de entender al otro."}]},{"question":"¿Las alianzas estratégicas están diseñadas para funcionar únicamente durante periodos de éxito y estabilidad económica?","hint":"Recuerde la premisa sobre la resiliencia de la sociedad ante las dificultades.","options":[{"label":"A","text":"Falso","isCorrect":true,"rationale":"El texto especifica que las alianzas deben sostenerse 'en las buenas y en las malas' para ser efectivas."},{"label":"B","text":"Verdadero","isCorrect":false,"rationale":"Limitar la alianza solo a los buenos tiempos contradice el principio de compromiso total mencionado en el material."}]},{"question":"¿La falta de apoyo de la alta gerencia es un factor que se debe evitar para lograr una alianza estratégica real?","hint":"Reflexione sobre la importancia del liderazgo organizacional en estos acuerdos.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"Sin el respaldo de los niveles directivos, la alianza carece de los recursos y la legitimidad necesarios para prosperar."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"El apoyo directivo es fundamental; su ausencia es una de las principales barreras identificadas para el éxito."}]},{"question":"¿Es recomendable que los participantes de una alianza estratégica mantengan sus compromisos de manera dispareja para fomentar la competencia?","hint":"Considere si la desigualdad en la dedicación beneficia o perjudica la cooperación.","options":[{"label":"A","text":"Verdadero","isCorrect":false,"rationale":"Los compromisos desiguales generan desequilibrios que suelen llevar al fracaso de la colaboración."},{"label":"B","text":"Falso","isCorrect":true,"rationale":"El material señala que se deben evitar los compromisos disparejos para mantener una relación saludable y equilibrada."}]},{"question":"¿Para que una alianza funcione, es indispensable que los socios comprendan la cultura y estructura organizacional del otro?","hint":"Evalúe el peso que tiene el factor humano y organizacional en la integración de procesos.","options":[{"label":"A","text":"Falso","isCorrect":false,"rationale":"Entender el entorno interno del socio es un requisito explícito mencionado en las conclusiones para una colaboración efectiva."},{"label":"B","text":"Verdadero","isCorrect":true,"rationale":"El conocimiento mutuo de la cultura y estructura facilita la integración y la resolución de conflictos."}]},{"question":"¿El CPFR es un proceso que se limita exclusivamente al uso de infraestructura tecnológica?","hint":"Determine si existen otros componentes no tecnológicos que sean vitales para el CPFR.","options":[{"label":"A","text":"Falso","isCorrect":true,"rationale":"El material enfatiza que el CPFR no depende solo de la tecnología, sino de la integración interna y externa de los socios."},{"label":"B","text":"Verdadero","isCorrect":false,"rationale":"Aunque usa tecnología, el proceso requiere también una alta integración humana y estratégica entre las partes."}]},{"question":"¿En el modelo CPFR, la integración externa se refiere primordialmente a la relación entre el proveedor y el detallista (retailer)?","hint":"Identifique a los dos actores principales fuera de la empresa que coordinan el flujo de bienes.","options":[{"label":"A","text":"Falso","isCorrect":false,"rationale":"El vínculo proveedor-retailer es el núcleo de la integración externa descrita en el proceso CPFR."},{"label":"B","text":"Verdadero","isCorrect":true,"rationale":"Esta conexión permite sincronizar la oferta del proveedor con la demanda real del consumidor captada por el detallista."}]},{"question":"¿El primer paso en la implementación del CPFR es el desarrollo de un plan conjunto de negocios?","hint":"Revise el orden cronológico de las fases de implementación mencionadas.","options":[{"label":"A","text":"Verdadero","isCorrect":false,"rationale":"El plan conjunto de negocios es en realidad el segundo paso; el primero es el acuerdo de principio a fin."},{"label":"B","text":"Falso","isCorrect":true,"rationale":"La implementación comienza con el establecimiento de un acuerdo de principio a fin que define responsabilidades y metas."}]},{"question":"¿El acuerdo inicial de CPFR debe incluir aspectos de confidencialidad y el método de medición de indicadores de desempeño?","hint":"Piense en qué elementos administrativos son necesarios para formalizar una colaboración segura.","options":[{"label":"A","text":"Falso","isCorrect":false,"rationale":"Tanto la confidencialidad como los indicadores son componentes esenciales del primer paso del proceso CPFR."},{"label":"B","text":"Verdadero","isCorrect":true,"rationale":"Definir estos elementos desde el inicio asegura la transparencia y permite evaluar objetivamente el éxito del proceso."}]},{"question":"¿Las políticas de inventarios y los planes de promociones se definen durante la etapa de colaboración en pronósticos de ventas?","hint":"Asocie estos elementos con la fase de planeación estratégica previa a la predicción de demanda.","options":[{"label":"A","text":"Verdadero","isCorrect":false,"rationale":"Estos elementos se definen en el segundo paso, que es el plan conjunto de negocios, no en el pronóstico."},{"label":"B","text":"Falso","isCorrect":true,"rationale":"La definición de promociones e inventarios corresponde al 'Plan conjunto de negocios'."}]},{"question":"¿La colaboración en los pronósticos de ventas incluye compartir información de ventas en el punto de venta (POS)?","hint":"Considere qué tipo de datos en tiempo real ayudan a predecir mejor la demanda.","options":[{"label":"A","text":"Falso","isCorrect":false,"rationale":"El intercambio de información POS es un requerimiento básico mencionado para la exactitud del pronóstico de ventas."},{"label":"B","text":"Verdadero","isCorrect":true,"rationale":"Los datos de POS son cruciales para que los socios elaboren planes de demanda futura basados en la realidad del mercado."}]},{"question":"¿En el proceso CPFR, se debe ocultar a los socios cualquier actividad que genere un cambio en la demanda para proteger la estrategia individual?","hint":"Piense en el principio de comunicación abierta dentro de una sociedad colaborativa.","options":[{"label":"A","text":"Verdadero","isCorrect":false,"rationale":"Ocultar información va en contra de la transparencia necesaria para que el CPFR reduzca la incertidumbre."},{"label":"B","text":"Falso","isCorrect":true,"rationale":"Cualquier plan que afecte la demanda debe ser comunicado a los socios para ajustar las operaciones coordinadamente."}]},{"question":"¿El paso número 4 del proceso CPFR se enfoca en establecer un modelo de reabastecimiento que considere el tiempo de entrega?","hint":"Recuerde qué paso se encarga de transformar la demanda proyectada en necesidades de suministro.","options":[{"label":"A","text":"Falso","isCorrect":false,"rationale":"El reabastecimiento técnico es precisamente el objetivo de la fase de pronóstico de pedidos."},{"label":"B","text":"Verdadero","isCorrect":true,"rationale":"El pronóstico de pedidos requiere integrar variables como el tiempo de entrega y los niveles de servicio deseados."}]},{"question":"¿La retroalimentación permanente sobre la ruptura de stock es una tarea fundamental durante la ejecución de despacho?","hint":"Evalúe si el reporte de incidencias en el almacén ocurre al final del ciclo de pedido.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"Informar sobre faltantes permite realizar ajustes inmediatos y mejorar la exactitud del inventario en el futuro."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"El monitoreo de faltantes y excesos es parte crítica del paso 5 (Generación de pedido y despacho)."}]},{"question":"¿En el primer ejemplo práctico, el fabricante de partes electrónicas lograba despachar el producto al cliente en un periodo de 72 horas desde el inicio?","hint":"Diferencie entre la situación inicial problemática y el resultado final optimizado.","options":[{"label":"A","text":"Falso","isCorrect":true,"rationale":"El tiempo inicial era de 4 a 5 semanas debido a la distancia entre la bodega de componentes y la planta de ensamble."},{"label":"B","text":"Verdadero","isCorrect":false,"rationale":"Originalmente el proceso tomaba de 4 a 5 semanas; las 72 horas fueron el resultado tras la mejora."}]},{"question":"¿El uso del Intercambio Electrónico de Documentos (EDI) fue fundamental para que la bodega pública aceptara pedidos en el ejemplo de electrónica?","hint":"Busque la sigla tecnológica que facilitó la comunicación digital en el caso.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"El EDI permitió automatizar la comunicación de pedidos, reduciendo drásticamente los tiempos de respuesta."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"El texto menciona explícitamente el uso de EDI como la herramienta tecnológica que habilitó la rapidez del proceso."}]},{"question":"¿La reducción de costos laborales en el ejemplo del fabricante de electrónica fue de aproximadamente un 50%?","hint":"Compare las cifras de costo laboral por hora antes y después de la sociedad.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"El costo por hora bajó de $15.25 a $7.25, lo cual representa una reducción significativa cercana a la mitad."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"Los datos cuantitativos del texto confirman que los gastos por hora se redujeron a menos de la mitad del costo original."}]},{"question":"¿En el ejemplo de los computadores personales, la consolidación en una bodega en Kentucky mejoró la exactitud del inventario al 99.5%?","hint":"Recuerde el porcentaje final de precisión mencionado para las partes desconfiguradas.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"La centralización de operaciones permitió un mejor control, elevando la exactitud desde un 96% inicial."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"El caso cita explícitamente el aumento al 99.5% como un beneficio directo del desarrollo de la relación."}]},{"question":"¿Antes de la alianza en Kentucky, el fabricante de computadoras manejaba devoluciones de manera descentralizada en Colorado, Texas y Florida?","hint":"Considere si el proceso de devolución era fragmentado antes de la decisión de consolidar.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"Tener múltiples sitios para devoluciones dispersaba los inventarios y complicaba la logística de retorno."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"El texto lista estos tres estados como las ubicaciones previas que se consolidaron en un solo lugar."}]},{"question":"¿La consolidación en un solo lugar en el ejemplo 2 incrementó los costos de transporte debido a las largas distancias?","hint":"Evalúe el impacto económico habitual de consolidar carga en un centro de distribución estratégico.","options":[{"label":"A","text":"Verdadero","isCorrect":false,"rationale":"Al contrario, consolidar permitió optimizar los envíos y reducir los costos logísticos totales."},{"label":"B","text":"Falso","isCorrect":true,"rationale":"El material afirma que los costos de transporte se redujeron gracias a la consolidación del despacho desde un solo punto."}]},{"question":"¿Es posible lograr una verdadera alianza estratégica si los objetivos de los participantes no están claros?","hint":"Reflexione sobre la necesidad de metas bien definidas en cualquier acuerdo comercial.","options":[{"label":"A","text":"Falso","isCorrect":true,"rationale":"El texto señala explícitamente que la falta de claridad en los objetivos es algo que debe evitarse."},{"label":"B","text":"Verdadero","isCorrect":false,"rationale":"La ambigüedad en los objetivos es una de las fallas críticas que impide el éxito de la alianza."}]},{"question":"¿El reparto de los beneficios financieros obtenidos debe ser acordado exclusivamente al final del proyecto?","hint":"Determine en qué momento es más seguro para ambas partes definir cómo se dividirán los ahorros.","options":[{"label":"A","text":"Verdadero","isCorrect":false,"rationale":"Debe establecerse desde el primer paso para evitar conflictos posteriores sobre la distribución de ganancias."},{"label":"B","text":"Falso","isCorrect":true,"rationale":"El acuerdo de repartición de beneficios financieros es parte del primer paso del proceso CPFR."}]},{"question":"¿El CPFR busca mejorar la comunicación y coordinación ante los cambios que ocurren a lo largo de la cadena de suministro?","hint":"Piense en el objetivo principal de integrar planeación y pronóstico entre empresas.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"Su propósito es sincronizar las actividades de los socios para responder ágilmente a las variaciones del mercado."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"La esencia del CPFR es precisamente la colaboración comunicativa para gestionar la cadena de suministro."}]},{"question":"¿La capacitación de los trabajadores de una bodega pública en tareas de ensamble es una forma de colaboración global estratégica?","hint":"Analice la decisión de mover procesos de producción a instalaciones logísticas de terceros.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"Integrar funciones de manufactura en un centro logístico externo ejemplifica una alianza profunda y eficiente."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"El caso del fabricante de electrónica muestra que esta capacitación fue la clave para reducir el tiempo de respuesta."}]},{"question":"¿En el proceso CPFR, el 'censor' tiene la función de identificar elementos que desvían los planes de lo previsto?","hint":"Considere la necesidad de un mecanismo de control para detectar anomalías en la planeación.","options":[{"label":"A","text":"Falso","isCorrect":false,"rationale":"El material menciona que el sensor identifica por qué los planes no funcionan como se planearon."},{"label":"B","text":"Verdadero","isCorrect":true,"rationale":"Esta función de monitoreo permite generar acciones correctivas inmediatas para mantener la alineación con los objetivos."}]}];
+const tr = {"correct":"¡Correcto!","incorrect":"Incorrecto","next":"Siguiente pregunta →","seeResults":"Ver resultados","complete":"¡Cuestionario completado!","scoreText":"Obtuviste {correct} de {total} correctas","tryAgain":"Intentar de nuevo","rightAnswer":"Respuesta correcta","notQuite":"No del todo"};
+let currentQ = 0, correctCount = 0, answered = false;
+
+function init() {
+  document.querySelectorAll('.question').forEach((q, i) => q.classList.toggle('active', i === 0));
+  updateProgress();
+  document.querySelectorAll('.option').forEach(opt => opt.addEventListener('click', () => selectOption(opt)));
+  document.querySelectorAll('.next-btn').forEach(btn => btn.addEventListener('click', nextQuestion));
+}
+
+function selectOption(opt) {
+  if (answered) return;
+  answered = true;
+  const q = opt.closest('.question');
+  const options = q.querySelectorAll('.option');
+  const nextBtn = q.querySelector('.next-btn');
+  const isCorrect = opt.dataset.correct === 'true';
+  
+  // Mark all options as disabled
+  options.forEach(o => o.classList.add('disabled'));
+  
+  // Style selected option
+  opt.classList.add('selected', isCorrect ? 'correct' : 'incorrect');
+  
+  // Show correct answer if wrong
+  if (!isCorrect) {
+    const correctOpt = [...options].find(o => o.dataset.correct === 'true');
+    if (correctOpt) correctOpt.classList.add('show-correct');
+  }
+  
+  if (isCorrect) correctCount++;
+  
+  // Show feedback for ALL options that have rationale
+  options.forEach(o => {
+    const wrapper = o.closest('.option-wrapper');
+    const feedback = wrapper.querySelector('.option-feedback');
+    const rationale = o.dataset.rationale;
+    const isThisCorrect = o.dataset.correct === 'true';
+    
+    if (rationale && rationale.trim()) {
+      feedback.classList.remove('hidden');
+      feedback.classList.add(isThisCorrect ? 'correct-feedback' : 'incorrect-feedback');
+      
+      const statusEl = feedback.querySelector('.feedback-status');
+      statusEl.className = 'feedback-status ' + (isThisCorrect ? 'correct' : 'incorrect');
+      statusEl.innerHTML = isThisCorrect 
+        ? '✓ ' + tr.rightAnswer
+        : '✗ ' + tr.notQuite;
+    }
+  });
+  
+  nextBtn.classList.remove('hidden');
+  if (currentQ === quizData.length - 1) nextBtn.textContent = tr.seeResults;
+}
+
+function nextQuestion() {
+  answered = false;
+  currentQ++;
+  if (currentQ >= quizData.length) { showResults(); return; }
+  document.querySelectorAll('.question').forEach((q, i) => q.classList.toggle('active', i === currentQ));
+  updateProgress();
+}
+
+function updateProgress() {
+  document.querySelector('.progress-fill').style.width = (currentQ / quizData.length * 100) + '%';
+}
+
+function showResults() {
+  document.querySelectorAll('.question').forEach(q => q.classList.remove('active'));
+  document.getElementById('results').classList.add('active');
+  const pct = Math.round((correctCount / quizData.length) * 100);
+  document.getElementById('score').textContent = pct + '%';
+  document.getElementById('score-text').textContent = tr.scoreText.replace('{correct}', correctCount).replace('{total}', quizData.length);
+  document.querySelector('.progress-fill').style.width = '100%';
+}
+
+function restart() {
+  currentQ = 0; correctCount = 0; answered = false;
+  document.getElementById('results').classList.remove('active');
+  document.querySelectorAll('.question').forEach((q, i) => {
+    q.classList.toggle('active', i === 0);
+    q.querySelectorAll('.option').forEach(o => o.classList.remove('selected', 'correct', 'incorrect', 'disabled', 'show-correct'));
+    q.querySelectorAll('.option-feedback').forEach(f => {
+      f.classList.add('hidden');
+      f.classList.remove('correct-feedback', 'incorrect-feedback');
+    });
+    const btn = q.querySelector('.next-btn');
+    btn.classList.add('hidden');
+    btn.textContent = tr.next;
+  });
+  updateProgress();
+}
+
+init();
+</script>
+</body>
+</html>
