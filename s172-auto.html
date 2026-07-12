@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="es" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>S17.2 Auto</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  min-height: 100vh; padding: 20px; color: #333;
+}
+.container { max-width: 700px; margin: 0 auto; }
+.header { text-align: center; color: #fff; padding: 30px 20px; }
+.header h1 { font-size: 28px; font-weight: 700; margin-bottom: 8px; text-shadow: 0 2px 10px rgba(0,0,0,0.2); }
+.header .meta { font-size: 14px; opacity: 0.9; }
+.progress-bar { background: rgba(255,255,255,0.3); border-radius: 10px; height: 8px; margin: 20px 0; overflow: hidden; }
+.progress-fill { background: #fff; height: 100%; width: 0%; transition: width 0.4s ease; border-radius: 10px; }
+.question { background: #fff; border-radius: 16px; padding: 30px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); display: none; }
+.question.active { display: block; }
+.q-header { display: flex; justify-content: space-between; margin-bottom: 20px; font-size: 13px; color: #888; }
+.q-number { font-weight: 600; color: #667eea; }
+.q-text { font-size: 18px; font-weight: 600; line-height: 1.5; margin-bottom: 25px; color: #222; }
+.options { display: flex; flex-direction: column; gap: 12px; }
+.option-wrapper { display: flex; flex-direction: column; }
+.option {
+  display: flex; align-items: flex-start; gap: 14px; padding: 16px 18px;
+  border: 2px solid #e8e8e8; border-radius: 12px; background: #fafafa;
+  cursor: pointer; transition: all 0.2s; text-align: left; font-size: 15px; width: 100%;
+}
+[dir="rtl"] .option { text-align: right; flex-direction: row-reverse; }
+.option:hover:not(.disabled) { border-color: #667eea; background: #f5f3ff; }
+.option.selected { border-color: #667eea; background: #ede9fe; }
+.option.correct { border-color: #22c55e; background: #dcfce7; }
+.option.incorrect { border-color: #ef4444; background: #fee2e2; }
+.option.disabled { cursor: default; }
+.option.show-correct { border-color: #22c55e; background: #dcfce7; }
+.opt-label {
+  display: flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; border-radius: 50%; background: #e8e8e8;
+  font-weight: 700; font-size: 14px; flex-shrink: 0;
+}
+.option.selected .opt-label { background: #667eea; color: #fff; }
+.option.correct .opt-label { background: #22c55e; color: #fff; }
+.option.incorrect .opt-label { background: #ef4444; color: #fff; }
+.option.show-correct .opt-label { background: #22c55e; color: #fff; }
+.opt-text { padding-top: 5px; line-height: 1.5; }
+
+/* Individual option feedback */
+.option-feedback {
+  margin: 8px 0 4px 46px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+[dir="rtl"] .option-feedback { margin-left: 0; margin-right: 46px; }
+.option-feedback.correct-feedback {
+  background: #dcfce7;
+  border-left: 3px solid #22c55e;
+}
+.option-feedback.incorrect-feedback {
+  background: #fef3f2;
+  border-left: 3px solid #fca5a5;
+}
+[dir="rtl"] .option-feedback.correct-feedback,
+[dir="rtl"] .option-feedback.incorrect-feedback {
+  border-left: none;
+  border-right: 3px solid;
+}
+[dir="rtl"] .option-feedback.correct-feedback { border-right-color: #22c55e; }
+[dir="rtl"] .option-feedback.incorrect-feedback { border-right-color: #fca5a5; }
+.feedback-status {
+  font-weight: 600;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.feedback-status.correct { color: #166534; }
+.feedback-status.incorrect { color: #991b1b; }
+.feedback-rationale { color: #444; }
+
+/* Hint box */
+.hint-box {
+  margin: 12px 0;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+}
+.hint-toggle {
+  width: 100%;
+  padding: 10px 16px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  color: #92400e;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.hint-toggle:hover { background: #fef3c7; }
+.hint-content {
+  padding: 0 16px;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s, padding 0.3s;
+  font-size: 14px;
+  color: #78350f;
+  line-height: 1.5;
+}
+.hint-box.show .hint-content {
+  padding: 0 16px 12px;
+  max-height: 200px;
+}
+
+.next-btn {
+  margin-top: 20px; width: 100%; padding: 14px;
+  background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; border: none;
+  border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.next-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(102,126,234,0.4); }
+.hidden { display: none !important; }
+.results { background: #fff; border-radius: 16px; padding: 40px; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.15); display: none; }
+.results.active { display: block; }
+.results h2 { font-size: 28px; margin-bottom: 10px; color: #333; }
+.results .score { font-size: 64px; font-weight: 700; color: #667eea; margin: 20px 0; }
+.results .score-text { font-size: 18px; color: #666; margin-bottom: 30px; }
+.restart-btn {
+  padding: 14px 40px; background: linear-gradient(135deg, #667eea, #764ba2);
+  color: #fff; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer;
+}
+
+/* Math CSS */
+.math, .math-block { font-family: "Cambria Math", "Times New Roman", Times, serif; font-style: italic; }
+.math-block { display: block; text-align: center; margin: 10px 0; font-size: 110%; }
+.frac { display: inline-flex; flex-direction: column; align-items: center; vertical-align: middle; margin: 0 3px; font-size: 0.9em; }
+.frac-num { border-bottom: 1px solid currentColor; padding: 0 4px 2px; line-height: 1.2; }
+.frac-den { padding: 2px 4px 0; line-height: 1.2; }
+.sqrt { white-space: nowrap; }
+.sqrt-content { border-top: 1px solid currentColor; padding: 0 3px; margin-left: 2px; }
+sup, sub { font-size: 0.75em; }
+sup { vertical-align: super; }
+sub { vertical-align: sub; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>S17.2 Auto</h1>
+    <div class="meta">10 preguntas</div>
+    <div class="progress-bar"><div class="progress-fill"></div></div>
+  </div>
+  <div id="quiz-container">
+        <div class="question" data-index="0">
+          <div class="q-header">
+            <span class="q-number">Pregunta 1</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿La Industria 4.0 permite la integración de la tecnología de la información con la industria manufacturera para crear fábricas inteligentes?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Piensa en la convergencia entre los sistemas digitales y la producción física de productos.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Este enunciado describe precisamente la transformación digital que define a la cuarta revolución industrial.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Este enunciado describe precisamente la transformación digital que define a la cuarta revolución industrial.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="La esencia de este modelo radica en fusionar sistemas digitales con procesos de producción para lograr una autonomía avanzada.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La esencia de este modelo radica en fusionar sistemas digitales con procesos de producción para lograr una autonomía avanzada.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="1">
+          <div class="q-header">
+            <span class="q-number">Pregunta 2</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿El enfoque principal de la Industria 5.0 es maximizar las ganancias económicas por encima del valor social?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Evalúa si el objetivo de este nuevo paradigma es puramente monetario o si busca un impacto más profundo en la comunidad.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="La visión de este nuevo paradigma enfatiza la importancia de generar valor social y humano por encima de la simple rentabilidad.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La visión de este nuevo paradigma enfatiza la importancia de generar valor social y humano por encima de la simple rentabilidad.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Esta perspectiva pertenece a modelos industriales previos que no priorizaban el bienestar humano o social como centro del negocio.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esta perspectiva pertenece a modelos industriales previos que no priorizaban el bienestar humano o social como centro del negocio.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="2">
+          <div class="q-header">
+            <span class="q-number">Pregunta 3</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿Fue el profesor Klaus Schwab quien acuñó el término Industria 4.0 para referirse al cambio tecnológico actual?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Recuerda el nombre del académico alemán mencionado al inicio de la explicación sobre tecnología.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="El material identifica a Schwab como el autor que definió esta era de transformación tecnológica masiva.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El material identifica a Schwab como el autor que definió esta era de transformación tecnológica masiva.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Schwab es reconocido globalmente, y específicamente en el material de estudio, por haber conceptualizado este término.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Schwab es reconocido globalmente, y específicamente en el material de estudio, por haber conceptualizado este término.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="3">
+          <div class="q-header">
+            <span class="q-number">Pregunta 4</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿La Industria 3.0 se caracteriza principalmente por el uso de ordenadores e Internet en los procesos industriales?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considera el papel de la tecnología electrónica antes de la llegada del Big Data y la Inteligencia Artificial.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Esta etapa marcó la transición hacia la automatización electrónica y el inicio de la conectividad global en las fábricas.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esta etapa marcó la transición hacia la automatización electrónica y el inicio de la conectividad global en las fábricas.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="El uso de la informática y la red es el pilar que diferencia a la tercera revolución de sus predecesoras mecánicas.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El uso de la informática y la red es el pilar que diferencia a la tercera revolución de sus predecesoras mecánicas.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="4">
+          <div class="q-header">
+            <span class="q-number">Pregunta 5</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿La sostenibilidad y la resiliencia son pilares fundamentales dentro de la visión de la Industria 5.0?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Reflexiona sobre si este modelo busca proteger el medio ambiente y fortalecer la capacidad de recuperación ante imprevistos.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Estos conceptos reflejan la evolución hacia una industria que no solo produce, sino que cuida el entorno y se adapta a las crisis.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Estos conceptos reflejan la evolución hacia una industria que no solo produce, sino que cuida el entorno y se adapta a las crisis.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Minimizar estos pilares ignoraría los objetivos de desarrollo sostenible que este modelo busca integrar en la producción.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Minimizar estos pilares ignoraría los objetivos de desarrollo sostenible que este modelo busca integrar en la producción.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="5">
+          <div class="q-header">
+            <span class="q-number">Pregunta 6</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿Se espera que las innovaciones de la Industria 4.0 generen un valor de USD <span class="math">3.7</span> billones para el año 2025, según McKinsey?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Revisa las cifras de impacto económico mencionadas bajo el apartado de proyecciones de mercado.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="La cifra citada corresponde a las proyecciones de impacto económico global que tendrá la digitalización avanzada en pocos años.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La cifra citada corresponde a las proyecciones de impacto económico global que tendrá la digitalización avanzada en pocos años.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Las estimaciones de consultoras líderes como McKinsey respaldan este volumen masivo de creación de valor.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Las estimaciones de consultoras líderes como McKinsey respaldan este volumen masivo de creación de valor.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="6">
+          <div class="q-header">
+            <span class="q-number">Pregunta 7</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿En la Industria 5.0, el propósito de los robots es reemplazar completamente la labor humana en las fábricas?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considera el término 'asistencia' y el enfoque 'centrado en el humano' que propone esta nueva etapa.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="El objetivo es que los robots brinden asistencia y trabajen junto a las personas para mejorar su calidad de vida y desempeño.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">El objetivo es que los robots brinden asistencia y trabajen junto a las personas para mejorar su calidad de vida y desempeño.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Esa idea es un mito común; el modelo actual busca la colaboración estrecha, no la sustitución total del trabajador.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Esa idea es un mito común; el modelo actual busca la colaboración estrecha, no la sustitución total del trabajador.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="7">
+          <div class="q-header">
+            <span class="q-number">Pregunta 8</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿La Primera Revolución Industrial se centró principalmente en la industria pesada y la química?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Diferencia entre la etapa de los primeros telares y máquinas de vapor frente al desarrollo de materiales complejos.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="La industria pesada y química son características distintivas de la segunda revolución industrial, no de la primera.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La industria pesada y química son características distintivas de la segunda revolución industrial, no de la primera.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="La primera revolución se basó en la industria ligera y el inicio de la mecanización básica.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La primera revolución se basó en la industria ligera y el inicio de la mecanización básica.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="8">
+          <div class="q-header">
+            <span class="q-number">Pregunta 9</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿El concepto de 'Fábricas Inteligentes' está intrínsecamente ligado a la tecnología de la Industria 4.0?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Asocia la digitalización total de la planta de producción con la etapa tecnológica correspondiente.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Es el resultado directo de aplicar Internet de las Cosas (IoT) y análisis de datos en el entorno de fabricación.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Es el resultado directo de aplicar Internet de las Cosas (IoT) y análisis de datos en el entorno de fabricación.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="La interconectividad que define a una fábrica como 'inteligente' es el corazón tecnológico de la cuarta revolución.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La interconectividad que define a una fábrica como 'inteligente' es el corazón tecnológico de la cuarta revolución.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      
+        <div class="question" data-index="9">
+          <div class="q-header">
+            <span class="q-number">Pregunta 10</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">¿La Industria 5.0 se alinea exclusivamente con la eficiencia tecnológica sin considerar el enfoque humano?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Examina si este modelo se enfoca únicamente en el rendimiento de la máquina o también en quien la opera y supervisa.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Este enunciado ignora el cambio de paradigma que coloca explícitamente a la persona en el centro de la estrategia industrial.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Verdadero</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Este enunciado ignora el cambio de paradigma que coloca explícitamente a la persona en el centro de la estrategia industrial.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="Su característica diferenciadora es precisamente el enfoque humano, buscando equilibrar el avance técnico con el bienestar social.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Falso</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Su característica diferenciadora es precisamente el enfoque humano, buscando equilibrar el avance técnico con el bienestar social.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Siguiente pregunta →</button>
+        </div>
+      </div>
+  <div class="results" id="results">
+    <h2>¡Cuestionario completado!</h2>
+    <div class="score" id="score">0%</div>
+    <div class="score-text" id="score-text"></div>
+    <button class="restart-btn" onclick="restart()">Intentar de nuevo</button>
+  </div>
+</div>
+<script>
+const quizData = [{"question":"¿La Industria 4.0 permite la integración de la tecnología de la información con la industria manufacturera para crear fábricas inteligentes?","hint":"Piensa en la convergencia entre los sistemas digitales y la producción física de productos.","options":[{"label":"A","text":"Falso","isCorrect":false,"rationale":"Este enunciado describe precisamente la transformación digital que define a la cuarta revolución industrial."},{"label":"B","text":"Verdadero","isCorrect":true,"rationale":"La esencia de este modelo radica en fusionar sistemas digitales con procesos de producción para lograr una autonomía avanzada."}]},{"question":"¿El enfoque principal de la Industria 5.0 es maximizar las ganancias económicas por encima del valor social?","hint":"Evalúa si el objetivo de este nuevo paradigma es puramente monetario o si busca un impacto más profundo en la comunidad.","options":[{"label":"A","text":"Falso","isCorrect":true,"rationale":"La visión de este nuevo paradigma enfatiza la importancia de generar valor social y humano por encima de la simple rentabilidad."},{"label":"B","text":"Verdadero","isCorrect":false,"rationale":"Esta perspectiva pertenece a modelos industriales previos que no priorizaban el bienestar humano o social como centro del negocio."}]},{"question":"¿Fue el profesor Klaus Schwab quien acuñó el término Industria 4.0 para referirse al cambio tecnológico actual?","hint":"Recuerda el nombre del académico alemán mencionado al inicio de la explicación sobre tecnología.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"El material identifica a Schwab como el autor que definió esta era de transformación tecnológica masiva."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"Schwab es reconocido globalmente, y específicamente en el material de estudio, por haber conceptualizado este término."}]},{"question":"¿La Industria 3.0 se caracteriza principalmente por el uso de ordenadores e Internet en los procesos industriales?","hint":"Considera el papel de la tecnología electrónica antes de la llegada del Big Data y la Inteligencia Artificial.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"Esta etapa marcó la transición hacia la automatización electrónica y el inicio de la conectividad global en las fábricas."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"El uso de la informática y la red es el pilar que diferencia a la tercera revolución de sus predecesoras mecánicas."}]},{"question":"¿La sostenibilidad y la resiliencia son pilares fundamentales dentro de la visión de la Industria 5.0?","hint":"Reflexiona sobre si este modelo busca proteger el medio ambiente y fortalecer la capacidad de recuperación ante imprevistos.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"Estos conceptos reflejan la evolución hacia una industria que no solo produce, sino que cuida el entorno y se adapta a las crisis."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"Minimizar estos pilares ignoraría los objetivos de desarrollo sostenible que este modelo busca integrar en la producción."}]},{"question":"¿Se espera que las innovaciones de la Industria 4.0 generen un valor de USD $3.7$ billones para el año 2025, según McKinsey?","hint":"Revisa las cifras de impacto económico mencionadas bajo el apartado de proyecciones de mercado.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"La cifra citada corresponde a las proyecciones de impacto económico global que tendrá la digitalización avanzada en pocos años."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"Las estimaciones de consultoras líderes como McKinsey respaldan este volumen masivo de creación de valor."}]},{"question":"¿En la Industria 5.0, el propósito de los robots es reemplazar completamente la labor humana en las fábricas?","hint":"Considera el término 'asistencia' y el enfoque 'centrado en el humano' que propone esta nueva etapa.","options":[{"label":"A","text":"Falso","isCorrect":true,"rationale":"El objetivo es que los robots brinden asistencia y trabajen junto a las personas para mejorar su calidad de vida y desempeño."},{"label":"B","text":"Verdadero","isCorrect":false,"rationale":"Esa idea es un mito común; el modelo actual busca la colaboración estrecha, no la sustitución total del trabajador."}]},{"question":"¿La Primera Revolución Industrial se centró principalmente en la industria pesada y la química?","hint":"Diferencia entre la etapa de los primeros telares y máquinas de vapor frente al desarrollo de materiales complejos.","options":[{"label":"A","text":"Verdadero","isCorrect":false,"rationale":"La industria pesada y química son características distintivas de la segunda revolución industrial, no de la primera."},{"label":"B","text":"Falso","isCorrect":true,"rationale":"La primera revolución se basó en la industria ligera y el inicio de la mecanización básica."}]},{"question":"¿El concepto de 'Fábricas Inteligentes' está intrínsecamente ligado a la tecnología de la Industria 4.0?","hint":"Asocia la digitalización total de la planta de producción con la etapa tecnológica correspondiente.","options":[{"label":"A","text":"Verdadero","isCorrect":true,"rationale":"Es el resultado directo de aplicar Internet de las Cosas (IoT) y análisis de datos en el entorno de fabricación."},{"label":"B","text":"Falso","isCorrect":false,"rationale":"La interconectividad que define a una fábrica como 'inteligente' es el corazón tecnológico de la cuarta revolución."}]},{"question":"¿La Industria 5.0 se alinea exclusivamente con la eficiencia tecnológica sin considerar el enfoque humano?","hint":"Examina si este modelo se enfoca únicamente en el rendimiento de la máquina o también en quien la opera y supervisa.","options":[{"label":"A","text":"Verdadero","isCorrect":false,"rationale":"Este enunciado ignora el cambio de paradigma que coloca explícitamente a la persona en el centro de la estrategia industrial."},{"label":"B","text":"Falso","isCorrect":true,"rationale":"Su característica diferenciadora es precisamente el enfoque humano, buscando equilibrar el avance técnico con el bienestar social."}]}];
+const tr = {"correct":"¡Correcto!","incorrect":"Incorrecto","next":"Siguiente pregunta →","seeResults":"Ver resultados","complete":"¡Cuestionario completado!","scoreText":"Obtuviste {correct} de {total} correctas","tryAgain":"Intentar de nuevo","rightAnswer":"Respuesta correcta","notQuite":"No del todo"};
+let currentQ = 0, correctCount = 0, answered = false;
+
+function init() {
+  document.querySelectorAll('.question').forEach((q, i) => q.classList.toggle('active', i === 0));
+  updateProgress();
+  document.querySelectorAll('.option').forEach(opt => opt.addEventListener('click', () => selectOption(opt)));
+  document.querySelectorAll('.next-btn').forEach(btn => btn.addEventListener('click', nextQuestion));
+}
+
+function selectOption(opt) {
+  if (answered) return;
+  answered = true;
+  const q = opt.closest('.question');
+  const options = q.querySelectorAll('.option');
+  const nextBtn = q.querySelector('.next-btn');
+  const isCorrect = opt.dataset.correct === 'true';
+  
+  // Mark all options as disabled
+  options.forEach(o => o.classList.add('disabled'));
+  
+  // Style selected option
+  opt.classList.add('selected', isCorrect ? 'correct' : 'incorrect');
+  
+  // Show correct answer if wrong
+  if (!isCorrect) {
+    const correctOpt = [...options].find(o => o.dataset.correct === 'true');
+    if (correctOpt) correctOpt.classList.add('show-correct');
+  }
+  
+  if (isCorrect) correctCount++;
+  
+  // Show feedback for ALL options that have rationale
+  options.forEach(o => {
+    const wrapper = o.closest('.option-wrapper');
+    const feedback = wrapper.querySelector('.option-feedback');
+    const rationale = o.dataset.rationale;
+    const isThisCorrect = o.dataset.correct === 'true';
+    
+    if (rationale && rationale.trim()) {
+      feedback.classList.remove('hidden');
+      feedback.classList.add(isThisCorrect ? 'correct-feedback' : 'incorrect-feedback');
+      
+      const statusEl = feedback.querySelector('.feedback-status');
+      statusEl.className = 'feedback-status ' + (isThisCorrect ? 'correct' : 'incorrect');
+      statusEl.innerHTML = isThisCorrect 
+        ? '✓ ' + tr.rightAnswer
+        : '✗ ' + tr.notQuite;
+    }
+  });
+  
+  nextBtn.classList.remove('hidden');
+  if (currentQ === quizData.length - 1) nextBtn.textContent = tr.seeResults;
+}
+
+function nextQuestion() {
+  answered = false;
+  currentQ++;
+  if (currentQ >= quizData.length) { showResults(); return; }
+  document.querySelectorAll('.question').forEach((q, i) => q.classList.toggle('active', i === currentQ));
+  updateProgress();
+}
+
+function updateProgress() {
+  document.querySelector('.progress-fill').style.width = (currentQ / quizData.length * 100) + '%';
+}
+
+function showResults() {
+  document.querySelectorAll('.question').forEach(q => q.classList.remove('active'));
+  document.getElementById('results').classList.add('active');
+  const pct = Math.round((correctCount / quizData.length) * 100);
+  document.getElementById('score').textContent = pct + '%';
+  document.getElementById('score-text').textContent = tr.scoreText.replace('{correct}', correctCount).replace('{total}', quizData.length);
+  document.querySelector('.progress-fill').style.width = '100%';
+}
+
+function restart() {
+  currentQ = 0; correctCount = 0; answered = false;
+  document.getElementById('results').classList.remove('active');
+  document.querySelectorAll('.question').forEach((q, i) => {
+    q.classList.toggle('active', i === 0);
+    q.querySelectorAll('.option').forEach(o => o.classList.remove('selected', 'correct', 'incorrect', 'disabled', 'show-correct'));
+    q.querySelectorAll('.option-feedback').forEach(f => {
+      f.classList.add('hidden');
+      f.classList.remove('correct-feedback', 'incorrect-feedback');
+    });
+    const btn = q.querySelector('.next-btn');
+    btn.classList.add('hidden');
+    btn.textContent = tr.next;
+  });
+  updateProgress();
+}
+
+init();
+</script>
+</body>
+</html>
